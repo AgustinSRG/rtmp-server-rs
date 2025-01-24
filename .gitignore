@@ -1,0 +1,7 @@
+# Binary files
+
+/target
+
+# Ignore .env
+
+.env
