@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.exclude": {
+			"target/**": true,
+		},
+		"cSpell.words": [
+			"asanrom",
+			"chrono",
+			"dotenv",
+			"dotenvy",
+			"github",
+			"HMAC",
+			"rtmp",
+			"RTMP",
+			"RTMPS"
+		],
+	}
+}
