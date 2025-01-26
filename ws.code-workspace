@@ -7,6 +7,7 @@
 	"settings": {
 		"files.exclude": {
 			"target/**": true,
+			"*.exe": true,
 		},
 		"cSpell.words": [
 			"asanrom",

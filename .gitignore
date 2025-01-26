@@ -1,6 +1,8 @@
 # Binary files
 
 /target
+/rtmp-server.exe
+/rtmp-server
 
 # Ignore .env
 
