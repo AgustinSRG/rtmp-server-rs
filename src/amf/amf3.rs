@@ -1,5 +1,7 @@
 // AMF3 value
 
+use byteorder::{BigEndian, ByteOrder};
+
 const AMF3_TYPE_UNDEFINED: u8 = 0x00;
 const AMF3_TYPE_NULL: u8 = 0x01;
 const AMF3_TYPE_FALSE: u8 = 0x02;
@@ -51,6 +53,8 @@ impl AMF3Value {
             AMF3Value::ByteArray { value } => format!("Bytes({})", hex::encode(value)),
         }
     }
+
+    // Value check functions:
 
     /// Turns the ANF3 value into a boolean
     pub fn get_bool(&self) -> bool {
@@ -112,5 +116,110 @@ impl AMF3Value {
         }
     }
 
+    // Encoding functions:
 
+    /// Encodes value into bytes
+    pub fn encode(&self) -> Vec<u8> {
+        match self {
+            AMF3Value::Undefined => vec![AMF3_TYPE_UNDEFINED],
+            AMF3Value::Null => vec![AMF3_TYPE_NULL],
+            AMF3Value::False => vec![AMF3_TYPE_FALSE],
+            AMF3Value::True => vec![AMF3_TYPE_TRUE],
+            AMF3Value::Integer { value } => {
+                let mut buf = vec![AMF3_TYPE_INTEGER];
+                buf.extend(Self::encode_integer(*value));
+                buf
+            }
+            AMF3Value::Double { value } => {
+                let mut buf = vec![AMF3_TYPE_DOUBLE];
+                buf.extend(Self::encode_double(*value));
+                buf
+            }
+            AMF3Value::String { value } => {
+                let mut buf = vec![AMF3_TYPE_STRING];
+                buf.extend(Self::encode_string(value));
+                buf
+            }
+            AMF3Value::XmlDocument { content } => {
+                let mut buf = vec![AMF3_TYPE_XML_DOC];
+                buf.extend(Self::encode_string(content));
+                buf
+            }
+            AMF3Value::Date { timestamp } => {
+                let mut buf = vec![AMF3_TYPE_DATE];
+                buf.extend(Self::encode_date(*timestamp));
+                buf
+            }
+            AMF3Value::Array => vec![AMF3_TYPE_ARRAY],
+            AMF3Value::Object => vec![AMF3_TYPE_OBJECT],
+            AMF3Value::Xml { value } => {
+                let mut buf = vec![AMF3_TYPE_XML];
+                buf.extend(Self::encode_string(value));
+                buf
+            }
+            AMF3Value::ByteArray { value } => {
+                let mut buf = vec![AMF3_TYPE_BYTE_ARRAY];
+                buf.extend(Self::encode_byte_array(value));
+                buf
+            }
+        }
+    }
+
+    /// Encodes unsigned integer with the format UI29
+    pub fn encode_ui29(num: u32) -> Vec<u8> {
+        if num < 0x80 {
+            vec![num as u8]
+        } else if num < 0x4000 {
+            vec![(num & 0x7F) as u8, ((num >> 7) | 0x80) as u8]
+        } else if num < 0x200000 {
+            vec![
+                (num & 0x7F) as u8,
+                ((num >> 7) & 0x7F) as u8,
+                ((num >> 14) | 0x80) as u8,
+            ]
+        } else {
+            vec![
+                (num & 0xFF) as u8,
+                ((num >> 8) & 0x7F) as u8,
+                ((num >> 15) | 0x7F) as u8,
+                ((num >> 22) | 0x7F) as u8,
+            ]
+        }
+    }
+
+    /// Encodes string value
+    pub fn encode_string(val: &str) -> Vec<u8> {
+        let str_bytes = val.as_bytes();
+        let mut buf = Self::encode_ui29((str_bytes.len() as u32) << 1);
+
+        buf.extend(str_bytes);
+
+        buf
+    }
+
+    /// Encodes integer value
+    pub fn encode_integer(i: i32) -> Vec<u8> {
+        Self::encode_ui29((i as u32) & 0x3FFFFFFF)
+    }
+
+    /// Encodes double value
+    pub fn encode_double(d: f64) -> Vec<u8> {
+        let mut buf = vec![0; 8];
+        BigEndian::write_f64(&mut buf, d);
+        buf
+    }
+
+    /// Encodes date
+    pub fn encode_date(ts: f64) -> Vec<u8> {
+        let mut buf = Self::encode_ui29(1);
+        buf.extend(Self::encode_double(ts));
+        buf
+    }
+
+    /// Encodes byte array
+    pub fn encode_byte_array(bytes: &[u8]) -> Vec<u8> {
+        let mut buf = Self::encode_ui29((bytes.len() as u32) << 1);
+        buf.extend(bytes);
+        buf
+    }
 }

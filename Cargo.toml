@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+byteorder = "1.5.0"
 chrono = "0.4.39"
 dotenvy = "0.15.7"
 hex = "0.4.3"

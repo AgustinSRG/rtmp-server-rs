@@ -1,5 +1,6 @@
 // AMF0 value
 
+use byteorder::{BigEndian, ByteOrder};
 use std::collections::HashMap;
 
 use super::AMF3Value;
@@ -169,6 +170,8 @@ impl AMF0Value {
         }
     }
 
+    // Value check functions:
+
     /// Returns true if the value is AMF3
     pub fn is_amf3(&self) -> bool {
         match self {
@@ -285,5 +288,164 @@ impl AMF0Value {
             Some(a) => a.get(index),
             None => None,
         }
+    }
+
+    // Encoding functions:
+
+    /// Encodes value into bytes
+    pub fn encode(&self) -> Vec<u8> {
+        match self {
+            AMF0Value::Number { value } => {
+                let mut buf = vec![AMF0_TYPE_NUMBER];
+                buf.extend(Self::encode_number(*value));
+                buf
+            }
+            AMF0Value::Bool { value } => {
+                let mut buf = vec![AMF0_TYPE_BOOL];
+                buf.extend(Self::encode_bool(*value));
+                buf
+            }
+            AMF0Value::String { value } => {
+                let mut buf = vec![AMF0_TYPE_STRING];
+                buf.extend(Self::encode_string(value));
+                buf
+            }
+            AMF0Value::Object { properties } => {
+                let mut buf = vec![AMF0_TYPE_OBJECT];
+                buf.extend(Self::encode_object(properties));
+                buf
+            }
+            AMF0Value::Null => vec![AMF0_TYPE_NULL],
+            AMF0Value::Undefined => vec![AMF0_TYPE_UNDEFINED],
+            AMF0Value::Ref { addr } => {
+                let mut buf = vec![AMF0_TYPE_REF];
+                buf.extend(Self::encode_ref(*addr as u16));
+                buf
+            }
+            AMF0Value::Array { items } => {
+                let mut buf = vec![AMF0_TYPE_ARRAY];
+                buf.extend(Self::encode_array(items));
+                buf
+            }
+            AMF0Value::StrictArray { items } => {
+                let mut buf = vec![AMF0_TYPE_STRICT_ARRAY];
+                buf.extend(Self::encode_strict_array(items));
+                buf
+            }
+            AMF0Value::Date { timestamp } => {
+                let mut buf = vec![AMF0_TYPE_DATE];
+                buf.extend(Self::encode_date(*timestamp));
+                buf
+            }
+            AMF0Value::LongString { value } => {
+                let mut buf = vec![AMF0_TYPE_LONG_STRING];
+                buf.extend(Self::encode_string(value));
+                buf
+            }
+            AMF0Value::XmlDocument { content } => {
+                let mut buf = vec![AMF0_TYPE_XML_DOC];
+                buf.extend(Self::encode_string(content));
+                buf
+            }
+            AMF0Value::TypedObject {
+                type_name,
+                properties,
+            } => {
+                let mut buf = vec![AMF0_TYPE_TYPED_OBJ];
+                buf.extend(Self::encode_typed_object(type_name, properties));
+                buf
+            }
+            AMF0Value::SwitchAmf3 { value } => value.encode(),
+        }
+    }
+
+    /// Encodes number value
+    pub fn encode_number(num: f64) -> Vec<u8> {
+        let mut buf = vec![0; 8];
+        BigEndian::write_f64(&mut buf, num);
+        buf
+    }
+
+    /// Encodes boolean value
+    pub fn encode_bool(b: bool) -> Vec<u8> {
+        if b {
+            vec![0x01]
+        } else {
+            vec![0x00]
+        }
+    }
+
+    /// Encodes date value
+    pub fn encode_date(ts: f64) -> Vec<u8> {
+        let mut buf = vec![0x00, 0x00];
+        buf.extend(Self::encode_number(ts));
+        buf
+    }
+
+    /// Encodes string value
+    pub fn encode_string(s: &str) -> Vec<u8> {
+        let str_bytes = s.bytes();
+        let mut buf = vec![0x00; 2];
+        BigEndian::write_u16(&mut buf, str_bytes.len() as u16);
+        buf.extend(str_bytes);
+        buf
+    }
+
+    /// Encodes object value
+    pub fn encode_object(o: &HashMap<String, AMF0Value>) -> Vec<u8> {
+        let mut buf = Vec::new();
+
+        let mut keys: Vec<&str> = Vec::with_capacity(o.len());
+
+        for key in o.keys().into_iter() {
+            keys.push(key);
+        }
+
+        keys.sort();
+
+        for key in keys {
+            buf.extend(Self::encode_string(key));
+            let value = o.get(key).unwrap();
+            buf.extend(value.encode());
+        }
+
+        buf.extend(Self::encode_string(""));
+        buf.extend(vec![AMF0_OBJECT_TERM_CODE]);
+
+        buf
+    }
+
+    /// Encodes array value
+    pub fn encode_array(arr: &HashMap<String, AMF0Value>) -> Vec<u8> {
+        let mut buf = vec![0, 4];
+        BigEndian::write_u32(&mut buf, arr.len() as u32);
+        buf.extend(Self::encode_object(arr));
+        buf
+    }
+
+    /// Encodes strict array value
+    pub fn encode_strict_array(arr: &Vec<AMF0Value>) -> Vec<u8> {
+        let mut buf = vec![0, 4];
+        BigEndian::write_u32(&mut buf, arr.len() as u32);
+
+        for item in arr {
+            buf.extend(item.encode());
+        }
+
+        buf
+    }
+
+    /// Encodes reference value
+    pub fn encode_ref(index: u16) -> Vec<u8> {
+        let mut buf = vec![0x00; 2];
+        BigEndian::write_u16(&mut buf, index);
+        buf
+    }
+
+    /// Encodes typed object value
+    pub fn encode_typed_object(type_name: &str, o: &HashMap<String, AMF0Value>) -> Vec<u8> {
+        let mut buf = Self::encode_string(type_name);
+        buf.extend(Self::encode_object(o));
+        buf
     }
 }
