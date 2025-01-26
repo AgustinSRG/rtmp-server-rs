@@ -2,6 +2,8 @@
 
 use byteorder::{BigEndian, ByteOrder};
 
+use super::AMFDecodingCursor;
+
 const AMF3_TYPE_UNDEFINED: u8 = 0x00;
 const AMF3_TYPE_NULL: u8 = 0x01;
 const AMF3_TYPE_FALSE: u8 = 0x02;
@@ -221,5 +223,106 @@ impl AMF3Value {
         let mut buf = Self::encode_ui29((bytes.len() as u32) << 1);
         buf.extend(bytes);
         buf
+    }
+
+    // Decoding functions:
+
+    /// Reads and decodes an integer in UI29 format
+    pub fn decode_ui29(cursor: &mut AMFDecodingCursor, buffer: &[u8]) -> Result<u32, ()> {
+        let mut val: u32 = 0;
+        let mut len: u32 = 0;
+        let mut ended: bool = false;
+        let mut b: u8 = 0x00;
+
+        while !ended {
+            b = cursor.read_byte(buffer)?;
+
+            len += 1;
+
+            val = (val << 7).wrapping_add((b & 0x7F) as u32);
+
+            ended = !(len < 5 || b > 0x7F);
+        }
+
+        if len == 5 {
+            val = val | (b as u32);
+        }
+
+        Ok(val)
+    }
+
+    /// Reads an instance of AMF3Value from a buffer
+    pub fn read(cursor: &mut AMFDecodingCursor, buffer: &[u8]) -> Result<AMF3Value, ()> {
+        let amf3_type = cursor.read_byte(buffer)?;
+
+        match amf3_type {
+            AMF3_TYPE_NULL => Ok(AMF3Value::Null),
+            AMF3_TYPE_FALSE => Ok(AMF3Value::False),
+            AMF3_TYPE_TRUE => Ok(AMF3Value::True),
+            AMF3_TYPE_INTEGER => Ok(AMF3Value::Integer {
+                value: Self::decode_ui29(cursor, buffer)? as i32,
+            }),
+            AMF3_TYPE_DOUBLE => Ok(AMF3Value::Double {
+                value: Self::read_double(cursor, buffer)?,
+            }),
+            AMF3_TYPE_DATE => Ok(AMF3Value::Date {
+                timestamp: Self::read_date(cursor, buffer)?,
+            }),
+            AMF3_TYPE_STRING => Ok(AMF3Value::String {
+                value: Self::read_string(cursor, buffer)?,
+            }),
+            AMF3_TYPE_XML => Ok(AMF3Value::Xml {
+                value: Self::read_string(cursor, buffer)?,
+            }),
+            AMF3_TYPE_XML_DOC => Ok(AMF3Value::XmlDocument {
+                content: Self::read_string(cursor, buffer)?,
+            }),
+            AMF3_TYPE_BYTE_ARRAY => Ok(AMF3Value::ByteArray {
+                value: Self::read_byte_array(cursor, buffer)?,
+            }),
+            AMF3_TYPE_ARRAY => Ok(AMF3Value::Array),
+            AMF3_TYPE_OBJECT => Ok(AMF3Value::Object),
+            _ => Ok(AMF3Value::Undefined),
+        }
+    }
+
+    /// Reads double in AMF3 format from buffer
+    pub fn read_double(cursor: &mut AMFDecodingCursor, buffer: &[u8]) -> Result<f64, ()> {
+        let buf = cursor.read(buffer, 8)?;
+
+        if buf.len() < 8 {
+            return Err(());
+        }
+
+        Ok(BigEndian::read_f64(buf))
+    }
+
+    /// Reads date in AMF3 format from buffer
+    pub fn read_date(cursor: &mut AMFDecodingCursor, buffer: &[u8]) -> Result<f64, ()> {
+        Self::decode_ui29(cursor, buffer)?; // Skip prefix
+        Self::read_double(cursor, buffer)
+    }
+
+    /// Reads string in AMF3 format from buffer
+    pub fn read_string(cursor: &mut AMFDecodingCursor, buffer: &[u8]) -> Result<String, ()> {
+        let l = Self::decode_ui29(cursor, buffer)?;
+
+        let str_bytes = cursor.read(buffer, l as usize)?;
+
+        let str_res = String::from_utf8(str_bytes.to_vec());
+
+        match str_res {
+            Ok(s) => Ok(s),
+            Err(_) => Err(()),
+        }
+    }
+
+    /// Reads byte array in AMF3 format from buffer
+    pub fn read_byte_array(cursor: &mut AMFDecodingCursor, buffer: &[u8]) -> Result<Vec<u8>, ()> {
+        let l = Self::decode_ui29(cursor, buffer)?;
+
+        let bytes = cursor.read(buffer, l as usize)?;
+
+        Ok(bytes.to_vec())
     }
 }

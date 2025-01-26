@@ -3,7 +3,7 @@
 use byteorder::{BigEndian, ByteOrder};
 use std::collections::HashMap;
 
-use super::AMF3Value;
+use super::{AMF3Value, AMFDecodingCursor};
 
 const AMF0_TYPE_NUMBER: u8 = 0x00;
 const AMF0_TYPE_BOOL: u8 = 0x01;
@@ -39,7 +39,7 @@ pub enum AMF0Value {
     Null,
     Undefined,
     Ref {
-        addr: i64,
+        addr: u16,
     },
     Array {
         items: HashMap<String, AMF0Value>,
@@ -212,7 +212,7 @@ impl AMF0Value {
     pub fn get_integer(&self) -> i64 {
         match self {
             AMF0Value::Number { value } => *value as i64,
-            AMF0Value::Ref { addr } => *addr,
+            AMF0Value::Ref { addr } => *addr as i64,
             AMF0Value::Date { timestamp } => *timestamp as i64,
             AMF0Value::SwitchAmf3 { value } => value.get_integer(),
             _ => 0,
@@ -319,7 +319,7 @@ impl AMF0Value {
             AMF0Value::Undefined => vec![AMF0_TYPE_UNDEFINED],
             AMF0Value::Ref { addr } => {
                 let mut buf = vec![AMF0_TYPE_REF];
-                buf.extend(Self::encode_ref(*addr as u16));
+                buf.extend(Self::encode_ref(*addr));
                 buf
             }
             AMF0Value::Array { items } => {
@@ -339,7 +339,7 @@ impl AMF0Value {
             }
             AMF0Value::LongString { value } => {
                 let mut buf = vec![AMF0_TYPE_LONG_STRING];
-                buf.extend(Self::encode_string(value));
+                buf.extend(Self::encode_long_string(value));
                 buf
             }
             AMF0Value::XmlDocument { content } => {
@@ -387,6 +387,15 @@ impl AMF0Value {
         let str_bytes = s.bytes();
         let mut buf = vec![0x00; 2];
         BigEndian::write_u16(&mut buf, str_bytes.len() as u16);
+        buf.extend(str_bytes);
+        buf
+    }
+
+    /// Encodes long string value
+    pub fn encode_long_string(s: &str) -> Vec<u8> {
+        let str_bytes = s.bytes();
+        let mut buf = vec![0x00; 4];
+        BigEndian::write_u32(&mut buf, str_bytes.len() as u32);
         buf.extend(str_bytes);
         buf
     }
@@ -447,5 +456,195 @@ impl AMF0Value {
         let mut buf = Self::encode_string(type_name);
         buf.extend(Self::encode_object(o));
         buf
+    }
+
+    // Deciding functions:
+
+    /// Reads AMF0 value from buffer
+    pub fn read(cursor: &mut AMFDecodingCursor, buffer: &[u8]) -> Result<AMF0Value, ()> {
+        let amf0_type = cursor.read_byte(buffer)?;
+
+        match amf0_type {
+            AMF0_TYPE_UNDEFINED => Ok(AMF0Value::Undefined),
+            AMF0_TYPE_NULL => Ok(AMF0Value::Null),
+            AMF0_TYPE_NUMBER => Ok(AMF0Value::Number {
+                value: Self::read_number(cursor, buffer)?,
+            }),
+            AMF0_TYPE_BOOL => Ok(AMF0Value::Bool {
+                value: Self::read_bool(cursor, buffer)?,
+            }),
+            AMF0_TYPE_DATE => Ok(AMF0Value::Date {
+                timestamp: Self::read_date(cursor, buffer)?,
+            }),
+            AMF0_TYPE_STRING => Ok(AMF0Value::String {
+                value: Self::read_string(cursor, buffer)?,
+            }),
+            AMF0_TYPE_XML_DOC => Ok(AMF0Value::XmlDocument {
+                content: Self::read_string(cursor, buffer)?,
+            }),
+            AMF0_TYPE_LONG_STRING => Ok(AMF0Value::LongString {
+                value: Self::read_long_string(cursor, buffer)?,
+            }),
+            AMF0_TYPE_OBJECT => Ok(AMF0Value::Object {
+                properties: Self::read_object(cursor, buffer)?,
+            }),
+            AMF0_TYPE_TYPED_OBJ => {
+                let (type_name, properties) = Self::read_typed_object(cursor, buffer)?;
+
+                Ok(AMF0Value::TypedObject {
+                    type_name,
+                    properties,
+                })
+            }
+            AMF0_TYPE_REF => Ok(AMF0Value::Ref {
+                addr: Self::read_u16_be(cursor, buffer)?,
+            }),
+            AMF0_TYPE_ARRAY => Ok(AMF0Value::Array {
+                items: Self::read_array(cursor, buffer)?,
+            }),
+            AMF0_TYPE_STRICT_ARRAY => Ok(AMF0Value::StrictArray {
+                items: Self::read_strict_array(cursor, buffer)?,
+            }),
+            AMF0_TYPE_SWITCH_AMF3 => Ok(AMF0Value::SwitchAmf3 {
+                value: AMF3Value::read(cursor, buffer)?,
+            }),
+            _ => Ok(AMF0Value::Undefined),
+        }
+    }
+
+    /// Reads number from buffer
+    pub fn read_number(cursor: &mut AMFDecodingCursor, buffer: &[u8]) -> Result<f64, ()> {
+        let buf = cursor.read(buffer, 8)?;
+
+        if buf.len() < 8 {
+            return Err(());
+        }
+
+        Ok(BigEndian::read_f64(buf))
+    }
+
+    /// Reads number from buffer
+    pub fn read_date(cursor: &mut AMFDecodingCursor, buffer: &[u8]) -> Result<f64, ()> {
+        cursor.skip(2)?; // Skip prefix
+        Self::read_number(cursor, buffer)
+    }
+
+    /// Reads boolean from buffer
+    pub fn read_bool(cursor: &mut AMFDecodingCursor, buffer: &[u8]) -> Result<bool, ()> {
+        let b = cursor.read_byte(buffer)?;
+        Ok(b != 0x00)
+    }
+
+    /// Reads u16 (big endian)
+    pub fn read_u16_be(cursor: &mut AMFDecodingCursor, buffer: &[u8]) -> Result<u16, ()> {
+        let buf = cursor.read(buffer, 2)?;
+
+        if buf.len() < 2 {
+            return Err(());
+        }
+
+        Ok(BigEndian::read_u16(buf))
+    }
+
+    /// Reads string from buffer
+    pub fn read_string(cursor: &mut AMFDecodingCursor, buffer: &[u8]) -> Result<String, ()> {
+        let l = Self::read_u16_be(cursor, buffer)?;
+
+        let str_bytes = cursor.read(buffer, l as usize)?;
+
+        let str_res = String::from_utf8(str_bytes.to_vec());
+
+        match str_res {
+            Ok(s) => Ok(s),
+            Err(_) => Err(()),
+        }
+    }
+
+    /// Reads u32 (big endian)
+    pub fn read_u32_be(cursor: &mut AMFDecodingCursor, buffer: &[u8]) -> Result<u32, ()> {
+        let buf = cursor.read(buffer, 4)?;
+
+        if buf.len() < 4 {
+            return Err(());
+        }
+
+        Ok(BigEndian::read_u32(buf))
+    }
+
+    /// Reads long string from buffer
+    pub fn read_long_string(cursor: &mut AMFDecodingCursor, buffer: &[u8]) -> Result<String, ()> {
+        let l = Self::read_u32_be(cursor, buffer)?;
+
+        let str_bytes = cursor.read(buffer, l as usize)?;
+
+        let str_res = String::from_utf8(str_bytes.to_vec());
+
+        match str_res {
+            Ok(s) => Ok(s),
+            Err(_) => Err(()),
+        }
+    }
+
+    /// Reads object from buffer
+    pub fn read_object(
+        cursor: &mut AMFDecodingCursor,
+        buffer: &[u8],
+    ) -> Result<HashMap<String, AMF0Value>, ()> {
+        let mut o: HashMap<String, AMF0Value> = HashMap::new();
+
+        while !cursor.ended() {
+            let prop_name = Self::read_string(cursor, buffer)?;
+
+            let next_byte = cursor.look_byte(buffer)?;
+
+            if next_byte == AMF0_OBJECT_TERM_CODE {
+                break;
+            }
+
+            let prop_value = Self::read(cursor, buffer)?;
+
+            o.insert(prop_name, prop_value);
+        }
+
+        Ok(o)
+    }
+
+    /// Reads array from buffer
+    pub fn read_array(
+        cursor: &mut AMFDecodingCursor,
+        buffer: &[u8],
+    ) -> Result<HashMap<String, AMF0Value>, ()> {
+        cursor.skip(4)?;
+        Self::read_object(cursor, buffer)
+    }
+
+    /// Reads strict array from buffer
+    pub fn read_strict_array(
+        cursor: &mut AMFDecodingCursor,
+        buffer: &[u8],
+    ) -> Result<Vec<AMF0Value>, ()> {
+        let mut arr: Vec<AMF0Value> = Vec::new();
+
+        let mut l = Self::read_u32_be(cursor, buffer)?;
+
+        while l > 0 {
+            let item = Self::read(cursor, buffer)?;
+
+            arr.push(item);
+
+            l -= 1;
+        }
+
+        Ok(arr)
+    }
+
+    /// Reads typed object from buffer
+    pub fn read_typed_object(
+        cursor: &mut AMFDecodingCursor,
+        buffer: &[u8],
+    ) -> Result<(String, HashMap<String, AMF0Value>), ()> {
+        let type_name = Self::read_string(cursor, buffer)?;
+        let o = Self::read_object(cursor, buffer)?;
+        Ok((type_name, o))
     }
 }
