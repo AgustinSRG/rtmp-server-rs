@@ -3,11 +3,14 @@
 mod log;
 mod utils;
 
+use std::error::Error;
+
 use log::{LogConfig, Logger};
 use utils::get_env_bool;
 
 /// Main function
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Load .env
     let _ = dotenvy::dotenv();
 
@@ -29,4 +32,7 @@ fn main() {
     logger.log_info(&format!("RTMP Server (Rust Implementation) ({VERSION})"));
 
     // TODO
+
+    // End of main
+    Ok(())
 }
