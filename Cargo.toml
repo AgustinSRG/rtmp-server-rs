@@ -8,4 +8,5 @@ byteorder = "1.5.0"
 chrono = "0.4.39"
 dotenvy = "0.15.7"
 hex = "0.4.3"
+ipnet = "2.11.0"
 tokio = {version="1.43.0", features = ["full"]}
