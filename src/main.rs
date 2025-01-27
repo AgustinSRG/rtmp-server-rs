@@ -2,6 +2,7 @@
 
 mod amf;
 mod log;
+mod rtmp;
 mod utils;
 
 use std::error::Error;

@@ -19,6 +19,7 @@ const AMF3_TYPE_XML: u8 = 0x0B;
 const AMF3_TYPE_BYTE_ARRAY: u8 = 0x0C;
 
 /// AMF3 compatible value
+#[derive(Clone)]
 pub enum AMF3Value {
     Undefined,
     Null,

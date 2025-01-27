@@ -23,6 +23,7 @@ const AMF0_TYPE_SWITCH_AMF3: u8 = 0x11;
 const AMF0_OBJECT_TERM_CODE: u8 = 0x09;
 
 /// AMF0 compatible value
+#[derive(Clone)]
 pub enum AMF0Value {
     Number {
         value: f64,
