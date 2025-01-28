@@ -1,0 +1,44 @@
+// Connection handling logic
+
+use std::{net::IpAddr, sync::Arc};
+
+use tokio::{io::{AsyncRead, AsyncWrite}, sync::Mutex};
+
+use crate::{log::Logger, session::{handle_rtmp_session, RtmpSessionStatus}};
+
+use super::{RtmpServerConfiguration, RtmpServerStatus, SessionIdGenerator};
+
+/// Handles incoming connection (after accepting it)
+/// connection - IO stream to read and write bytes
+/// ip - Client IP address
+/// config - RTMP configuration
+/// server_status - Server status
+/// session_id_generator - Generator of IDs for the session
+/// logger - Server logger
+pub async fn handle_connection<T: AsyncRead + AsyncWrite>(
+    connection: T,
+    ip: IpAddr,
+    config: Arc<RtmpServerConfiguration>,
+    server_status: Arc<Mutex<RtmpServerStatus>>,
+    session_id_generator: Arc<Mutex<SessionIdGenerator>>,
+    logger: Arc<Logger>,
+) {
+    // Generate an unique ID for the session
+    let mut session_id_generator_v = session_id_generator.as_ref().lock().await;
+    let session_id = (*session_id_generator_v).generate_id();
+    drop(session_id_generator_v);
+
+    // Create a logger for the session
+    let session_logger = Arc::new(logger.as_ref().make_child_logger(&format!("[#{}] ", session_id)));
+
+    // Create status for the session
+    let session_status = Arc::new(Mutex::new(RtmpSessionStatus::new(session_id, ip)));
+
+    // Log request
+    if config.log_requests {
+        session_logger.log_info(&format!("Connection accepted from {}", ip.to_string()));
+    }
+
+    // Handle session
+    handle_rtmp_session(session_id, connection, config, server_status, session_status, logger).await;
+}

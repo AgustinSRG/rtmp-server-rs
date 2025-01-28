@@ -1,13 +1,17 @@
 // Main
 
 mod amf;
+mod control;
 mod log;
 mod rtmp;
+mod session;
+mod server;
 mod utils;
 
-use std::error::Error;
+use std::sync::Arc;
 
 use log::{LogConfig, Logger};
+use server::{run_server, RtmpServerConfiguration};
 use utils::get_env_bool;
 
 /// Main function
@@ -18,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // Initialize logger
 
-    let logger = Logger::new(LogConfig{
+    let logger = Logger::new(LogConfig {
         prefix: "".to_string(),
         error_enabled: get_env_bool("LOG_ERROR", true),
         warning_enabled: get_env_bool("LOG_WARNING", true),
@@ -33,8 +37,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     logger.log_info(&format!("RTMP Server (Rust Implementation) ({VERSION})"));
 
-    // TODO
+    // Load configuration
+
+    let server_config_res = RtmpServerConfiguration::load_from_env(&logger);
+    let server_config;
+
+    match server_config_res {
+        Ok(c) => {
+            server_config = c;
+        }
+        Err(_) => {
+            std::process::exit(1);
+        }
+    }
+
+    // Run server
+
+    run_server(logger, Arc::new(server_config)).await;
 
     // End of main
+
     Ok(())
 }

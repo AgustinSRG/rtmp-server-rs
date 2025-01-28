@@ -17,6 +17,13 @@ impl Logger {
         }
     }
 
+    /// Makes child logger
+    pub fn make_child_logger(&self, prefix: &str) -> Logger {
+        Logger{
+            config: self.config.child_config(prefix),
+        }
+    }
+
     /// Logs a message
     pub fn log(&self, line: &str) {
         let time_local: DateTime<Local> = Local::now();

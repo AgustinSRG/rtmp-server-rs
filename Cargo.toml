@@ -9,4 +9,6 @@ chrono = "0.4.39"
 dotenvy = "0.15.7"
 hex = "0.4.3"
 ipnet = "2.11.0"
+rustls = "0.23.21"
 tokio = {version="1.43.0", features = ["full"]}
+tokio-rustls = "0.26.1"
