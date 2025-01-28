@@ -1,6 +1,9 @@
 // Utility to check IP ranges
 
-use std::{net::IpAddr, str::FromStr};
+use std::{
+    net::{IpAddr, Ipv4Addr, Ipv6Addr},
+    str::FromStr,
+};
 
 use ipnet::{Ipv4Net, Ipv6Net};
 
@@ -8,7 +11,11 @@ use ipnet::{Ipv4Net, Ipv6Net};
 #[derive(Clone)]
 pub struct IpRangeConfig {
     all: bool,
+
+    ips_v4: Option<Vec<Ipv4Addr>>,
     ranges_v4: Option<Vec<Ipv4Net>>,
+
+    ips_v6: Option<Vec<Ipv6Addr>>,
     ranges_v6: Option<Vec<Ipv6Net>>,
 }
 
@@ -18,7 +25,9 @@ impl IpRangeConfig {
         if config_str.is_empty() {
             return Ok(IpRangeConfig {
                 all: false,
+                ips_v4: None,
                 ranges_v4: None,
+                ips_v6: None,
                 ranges_v6: None,
             });
         }
@@ -26,10 +35,15 @@ impl IpRangeConfig {
         if config_str == "*" {
             return Ok(IpRangeConfig {
                 all: true,
+                ips_v4: None,
                 ranges_v4: None,
+                ips_v6: None,
                 ranges_v6: None,
             });
         }
+
+        let mut ips_v4: Vec<Ipv4Addr> = Vec::new();
+        let mut ips_v6: Vec<Ipv6Addr> = Vec::new();
 
         let mut ranges_v4: Vec<Ipv4Net> = Vec::new();
         let mut ranges_v6: Vec<Ipv6Net> = Vec::new();
@@ -44,14 +58,32 @@ impl IpRangeConfig {
                     ranges_v4.push(ip_v4);
                 }
                 Err(_) => {
-                    let res_v6 = Ipv6Net::from_str(range_str);
+                    let res_ip_v4 = Ipv4Addr::from_str(range_str);
 
-                    match res_v6 {
-                        Ok(ip_v6) => {
-                            ranges_v6.push(ip_v6);
+                    match res_ip_v4 {
+                        Ok(ip_v4) => {
+                            ips_v4.push(ip_v4);
                         }
                         Err(_) => {
-                            return Err(range_str.to_string());
+                            let res_v6 = Ipv6Net::from_str(range_str);
+
+                            match res_v6 {
+                                Ok(ip_v6) => {
+                                    ranges_v6.push(ip_v6);
+                                }
+                                Err(_) => {
+                                    let res_ip_v6 = Ipv6Addr::from_str(range_str);
+
+                                    match res_ip_v6 {
+                                        Ok(ip_v6) => {
+                                            ips_v6.push(ip_v6);
+                                        }
+                                        Err(_) => {
+                                            return Err(range_str.to_string());
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -59,11 +91,21 @@ impl IpRangeConfig {
         }
 
         Ok(IpRangeConfig {
-            all: true,
+            all: false,
+            ips_v4: if ips_v4.is_empty() {
+                None
+            } else {
+                Some(ips_v4)
+            },
             ranges_v4: if ranges_v4.is_empty() {
                 None
             } else {
                 Some(ranges_v4)
+            },
+            ips_v6: if ips_v6.is_empty() {
+                None
+            } else {
+                Some(ips_v6)
             },
             ranges_v6: if ranges_v6.is_empty() {
                 None
@@ -73,45 +115,126 @@ impl IpRangeConfig {
         })
     }
 
+    fn check_ip_v4(&self, ipv4_addr: &Ipv4Addr) -> bool {
+        if let Some(ips_v4) = &self.ips_v4 {
+            for n in ips_v4 {
+                if n == ipv4_addr {
+                    return true;
+                }
+            }
+        }
+        if let Some(ranges_v4) = &self.ranges_v4 {
+            for n in ranges_v4 {
+                if n.contains(ipv4_addr) {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
+    fn check_ip_v6(&self, ipv6_addr: &Ipv6Addr) -> bool {
+        if let Some(ips_v6) = &self.ips_v6 {
+            for n in ips_v6 {
+                if n == ipv6_addr {
+                    return true;
+                }
+            }
+        }
+
+        if let Some(ranges_v6) = &self.ranges_v6 {
+            for n in ranges_v6 {
+                if n.contains(ipv6_addr) {
+                    return true;
+                }
+            }
+        }
+
+        let ipv4_addr_opt = ipv6_addr.to_ipv4();
+
+        if let Some(ipv4_addr) = ipv4_addr_opt {
+            if self.check_ip_v4(&ipv4_addr) {
+                return true;
+            }
+        }
+
+        false
+    }
+
     /// Checks if the configured range contains an IP address
-    pub fn contains_ip(&self, ip: IpAddr) -> bool {
+    pub fn contains_ip(&self, ip: &IpAddr) -> bool {
         if self.all {
             return true;
         }
 
         match ip {
             IpAddr::V4(ipv4_addr) => {
-                if let Some(ranges_v4) = &self.ranges_v4 {
-                    for n in ranges_v4 {
-                        if n.contains(&ipv4_addr) {
-                            return true;
-                        }
-                    }
+                if self.check_ip_v4(ipv4_addr) {
+                    return true
                 }
             }
             IpAddr::V6(ipv6_addr) => {
-                let ipv4_addr_opt = ipv6_addr.to_ipv4();
-
-                if let Some(ipv4_addr) = ipv4_addr_opt {
-                    if let Some(ranges_v4) = &self.ranges_v4 {
-                        for n in ranges_v4 {
-                            if n.contains(&ipv4_addr) {
-                                return true;
-                            }
-                        }
-                    }
-                }
-
-                if let Some(ranges_v6) = &self.ranges_v6 {
-                    for n in ranges_v6 {
-                        if n.contains(&ipv6_addr) {
-                            return true;
-                        }
-                    }
+                if self.check_ip_v6(ipv6_addr) {
+                    return true
                 }
             }
         }
 
         false
+    }
+}
+
+// Tests
+
+#[cfg(test)]
+mod tests {
+    use std::net::{Ipv4Addr, Ipv6Addr};
+
+    use super::*;
+
+    #[test]
+    fn test_ip_range_util() {
+        let ip_v4_1 = IpAddr::V4(Ipv4Addr::from_str("127.0.0.1").unwrap());
+        let ip_v4_2 = IpAddr::V4(Ipv4Addr::from_str("10.0.0.1").unwrap());
+
+        let ip_v6_1 = IpAddr::V6(Ipv6Addr::from_str("::1").unwrap());
+        let ip_v6_2 =
+            IpAddr::V6(Ipv6Addr::from_str("2001:db8:abcd:0012:1319:8a2e:0370:7344").unwrap());
+
+        let range_1 = IpRangeConfig::new_from_string("").unwrap();
+
+        assert_eq!(range_1.contains_ip(&ip_v4_1), false);
+        assert_eq!(range_1.contains_ip(&ip_v4_2), false);
+        assert_eq!(range_1.contains_ip(&ip_v6_1), false);
+        assert_eq!(range_1.contains_ip(&ip_v6_2), false);
+
+        let range_2 = IpRangeConfig::new_from_string("*").unwrap();
+
+        assert_eq!(range_2.contains_ip(&ip_v4_1), true);
+        assert_eq!(range_2.contains_ip(&ip_v4_2), true);
+        assert_eq!(range_2.contains_ip(&ip_v6_1), true);
+        assert_eq!(range_2.contains_ip(&ip_v6_2), true);
+
+        let range_3 = IpRangeConfig::new_from_string("10.0.0.0/8").unwrap();
+
+        assert_eq!(range_3.contains_ip(&ip_v4_1), false);
+        assert_eq!(range_3.contains_ip(&ip_v4_2), true);
+        assert_eq!(range_3.contains_ip(&ip_v6_1), false);
+        assert_eq!(range_3.contains_ip(&ip_v6_2), false);
+
+        let range_4 = IpRangeConfig::new_from_string("10.0.0.0/8,127.0.0.1,::1").unwrap();
+
+        assert_eq!(range_4.contains_ip(&ip_v4_1), true);
+        assert_eq!(range_4.contains_ip(&ip_v4_2), true);
+        assert_eq!(range_4.contains_ip(&ip_v6_1), true);
+        assert_eq!(range_4.contains_ip(&ip_v6_2), false);
+
+        let range_5 = IpRangeConfig::new_from_string("10.0.0.0/8,2001:db8:abcd:0012::/64").unwrap();
+
+        assert_eq!(range_5.contains_ip(&ip_v4_1), false);
+        assert_eq!(range_5.contains_ip(&ip_v4_2), true);
+        assert_eq!(range_5.contains_ip(&ip_v6_1), false);
+        assert_eq!(range_5.contains_ip(&ip_v6_2), true);
     }
 }
