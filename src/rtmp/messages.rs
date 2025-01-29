@@ -1,15 +1,16 @@
 // RTMP message generators
 
-use core::time;
 use std::collections::HashMap;
 
 use byteorder::{BigEndian, ByteOrder};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 
 use crate::amf::AMF0Value;
 
 use super::{
-    RtmpCommand, RtmpData, RtmpPacket, RTMP_CHANNEL_AUDIO, RTMP_CHANNEL_DATA, RTMP_CHANNEL_INVOKE, RTMP_CHANNEL_PROTOCOL, RTMP_CHANNEL_VIDEO, RTMP_CHUNK_TYPE_0, RTMP_TYPE_AUDIO, RTMP_TYPE_DATA, RTMP_TYPE_EVENT, RTMP_TYPE_INVOKE, RTMP_TYPE_VIDEO
+    RtmpCommand, RtmpData, RtmpPacket, RTMP_CHANNEL_AUDIO, RTMP_CHANNEL_DATA, RTMP_CHANNEL_INVOKE,
+    RTMP_CHANNEL_PROTOCOL, RTMP_CHANNEL_VIDEO, RTMP_CHUNK_TYPE_0, RTMP_TYPE_AUDIO, RTMP_TYPE_DATA,
+    RTMP_TYPE_EVENT, RTMP_TYPE_INVOKE, RTMP_TYPE_VIDEO,
 };
 
 /// Makes RTMP ACK message
@@ -102,7 +103,11 @@ pub fn rtmp_make_ping_request(connect_time: i64, out_chunk_size: usize) -> Vec<u
 }
 
 /// Makes RTMP invoke command message
-pub fn rtmp_make_invoke_message(cmd: &RtmpCommand, stream_id: u32, out_chunk_size: usize) -> Vec<u8> {
+pub fn rtmp_make_invoke_message(
+    cmd: &RtmpCommand,
+    stream_id: u32,
+    out_chunk_size: usize,
+) -> Vec<u8> {
     let mut packet = RtmpPacket::new_blank();
 
     packet.header.format = RTMP_CHUNK_TYPE_0;
@@ -176,13 +181,23 @@ pub fn rtmp_make_connect_response(
 
     cmd.set_argument(
         "transId".to_string(),
-        AMF0Value::Number { value: trans_id as f64 },
+        AMF0Value::Number {
+            value: trans_id as f64,
+        },
     );
 
     let mut cmd_obj: HashMap<String, AMF0Value> = HashMap::new();
 
-    cmd_obj.insert("fmsVer".to_string(), AMF0Value::String { value: "FMS/3,0,1,123".to_string() });
-    cmd_obj.insert("capabilities".to_string(), AMF0Value::Number { value: 31.0 });
+    cmd_obj.insert(
+        "fmsVer".to_string(),
+        AMF0Value::String {
+            value: "FMS/3,0,1,123".to_string(),
+        },
+    );
+    cmd_obj.insert(
+        "capabilities".to_string(),
+        AMF0Value::Number { value: 31.0 },
+    );
 
     cmd.set_argument(
         "cmdObj".to_string(),
@@ -229,7 +244,6 @@ pub fn rtmp_make_connect_response(
     rtmp_make_invoke_message(&cmd, 0, out_chunk_size)
 }
 
-
 /// Makes message to respond to a connect message
 pub fn rtmp_make_create_stream_response(
     trans_id: i64,
@@ -240,21 +254,30 @@ pub fn rtmp_make_create_stream_response(
 
     cmd.set_argument(
         "transId".to_string(),
-        AMF0Value::Number { value: trans_id as f64 },
+        AMF0Value::Number {
+            value: trans_id as f64,
+        },
     );
+
+    cmd.set_argument("cmdObj".to_string(), AMF0Value::Null);
 
     cmd.set_argument(
-        "cmdObj".to_string(),
-        AMF0Value::Null,
+        "info".to_string(),
+        AMF0Value::Number {
+            value: stream_index as f64,
+        },
     );
-
-    cmd.set_argument("info".to_string(), AMF0Value::Number { value: stream_index as f64 });
 
     rtmp_make_invoke_message(&cmd, 0, out_chunk_size)
 }
 
 /// Creates metadata message (used to send stream metadata to clients)
-pub fn rtmp_make_metadata_message(play_stream_id: u32, metadata: &[u8], timestamp: i64, out_chunk_size: usize) -> Vec<u8> {
+pub fn rtmp_make_metadata_message(
+    play_stream_id: u32,
+    metadata: &[u8],
+    timestamp: i64,
+    out_chunk_size: usize,
+) -> Vec<u8> {
     let mut packet = RtmpPacket::new_blank();
 
     packet.header.format = RTMP_CHUNK_TYPE_0;
@@ -274,7 +297,12 @@ pub fn rtmp_make_metadata_message(play_stream_id: u32, metadata: &[u8], timestam
 }
 
 /// Creates RTMP audio codec header message
-pub fn rtmp_make_audio_codec_header_message(play_stream_id: u32, aac_sequence_header: &[u8], timestamp: i64, out_chunk_size: usize) -> Vec<u8> {
+pub fn rtmp_make_audio_codec_header_message(
+    play_stream_id: u32,
+    aac_sequence_header: &[u8],
+    timestamp: i64,
+    out_chunk_size: usize,
+) -> Vec<u8> {
     let mut packet = RtmpPacket::new_blank();
 
     packet.header.format = RTMP_CHUNK_TYPE_0;
@@ -294,7 +322,12 @@ pub fn rtmp_make_audio_codec_header_message(play_stream_id: u32, aac_sequence_he
 }
 
 /// Creates RTMP video codec header message
-pub fn rtmp_make_video_codec_header_message(play_stream_id: u32, avc_sequence_header: &[u8], timestamp: i64, out_chunk_size: usize) -> Vec<u8> {
+pub fn rtmp_make_video_codec_header_message(
+    play_stream_id: u32,
+    avc_sequence_header: &[u8],
+    timestamp: i64,
+    out_chunk_size: usize,
+) -> Vec<u8> {
     let mut packet = RtmpPacket::new_blank();
 
     packet.header.format = RTMP_CHUNK_TYPE_0;
@@ -325,7 +358,7 @@ pub fn rtmp_build_metadata(data: &RtmpData) -> Vec<u8> {
         }
         None => {
             res.set_argument("dataObj".to_string(), AMF0Value::Null);
-        },
+        }
     }
 
     res.encode()

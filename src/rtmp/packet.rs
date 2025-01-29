@@ -222,6 +222,4 @@ impl RtmpPacket {
 
         chunks
     }
-
-
 }

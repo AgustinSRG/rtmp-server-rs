@@ -24,17 +24,6 @@ static GENUINE_FMS_PLUS_CRUD: LazyLock<Vec<u8>> = LazyLock::new(|| {
     v
 });
 
-static GENUINE_FP_PLUS_CRUD: LazyLock<Vec<u8>> = LazyLock::new(|| {
-    let str_bytes: Vec<u8> = GENUINE_FP.bytes().collect();
-
-    let mut v: Vec<u8> = vec![0; str_bytes.len() + RANDOM_CRUD.len()];
-
-    v[0..str_bytes.len()].copy_from_slice(&str_bytes);
-    v[str_bytes.len()..].copy_from_slice(RANDOM_CRUD);
-
-    v
-});
-
 /// Generates full RTMP handshake response
 /// client_signature - Client signature
 /// logger - Logger of the RTMP session
