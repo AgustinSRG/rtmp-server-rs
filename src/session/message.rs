@@ -2,8 +2,12 @@
 
 use std::sync::Arc;
 
-use crate::rtmp::RtmpPacket;
+use tokio::{io::{AsyncRead, AsyncReadExt}, sync::mpsc::Receiver};
 
+use crate::{log::Logger, rtmp::RtmpPacket};
+
+/// Size of the buffer for the message channel
+pub const RTMP_SESSION_MESSAGE_BUFFER_SIZE: usize = 8;
 
 /// RTMP session message
 #[derive(Clone)]
@@ -24,4 +28,5 @@ pub enum RtmpSessionMessage {
     },
     PlayStop,
     InvalidKey,
+    End,
 }

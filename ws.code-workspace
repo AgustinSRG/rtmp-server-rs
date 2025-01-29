@@ -15,6 +15,7 @@
 			"dotenv",
 			"dotenvy",
 			"github",
+			"hmac",
 			"HMAC",
 			"recv",
 			"rtmp",

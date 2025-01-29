@@ -185,8 +185,13 @@ fn handle_connection_tls(
             }
 
             // Handle connection
+            let (mut read_stream, write_stream) = tokio::io::split(stream);
+
+            let write_stream_mu = Arc::new(Mutex::new(write_stream));
+
             handle_connection(
-                &mut stream,
+                &mut read_stream,
+                write_stream_mu.clone(),
                 ip,
                 config.clone(),
                 server_status,
@@ -196,7 +201,10 @@ fn handle_connection_tls(
             .await;
 
             // Ensure connection is closed
-            let _ = stream.shutdown().await;
+
+            let mut write_stream_mu_v = write_stream_mu.lock().await;
+            let _ = (*write_stream_mu_v).shutdown().await;
+            drop(write_stream_mu_v);
 
             // After connection is closed, remove from ip counter
             if !is_exempted {

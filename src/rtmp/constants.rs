@@ -1,5 +1,40 @@
 // RTMP constants
 
+// RTMP version
+pub const RTMP_VERSION: u8 = 3;
+
+// Handshake consts
+pub const RTMP_HANDSHAKE_SIZE: usize = 1536;
+pub const RTMP_HANDSHAKE_UNINITIALIZED: u8 = 0;
+pub const RTMP_HANDSHAKE_0: u8 = 1;
+pub const RTMP_HANDSHAKE_1: u8 = 2;
+pub const RTMP_HANDSHAKE_2: u8 = 3;
+
+// Message formats
+pub const MESSAGE_FORMAT_0: u32 = 0;
+pub const MESSAGE_FORMAT_1: u32 = 1;
+pub const MESSAGE_FORMAT_2: u32 = 2;
+
+// Signature size
+pub const RTMP_SIG_SIZE: usize = 1536;
+
+// SHA 256 size
+pub const SHA256DL: usize = 32;
+pub const SHA256K: usize = 32;
+
+// Random CRUD data used for handshake
+pub const RANDOM_CRUD: &[u8] = &[
+    0xf0, 0xee, 0xc2, 0x4a, 0x80, 0x68, 0xbe, 0xe8,
+	0x2e, 0x00, 0xd0, 0xd1, 0x02, 0x9e, 0x7e, 0x57,
+	0x6e, 0xec, 0x5d, 0x2d, 0x29, 0x80, 0x6f, 0xab,
+	0x93, 0xb8, 0xe6, 0x36, 0xcf, 0xeb, 0x31, 0xae,
+];
+
+// Server names
+pub const GENUINE_FMS: &str = "Genuine Adobe Flash Media Server 001";
+pub const GENUINE_FP: &str = "Genuine Adobe Flash Player 001";
+
+
 // Chunk types
 pub const RTMP_CHUNK_TYPE_0: u32 = 0; // 11-bytes: timestamp(3) + length(3) + stream type(1) + stream id(4)
 pub const RTMP_CHUNK_TYPE_1: u32 = 1; // 7-bytes: delta(3) + length(3) + stream type(1)
@@ -14,7 +49,7 @@ pub const RTMP_CHANNEL_VIDEO: u32 = 5;
 pub const RTMP_CHANNEL_DATA: u32 = 6;
 
 /// Gets RTMP header size from the first byte
-pub fn get_rtmp_header_size(header_byte: u8) -> u32 {
+pub fn get_rtmp_header_size(header_byte: u8) -> usize {
     match header_byte {
         0 => 11,
         1 => 7,
@@ -60,3 +95,6 @@ pub const STREAM_EOF: u16 = 0x01;
 pub const STREAM_DRY: u16 = 0x02;
 pub const STREAM_EMPTY: u16 = 0x1f;
 pub const STREAM_READY: u16 = 0x20;
+
+// Ping timeout (seconds)
+pub const RTMP_PING_TIMEOUT: u64 = 60;
