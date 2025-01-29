@@ -13,13 +13,13 @@ use super::{
 };
 
 /// Makes RTMP ACK message
-pub fn rtmp_make_ack(size: u32) -> Vec<u8> {
+pub fn rtmp_make_ack(size: usize) -> Vec<u8> {
     let mut b = vec![
         0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00,
     ];
 
-    BigEndian::write_u32(&mut b[12..16], size);
+    BigEndian::write_u32(&mut b[12..16], size as u32);
 
     b
 }
@@ -77,8 +77,7 @@ pub fn rtmp_make_stream_status_message(status: u16, stream_id: u32) -> Vec<u8> {
 
 /// Makes RTMP ping request message
 pub fn rtmp_make_ping_request(connect_time: i64, out_chunk_size: usize) -> Vec<u8> {
-    let time: DateTime<Utc> = Utc::now();
-    let timestamp = time.timestamp();
+    let timestamp = Utc::now().timestamp();
     let current_timestamp = timestamp.wrapping_sub(connect_time);
 
     let mut packet = RtmpPacket::new_blank();

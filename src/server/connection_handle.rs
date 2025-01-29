@@ -7,7 +7,7 @@ use tokio::{
     sync::Mutex,
 };
 
-use crate::{log::Logger, session::{handle_rtmp_session, RtmpSessionStatus}};
+use crate::{log::Logger, session::{handle_rtmp_session, RtmpSessionPublishStreamStatus, RtmpSessionStatus}};
 
 use super::{RtmpServerConfiguration, RtmpServerStatus, SessionIdGenerator};
 
@@ -45,6 +45,7 @@ pub async fn handle_connection<
 
     // Create status for the session
     let session_status = Arc::new(Mutex::new(RtmpSessionStatus::new(session_id, ip)));
+    let publish_status = Arc::new(Mutex::new(RtmpSessionPublishStreamStatus::new()));
 
     // Log request
     if config.log_requests {
@@ -59,6 +60,7 @@ pub async fn handle_connection<
         config,
         server_status,
         session_status,
+        publish_status,
         logger,
     )
     .await;

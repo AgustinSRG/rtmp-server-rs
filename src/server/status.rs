@@ -1,10 +1,10 @@
 // Server status model
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
-use tokio::sync::mpsc::Sender;
+use tokio::sync::{mpsc::Sender, Mutex};
 
-use crate::session::RtmpSessionMessage;
+use crate::session::{RtmpSessionMessage, RtmpSessionPublishStreamStatus};
 
 /// Status of an RTMP player
 pub struct RtmpPlayerStatus {
@@ -46,6 +46,9 @@ pub struct RtmpChannelStatus {
 
     /// Message sender for the publisher session
     pub publisher_message_sender: Option<Sender<RtmpSessionMessage>>,
+
+    /// Status of the published stream
+    pub publish_status: Option<Arc<Mutex<RtmpSessionPublishStreamStatus>>>,
 
     /// Players
     pub players: HashMap<u64, RtmpPlayerStatus>,

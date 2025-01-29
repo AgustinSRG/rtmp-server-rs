@@ -96,5 +96,9 @@ pub const STREAM_DRY: u16 = 0x02;
 pub const STREAM_EMPTY: u16 = 0x1f;
 pub const STREAM_READY: u16 = 0x20;
 
+// Default chunk size
+pub const RTMP_CHUNK_SIZE: usize = 128;
+pub const RTMP_MAX_CHUNK_SIZE: usize = 65536;
+
 // Ping timeout (seconds)
 pub const RTMP_PING_TIMEOUT: u64 = 60;

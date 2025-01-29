@@ -170,7 +170,7 @@ fn handle_connection_tls(
 
         if should_accept {
             let stream_res = acceptor.accept(connection).await;
-            let mut stream: TlsStream<TcpStream>;
+            let stream: TlsStream<TcpStream>;
 
             match stream_res {
                 Ok(s) => {

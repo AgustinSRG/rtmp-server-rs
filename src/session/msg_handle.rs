@@ -12,7 +12,7 @@ use crate::{
     server::{RtmpServerConfiguration, RtmpServerStatus},
 };
 
-use super::{do_session_cleanup, RtmpSessionMessage, RtmpSessionStatus};
+use super::{do_session_cleanup, RtmpSessionMessage, RtmpSessionPublishStreamStatus, RtmpSessionStatus};
 
 /// Handles session message
 /// msg - Session message to handle
@@ -21,6 +21,7 @@ use super::{do_session_cleanup, RtmpSessionMessage, RtmpSessionStatus};
 /// config - RTMP configuration
 /// server_status - Server status
 /// session_status - Session status
+/// publish_status - Status if the stream being published
 /// logger - Session logger
 pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin>(
     msg: RtmpSessionMessage,
@@ -29,6 +30,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
     config: &RtmpServerConfiguration,
     server_status: &Mutex<RtmpServerStatus>,
     session_status: &Mutex<RtmpSessionStatus>,
+    publish_status: &Arc<Mutex<RtmpSessionPublishStreamStatus>>,
     logger: &Logger,
 ) -> bool {
     match msg {
@@ -59,6 +61,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 /// config - RTMP configuration
 /// server_status - Server status
 /// session_status - Session status
+/// publish_status - Status if the stream being published
 /// logger - Session logger
 pub fn spawn_task_to_read_session_messages<
     TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static,
@@ -68,6 +71,7 @@ pub fn spawn_task_to_read_session_messages<
     config: Arc<RtmpServerConfiguration>,
     server_status: Arc<Mutex<RtmpServerStatus>>,
     session_status: Arc<Mutex<RtmpSessionStatus>>,
+    publish_status: Arc<Mutex<RtmpSessionPublishStreamStatus>>,
     mut session_msg_receiver: Receiver<RtmpSessionMessage>,
     logger: Arc<Logger>,
 ) {
@@ -86,6 +90,7 @@ pub fn spawn_task_to_read_session_messages<
                         &config,
                         &server_status,
                         &session_status,
+                        &publish_status,
                         &logger,
                     )
                     .await;

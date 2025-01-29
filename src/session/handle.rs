@@ -1,6 +1,6 @@
 // Logic to handle RTMP sessions
 
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
@@ -9,14 +9,15 @@ use tokio::{
 
 use crate::{
     log::Logger,
-    rtmp::{generate_s0_s1_s2, RTMP_HANDSHAKE_SIZE, RTMP_PING_TIMEOUT, RTMP_VERSION},
+    rtmp::{generate_s0_s1_s2, RtmpPacket, RTMP_HANDSHAKE_SIZE, RTMP_PING_TIMEOUT, RTMP_VERSION},
     server::{RtmpServerConfiguration, RtmpServerStatus},
     session::chunk_read::read_rtmp_chunk,
 };
 
 use super::{
     session_write_bytes, spawn_task_to_read_session_messages, RtmpSessionMessage,
-    RtmpSessionReadStatus, RtmpSessionStatus, RTMP_SESSION_MESSAGE_BUFFER_SIZE,
+    RtmpSessionPublishStreamStatus, RtmpSessionReadStatus, RtmpSessionStatus,
+    RTMP_SESSION_MESSAGE_BUFFER_SIZE,
 };
 
 /// Handles RTMP session
@@ -25,6 +26,7 @@ use super::{
 /// config - RTMP configuration
 /// server_status - Server status
 /// session_status - Session status
+/// publish_status - Status if the stream being published
 /// logger - Session logger
 pub async fn handle_rtmp_session<
     TR: AsyncRead + AsyncReadExt + Send + Sync + Unpin,
@@ -36,6 +38,7 @@ pub async fn handle_rtmp_session<
     config: Arc<RtmpServerConfiguration>,
     server_status: Arc<Mutex<RtmpServerStatus>>,
     session_status: Arc<Mutex<RtmpSessionStatus>>,
+    publish_status: Arc<Mutex<RtmpSessionPublishStreamStatus>>,
     logger: Arc<Logger>,
 ) {
     ////////////////////
@@ -178,6 +181,7 @@ pub async fn handle_rtmp_session<
         config.clone(),
         server_status.clone(),
         session_status.clone(),
+        publish_status.clone(),
         msg_receiver,
         logger.clone(),
     );
@@ -185,6 +189,7 @@ pub async fn handle_rtmp_session<
     // Create data too keep between chunk reads
 
     let mut read_status = RtmpSessionReadStatus::new();
+    let mut in_packets: HashMap<u32, RtmpPacket> = HashMap::new();
 
     // Read chunks
 
@@ -198,8 +203,10 @@ pub async fn handle_rtmp_session<
             &config,
             &server_status,
             &session_status,
+            &publish_status,
             &msg_sender,
             &mut read_status,
+            &mut in_packets,
             &logger,
         )
         .await;
