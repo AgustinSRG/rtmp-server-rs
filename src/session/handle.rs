@@ -1,6 +1,6 @@
 // Logic to handle RTMP sessions
 
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::HashMap, net::IpAddr, sync::Arc, time::Duration};
 
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
@@ -22,6 +22,7 @@ use super::{
 
 /// Handles RTMP session
 /// session_id - Session ID
+/// ip - Client IP address
 /// connection - IO stream to read and write bytes
 /// config - RTMP configuration
 /// server_status - Server status
@@ -33,6 +34,7 @@ pub async fn handle_rtmp_session<
     TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static,
 >(
     session_id: u64,
+    ip: IpAddr,
     mut read_stream: TR,
     write_stream: Arc<Mutex<TW>>,
     config: Arc<RtmpServerConfiguration>,
@@ -200,7 +202,7 @@ pub async fn handle_rtmp_session<
 
     // Create data too keep between chunk reads
 
-    let mut read_status = RtmpSessionReadStatus::new();
+    let mut read_status = RtmpSessionReadStatus::new(ip);
     let mut in_packets: HashMap<u32, RtmpPacket> = HashMap::new();
 
     // Read chunks

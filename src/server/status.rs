@@ -309,7 +309,6 @@ impl RtmpServerStatus {
                     if !string_compare_constant_time(&channel_key, key) {
                         // If the key is invalid, remove the player
                         channel_status.players.remove(&session_id);
-                        _ = message_sender.send(RtmpSessionMessage::InvalidKey).await;
                         return false;
                     }
                 }

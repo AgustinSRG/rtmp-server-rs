@@ -1,6 +1,4 @@
-// Publish command
-
-use std::sync::Arc;
+// Play command
 
 use tokio::{
     io::{AsyncWrite, AsyncWriteExt},
@@ -8,14 +6,16 @@ use tokio::{
 };
 
 use crate::{
-    log::Logger, rtmp::{RtmpCommand, RtmpPacket}, server::{RtmpServerConfiguration, RtmpServerStatus}, session::RtmpSessionReadStatus, utils::validate_id_string
+    log::Logger,
+    rtmp::{RtmpCommand, RtmpPacket},
+    server::{RtmpServerConfiguration, RtmpServerStatus},
+    session::send_status_message,
+    utils::{parse_query_string_simple, validate_id_string},
 };
 
-use super::super::{
-    send_status_message, RtmpSessionMessage, RtmpSessionPublishStreamStatus, RtmpSessionStatus,
-};
+use super::super::{RtmpSessionMessage, RtmpSessionReadStatus, RtmpSessionStatus};
 
-/// Handles RTMP command (publish)
+/// Handles RTMP command (play)
 /// packet - The packet to handle
 /// cmd - The command to handle
 /// session_id - Session ID
@@ -23,12 +23,11 @@ use super::super::{
 /// config - RTMP configuration
 /// server_status - Server status
 /// session_status - Session status
-/// publish_status - Status if the stream being published
 /// session_msg_sender - Message sender for the session
 /// read_status - Status for the read task
 /// logger - Session logger
 /// Return true to continue receiving chunks. Returns false to end the session main loop.
-pub async fn handle_rtmp_command_publish<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin>(
+pub async fn handle_rtmp_command_play<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin>(
     packet: &RtmpPacket,
     cmd: &RtmpCommand,
     session_id: u64,
@@ -36,14 +35,13 @@ pub async fn handle_rtmp_command_publish<TW: AsyncWrite + AsyncWriteExt + Send +
     config: &RtmpServerConfiguration,
     server_status: &Mutex<RtmpServerStatus>,
     session_status: &Mutex<RtmpSessionStatus>,
-    publish_status: &Arc<Mutex<RtmpSessionPublishStreamStatus>>,
     session_msg_sender: &Sender<RtmpSessionMessage>,
     read_status: &mut RtmpSessionReadStatus,
     logger: &Logger,
 ) -> bool {
     // Load and validate parameters
 
-    let publish_stream_id = packet.header.stream_id;
+    let play_stream_id = packet.header.stream_id;
 
     let channel = match RtmpSessionStatus::get_channel(session_status).await {
         Some(c) => c,
@@ -54,9 +52,9 @@ pub async fn handle_rtmp_command_publish<TW: AsyncWrite + AsyncWriteExt + Send +
 
             if let Err(e) = send_status_message(
                 &write_stream,
-                publish_stream_id,
+                play_stream_id,
                 "error",
-                "NetStream.Publish.BadConnection",
+                "NetStream.Play.BadConnection",
                 Some("No channel is selected"),
                 config.chunk_size,
             )
@@ -74,16 +72,25 @@ pub async fn handle_rtmp_command_publish<TW: AsyncWrite + AsyncWriteExt + Send +
         }
     };
 
-    let key = match cmd.get_argument("streamName") {
+    let (key, gop_receive, gop_clear) = match cmd.get_argument("streamName") {
         Some(k) => {
             let k_parts: Vec<&str> = k.get_string().split("?").collect();
 
-            if k_parts.len() > 0 {
-                k_parts[0]
+            if k_parts.len() > 1 {
+                let q_str = parse_query_string_simple(k_parts[1]);
+
+                match q_str.get("cache") {
+                    Some(cache_opt) => match cache_opt.as_str() {
+                        "clear" => (k_parts[0], true, false),
+                        "no" => (k_parts[0], false, false),
+                        _ => (k_parts[0], true, false),
+                    },
+                    None => (k_parts[0], true, false),
+                }
             } else {
-                k.get_string()
+                (k.get_string(), true, false)
             }
-        },
+        }
         None => {
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("Command error: streamName property not provided");
@@ -91,9 +98,9 @@ pub async fn handle_rtmp_command_publish<TW: AsyncWrite + AsyncWriteExt + Send +
 
             if let Err(e) = send_status_message(
                 &write_stream,
-                publish_stream_id,
+                play_stream_id,
                 "error",
-                "NetStream.Publish.BadName",
+                "NetStream.Play.BadName",
                 Some("No stream key provided"),
                 config.chunk_size,
             )
@@ -118,9 +125,9 @@ pub async fn handle_rtmp_command_publish<TW: AsyncWrite + AsyncWriteExt + Send +
 
         if let Err(e) = send_status_message(
             &write_stream,
-            publish_stream_id,
+            play_stream_id,
             "error",
-            "NetStream.Publish.BadName",
+            "NetStream.Play.BadName",
             Some("Invalid stream key provided"),
             config.chunk_size,
         )
@@ -137,19 +144,19 @@ pub async fn handle_rtmp_command_publish<TW: AsyncWrite + AsyncWriteExt + Send +
         return false;
     }
 
-    // Ensure the session is not already publishing
+    // Ensure it is not playing
 
-    if !RtmpSessionStatus::check_is_publisher(session_status).await {
+    if !RtmpSessionStatus::check_is_player(session_status).await {
         if config.log_requests && logger.config.debug_enabled {
-            logger.log_debug("Protocol error: Received publish command, but already publishing");
+            logger.log_debug("Protocol error: Received play command, but already playing");
         }
 
         if let Err(e) = send_status_message(
             &write_stream,
-            publish_stream_id,
+            play_stream_id,
             "error",
-            "NetStream.Publish.BadConnection",
-            Some("Connection already publishing"),
+            "NetStream.Play.BadConnection",
+            Some("Connection already playing"),
             config.chunk_size,
         )
         .await
@@ -165,20 +172,19 @@ pub async fn handle_rtmp_command_publish<TW: AsyncWrite + AsyncWriteExt + Send +
         return false;
     }
 
-    // Ensure the channel is free to publish
+    // Ensure the client IP is whitelisted
 
-    if !RtmpServerStatus::check_channel_publishing_status(server_status, &channel).await {
+    if !config.play_whitelist.contains_ip(&read_status.ip) {
         if config.log_requests && logger.config.debug_enabled {
-            logger
-                .log_debug("Cannot publish: Another session is already publishing on the channel");
+            logger.log_debug("Attempted to play, but not whitelisted");
         }
 
         if let Err(e) = send_status_message(
             &write_stream,
-            publish_stream_id,
+            play_stream_id,
             "error",
-            "NetStream.Publish.BadName",
-            Some("Stream already publishing"),
+            "NetStream.Play.BadName",
+            Some("Your net address is not whitelisted for playing"),
             config.chunk_size,
         )
         .await
@@ -197,39 +203,38 @@ pub async fn handle_rtmp_command_publish<TW: AsyncWrite + AsyncWriteExt + Send +
     // Log
 
     if config.log_requests {
-        logger.log_info(&format!("PUBLISH ({}): {}", publish_stream_id, &channel));
+        logger.log_info(&format!("PLAY ({}): {}", play_stream_id, &channel));
     }
 
-    // Check validity of the key (callback or coordinator)
+    // Update session status
 
-    let stream_id = "";
-    logger.log_debug("TODO");
+    let (receive_audio, receive_video) =
+        RtmpSessionStatus::set_player(session_status, gop_receive, play_stream_id).await;
 
-    // Set publisher into the server status
+    // Update server status
 
-    if !RtmpServerStatus::set_publisher(
+    if !RtmpServerStatus::add_player(
         server_status,
         &channel,
         key,
-        stream_id,
         session_id,
-        publish_status.clone(),
         session_msg_sender.clone(),
-        read_status,
+        gop_clear,
+        receive_audio,
+        receive_video,
     )
     .await
     {
         if config.log_requests && logger.config.debug_enabled {
-            logger
-                .log_debug("Cannot publish: Another session is already publishing on the channel");
+            logger.log_debug("Invalid streaming key provided");
         }
 
         if let Err(e) = send_status_message(
             &write_stream,
-            publish_stream_id,
+            play_stream_id,
             "error",
-            "NetStream.Publish.BadName",
-            Some("Stream already publishing"),
+            "NetStream.Play.BadName",
+            Some("Invalid stream key provided"),
             config.chunk_size,
         )
         .await
@@ -243,30 +248,6 @@ pub async fn handle_rtmp_command_publish<TW: AsyncWrite + AsyncWriteExt + Send +
         }
 
         return false;
-    }
-
-    // Set publishing status to the session status
-
-    RtmpSessionStatus::set_publisher(session_status, publish_stream_id).await;
-
-    // Respond with status message
-
-    if let Err(e) = send_status_message(
-        &write_stream,
-        publish_stream_id,
-        "status",
-        "NetStream.Publish.Start",
-        Some(&format!("/{}/{} is now published.", channel, key)),
-        config.chunk_size,
-    )
-    .await
-    {
-        if config.log_requests && logger.config.debug_enabled {
-            logger.log_debug(&format!(
-                "Send error: Could not send status message: {}",
-                e.to_string()
-            ));
-        }
     }
 
     // Done

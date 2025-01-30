@@ -1,6 +1,6 @@
 // RTMP session status model
 
-use std::{collections::VecDeque, sync::Arc};
+use std::{collections::VecDeque, net::IpAddr, sync::Arc};
 
 use tokio::sync::Mutex;
 
@@ -78,6 +78,12 @@ impl RtmpSessionStatus {
         status_v.is_publisher
     }
 
+    /// Checks if the session is a player
+    pub async fn check_is_player(status: &Mutex<RtmpSessionStatus>) -> bool {
+        let status_v = status.lock().await;
+        status_v.is_player
+    }
+
     /// Checks if the session is killed
     pub async fn is_killed(status: &Mutex<RtmpSessionStatus>) -> bool {
         let status_v = status.lock().await;
@@ -90,11 +96,22 @@ impl RtmpSessionStatus {
         status_v.killed = true;
     }
 
-    /// Checks if the session is a publisher
-    pub async fn set_publisher(status: &Mutex<RtmpSessionStatus>, is_publisher: bool, publish_stream_id: u32) {
+    /// Updates session status for publishing
+    pub async fn set_publisher(status: &Mutex<RtmpSessionStatus>, publish_stream_id: u32) {
         let mut status_v = status.lock().await;
-        status_v.is_publisher = is_publisher;
+        status_v.is_publisher = true;
         status_v.publish_stream_id = publish_stream_id;
+    }
+
+    /// Updates session status for playing
+    /// Return the receive_audio, receive_video properties
+    pub async fn set_player(status: &Mutex<RtmpSessionStatus>, receive_gop: bool, play_stream_id: u32) -> (bool, bool) {
+        let mut status_v = status.lock().await;
+        status_v.is_player = true;
+        status_v.receive_gop = receive_gop;
+        status_v.publish_stream_id = play_stream_id;
+
+        (status_v.receive_audio, status_v.receive_video)
     }
 
     /// Gets the current channel of the session
@@ -126,6 +143,9 @@ impl RtmpSessionStatus {
 
 /// Status to maintain only for the read task
 pub struct RtmpSessionReadStatus {
+    /// Client ip
+    pub ip: IpAddr,
+
     /// Size for incoming chunks
     pub in_chunk_size: usize,
 
@@ -150,8 +170,9 @@ pub struct RtmpSessionReadStatus {
 
 impl RtmpSessionReadStatus {
     /// Creates RtmpSessionReadStatus
-    pub fn new() -> RtmpSessionReadStatus {
+    pub fn new(ip: IpAddr) -> RtmpSessionReadStatus {
         RtmpSessionReadStatus {
+            ip,
             in_chunk_size: RTMP_CHUNK_SIZE,
             in_ack_size: 0,
             in_last_ack: 0,

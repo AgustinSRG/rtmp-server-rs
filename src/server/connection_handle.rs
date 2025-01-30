@@ -55,6 +55,7 @@ pub async fn handle_connection<
     // Handle session
     handle_rtmp_session(
         session_id,
+        ip,
         read_stream,
         write_stream,
         config,

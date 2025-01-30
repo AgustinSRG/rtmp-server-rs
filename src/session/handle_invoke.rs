@@ -14,9 +14,10 @@ use crate::{
 };
 
 use super::{
-    handle_rtmp_command_connect, handle_rtmp_command_create_stream, handle_rtmp_command_publish,
-    handle_rtmp_command_receive_audio, handle_rtmp_command_receive_video, RtmpSessionMessage,
-    RtmpSessionPublishStreamStatus, RtmpSessionReadStatus, RtmpSessionStatus,
+    handle_rtmp_command_connect, handle_rtmp_command_create_stream, handle_rtmp_command_play,
+    handle_rtmp_command_publish, handle_rtmp_command_receive_audio,
+    handle_rtmp_command_receive_video, RtmpSessionMessage, RtmpSessionPublishStreamStatus,
+    RtmpSessionReadStatus, RtmpSessionStatus,
 };
 
 /// Handles RTMP packet (INVOKE)
@@ -104,7 +105,21 @@ pub async fn handle_rtmp_packet_invoke<TW: AsyncWrite + AsyncWriteExt + Send + S
             )
             .await
         }
-        "play" => true,
+        "play" => {
+            handle_rtmp_command_play(
+                packet,
+                &cmd,
+                session_id,
+                write_stream,
+                config,
+                server_status,
+                session_status,
+                session_msg_sender,
+                read_status,
+                logger,
+            )
+            .await
+        }
         "pause" => true,
         "deleteStream" => true,
         "closeStream" => true,
