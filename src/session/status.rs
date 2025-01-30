@@ -1,10 +1,10 @@
 // RTMP session status model
 
-use std::{net::IpAddr, sync::Arc};
+use std::{collections::VecDeque, sync::Arc};
 
 use tokio::sync::Mutex;
 
-use crate::rtmp::{RtmpPacket, RTMP_CHUNK_SIZE};
+use crate::{rtmp::{RtmpPacket, RTMP_CHUNK_SIZE}, server::RtmpChannelStatus};
 
 use super::RtmpSessionMessage;
 
@@ -143,6 +143,9 @@ pub struct RtmpSessionReadStatus {
 
     /// Bitrate last updated (Unix milliseconds)
     pub bit_rate_last_update: i64,
+
+    /// Channel status (set only when publishing)
+    pub channel_status: Option<Arc<Mutex<RtmpChannelStatus>>>,
 }
 
 impl RtmpSessionReadStatus {
@@ -155,6 +158,7 @@ impl RtmpSessionReadStatus {
             ack_size: 0,
             bit_rate_bytes: 0,
             bit_rate_last_update: 0,
+            channel_status: None,
         }
     }
 }
@@ -180,7 +184,7 @@ pub struct RtmpSessionPublishStreamStatus {
     pub metadata: Arc<Vec<u8>>,
 
     /// GOP cache
-    pub gop_cache: Vec<Arc<RtmpPacket>>,
+    pub gop_cache: VecDeque<Arc<RtmpPacket>>,
 
     /// GOP cache clear flag
     pub gop_cache_cleared: bool,
@@ -199,7 +203,7 @@ impl RtmpSessionPublishStreamStatus {
             video_codec: 0,
             avc_sequence_header: Arc::new(Vec::new()),
             metadata: Arc::new(Vec::new()),
-            gop_cache: Vec::new(),
+            gop_cache: VecDeque::new(),
             gop_cache_cleared: false,
             gop_cache_size: 0,
         }
@@ -225,17 +229,19 @@ impl RtmpSessionPublishStreamStatus {
     ) -> RtmpSessionMessage {
         let mut status = status_mu.lock().await;
 
+        let copy_of_gop_cache: Vec<Arc<RtmpPacket>> = status.gop_cache.iter().map(|p| p.clone()).collect();
+
         let msg = RtmpSessionMessage::PlayStart {
             metadata: status.metadata.clone(),
             audio_codec: status.audio_codec,
             aac_sequence_header: status.aac_sequence_header.clone(),
             video_codec: status.video_codec,
             avc_sequence_header: status.avc_sequence_header.clone(),
-            gop_cache: status.gop_cache.clone(),
+            gop_cache: copy_of_gop_cache,
         };
 
         if clear_gop && !status.gop_cache_cleared {
-            status.gop_cache = Vec::new();
+            status.gop_cache.clear();
             status.gop_cache_cleared = true;
             status.gop_cache_size = 0;
         }
@@ -249,6 +255,17 @@ impl RtmpSessionPublishStreamStatus {
         packet: Arc<RtmpPacket>,
         gop_max_size: usize
     ) {
+        let mut status = status_mu.lock().await;
 
+        let packet_size = packet.size();
+
+        status.gop_cache_size = status.gop_cache_size.wrapping_add(packet_size);
+        status.gop_cache.push_back(packet);
+
+        while !status.gop_cache.is_empty() && status.gop_cache_size > gop_max_size {
+            if let Some(removed) = status.gop_cache.pop_front() {
+                status.gop_cache_size = status.gop_cache_size.wrapping_sub(removed.size());
+            }
+        }
     }
 }

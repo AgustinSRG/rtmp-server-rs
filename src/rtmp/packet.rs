@@ -2,7 +2,7 @@
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
 
-use super::{RTMP_CHUNK_TYPE_0, RTMP_CHUNK_TYPE_1, RTMP_CHUNK_TYPE_2, RTMP_CHUNK_TYPE_3};
+use super::{RTMP_CHUNK_TYPE_0, RTMP_CHUNK_TYPE_1, RTMP_CHUNK_TYPE_2, RTMP_CHUNK_TYPE_3, RTMP_PACKET_BASE_SIZE};
 
 /// Header of an RTMP packet
 pub struct RtmpPacketHeader {
@@ -64,6 +64,11 @@ impl RtmpPacket {
             handled: false,
             payload: Vec::new(),
         }
+    }
+
+    /// Gets packet total size
+    pub fn size(&self) -> usize {
+        self.payload.len().wrapping_add(RTMP_PACKET_BASE_SIZE)
     }
 
     /// Serializes a basic header for a RTMP packet

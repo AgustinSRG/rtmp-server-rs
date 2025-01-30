@@ -8,10 +8,7 @@ use tokio::{
 };
 
 use crate::{
-    log::Logger,
-    rtmp::{RtmpCommand, RtmpPacket},
-    server::{RtmpServerConfiguration, RtmpServerStatus},
-    utils::validate_id_string,
+    log::Logger, rtmp::{RtmpCommand, RtmpPacket}, server::{RtmpServerConfiguration, RtmpServerStatus}, session::RtmpSessionReadStatus, utils::validate_id_string
 };
 
 use super::super::{
@@ -41,6 +38,7 @@ pub async fn handle_rtmp_command_publish<TW: AsyncWrite + AsyncWriteExt + Send +
     session_status: &Mutex<RtmpSessionStatus>,
     publish_status: &Arc<Mutex<RtmpSessionPublishStreamStatus>>,
     session_msg_sender: &Sender<RtmpSessionMessage>,
+    read_status: &mut RtmpSessionReadStatus,
     logger: &Logger,
 ) -> bool {
     // Load and validate parameters
@@ -209,6 +207,7 @@ pub async fn handle_rtmp_command_publish<TW: AsyncWrite + AsyncWriteExt + Send +
         session_id,
         publish_status.clone(),
         session_msg_sender.clone(),
+        read_status,
     )
     .await
     {

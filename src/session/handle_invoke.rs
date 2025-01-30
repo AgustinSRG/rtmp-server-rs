@@ -99,6 +99,7 @@ pub async fn handle_rtmp_packet_invoke<TW: AsyncWrite + AsyncWriteExt + Send + S
                 session_status,
                 publish_status,
                 session_msg_sender,
+                read_status,
                 logger,
             )
             .await

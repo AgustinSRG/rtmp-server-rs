@@ -1,9 +1,9 @@
 // RTMP constants
 
-// RTMP version
+/// RTMP version
 pub const RTMP_VERSION: u8 = 3;
 
-// Handshake consts
+/// Handshake size
 pub const RTMP_HANDSHAKE_SIZE: usize = 1536;
 
 // Message formats
@@ -11,14 +11,14 @@ pub const MESSAGE_FORMAT_0: u32 = 0;
 pub const MESSAGE_FORMAT_1: u32 = 1;
 pub const MESSAGE_FORMAT_2: u32 = 2;
 
-// Signature size
+/// Signature size
 pub const RTMP_SIG_SIZE: usize = 1536;
 
-// SHA 256 size
+/// SHA 256 size
 pub const SHA256DL: usize = 32;
 pub const SHA256K: usize = 32;
 
-// Random CRUD data used for handshake
+/// Random CRUD data used for handshake
 pub const RANDOM_CRUD: &[u8] = &[
     0xf0, 0xee, 0xc2, 0x4a, 0x80, 0x68, 0xbe, 0xe8,
 	0x2e, 0x00, 0xd0, 0xd1, 0x02, 0x9e, 0x7e, 0x57,
@@ -26,10 +26,11 @@ pub const RANDOM_CRUD: &[u8] = &[
 	0x93, 0xb8, 0xe6, 0x36, 0xcf, 0xeb, 0x31, 0xae,
 ];
 
-// Server names
+/// Flash media player name
 pub const GENUINE_FMS: &str = "Genuine Adobe Flash Media Server 001";
-pub const GENUINE_FP: &str = "Genuine Adobe Flash Player 001";
 
+/// Flash player name
+pub const GENUINE_FP: &str = "Genuine Adobe Flash Player 001";
 
 // Chunk types
 pub const RTMP_CHUNK_TYPE_0: u32 = 0; // 11-bytes: timestamp(3) + length(3) + stream type(1) + stream id(4)
@@ -82,18 +83,23 @@ pub const RTMP_TYPE_METADATA: u32 = 22;
 pub const STREAM_BEGIN: u16 = 0x00;
 pub const STREAM_EOF: u16 = 0x01;
 
-// Default chunk size
+/// Default chunk size
 pub const RTMP_CHUNK_SIZE: usize = 128;
+
+/// Max chunk size
 pub const RTMP_MAX_CHUNK_SIZE: usize = 65536;
 
-// Ping time (seconds)
+/// Ping time (seconds)
 pub const RTMP_PING_TIME: u64 = 30;
 
-// Ping timeout (seconds)
+/// Ping timeout (seconds)
 pub const RTMP_PING_TIMEOUT: u64 = 60;
 
-// Window ACK
+/// Window ACK
 pub const RTMP_WINDOW_ACK: u32 = 5000000;
 
-// Peer bandwidth
+/// Peer bandwidth
 pub const RTMP_PEER_BANDWIDTH: u32 = 5000000;
+
+/// Base size of a RTMP packet
+pub const RTMP_PACKET_BASE_SIZE: usize = 65;

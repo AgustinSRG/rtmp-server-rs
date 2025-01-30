@@ -6,7 +6,10 @@ use tokio::sync::{mpsc::Sender, Mutex};
 
 use crate::{
     rtmp::{RtmpPacket, RTMP_TYPE_AUDIO, RTMP_TYPE_VIDEO},
-    session::{RtmpSessionMessage, RtmpSessionPublishStreamStatus},
+    session::{
+        RtmpSessionMessage, RtmpSessionPublishStreamStatus, RtmpSessionReadStatus,
+        RtmpSessionStatus,
+    },
     utils::string_compare_constant_time,
 };
 
@@ -118,12 +121,16 @@ impl RtmpServerStatus {
         session_id: u64,
         publish_status: Arc<Mutex<RtmpSessionPublishStreamStatus>>,
         message_sender: Sender<RtmpSessionMessage>,
+        read_status: &mut RtmpSessionReadStatus,
     ) -> bool {
+        let channel_status_ref: Arc<Mutex<RtmpChannelStatus>>;
+
         let mut status_v = status.lock().await;
 
         match status_v.channels.get(channel) {
             Some(channel_mu) => {
                 let channel_mu_clone = channel_mu.clone();
+                channel_status_ref = channel_mu.clone();
                 drop(status_v);
 
                 let mut c = channel_mu_clone.lock().await;
@@ -183,9 +190,15 @@ impl RtmpServerStatus {
 
                 let channel_mu = Arc::new(Mutex::new(new_channel_status));
 
+                channel_status_ref = channel_mu.clone();
+
                 status_v.channels.insert(channel.to_string(), channel_mu);
+
+                drop(status_v)
             }
         };
+
+        read_status.channel_status = Some(channel_status_ref);
 
         true
     }
@@ -365,64 +378,61 @@ impl RtmpServerStatus {
 
     /// Send a packet to channel players
     pub async fn send_packet_to_channel(
-        status: &Mutex<RtmpServerStatus>,
-        channel: &str,
+        channel_mu: &Mutex<RtmpChannelStatus>,
         publisher_id: u64,
         packet: Arc<RtmpPacket>,
+        skip_cache: bool,
         config: &RtmpServerConfiguration,
     ) {
-        let mut status_v = status.lock().await;
+        let channel_status = channel_mu.lock().await;
 
-        match status_v.channels.get_mut(channel) {
-            Some(c) => {
-                let channel_mu = c.clone();
-                drop(status_v);
+        if !channel_status.publishing {
+            return;
+        }
 
-                let channel_status = channel_mu.lock().await;
-
-                if let Some(pid) = channel_status.publisher_id {
-                    if pid == publisher_id {
-                        return;
-                    }
-                }
-
-                let publish_status = match &channel_status.publish_status {
-                    Some(s) => s,
-                    None => {
-                        return;
-                    }
-                };
-                RtmpSessionPublishStreamStatus::push_new_packet(
-                    publish_status,
-                    packet.clone(),
-                    config.gop_cache_size,
-                )
-                .await;
-
-                // Send packet to players
-
-                for (_, player) in &channel_status.players {
-                    if player.paused {
-                        continue;
-                    }
-
-                    if packet.header.packet_type == RTMP_TYPE_AUDIO && !player.receive_audio {
-                        continue;
-                    }
-
-                    if packet.header.packet_type == RTMP_TYPE_VIDEO && !player.receive_video {
-                        continue;
-                    }
-
-                    _ = player
-                        .message_sender
-                        .send(RtmpSessionMessage::PlayPacket {
-                            packet: packet.clone(),
-                        })
-                        .await;
-                }
+        if let Some(pid) = channel_status.publisher_id {
+            if pid == publisher_id {
+                return;
             }
-            None => {}
+        }
+
+        let publish_status = match &channel_status.publish_status {
+            Some(s) => s,
+            None => {
+                return;
+            }
+        };
+
+        if !skip_cache {
+            RtmpSessionPublishStreamStatus::push_new_packet(
+                publish_status,
+                packet.clone(),
+                config.gop_cache_size,
+            )
+            .await;
+        }
+
+        // Send packet to players
+
+        for (_, player) in &channel_status.players {
+            if player.paused {
+                continue;
+            }
+
+            if packet.header.packet_type == RTMP_TYPE_AUDIO && !player.receive_audio {
+                continue;
+            }
+
+            if packet.header.packet_type == RTMP_TYPE_VIDEO && !player.receive_video {
+                continue;
+            }
+
+            _ = player
+                .message_sender
+                .send(RtmpSessionMessage::PlayPacket {
+                    packet: packet.clone(),
+                })
+                .await;
         }
     }
 
@@ -455,14 +465,17 @@ impl RtmpServerStatus {
                     }
                 };
 
-                RtmpSessionPublishStreamStatus::set_metadata(publish_status, metadata.clone()).await;
+                RtmpSessionPublishStreamStatus::set_metadata(publish_status, metadata.clone())
+                    .await;
 
                 // Send metadata to players
 
                 for (_, player) in &channel_status.players {
                     _ = player
                         .message_sender
-                        .send(RtmpSessionMessage::PlayMetadata { metadata: metadata.clone() })
+                        .send(RtmpSessionMessage::PlayMetadata {
+                            metadata: metadata.clone(),
+                        })
                         .await;
                 }
             }
