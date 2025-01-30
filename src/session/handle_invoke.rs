@@ -86,6 +86,10 @@ pub async fn handle_rtmp_packet_invoke<TW: AsyncWrite + AsyncWriteExt + Send + S
         }
     };
 
+    if config.log_requests && logger.config.trace_enabled {
+        logger.log_trace(&format!("DATA COMMAND: {}", cmd.to_debug_string()));
+    }
+
     match cmd.cmd.as_str() {
         "connect" => {
             handle_rtmp_command_connect(&cmd, write_stream, config, session_status, logger).await

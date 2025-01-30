@@ -203,13 +203,9 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
             handle_rtmp_packet_data(
                 packet,
                 session_id,
-                write_stream,
                 config,
                 server_status,
                 session_status,
-                publish_status,
-                session_msg_sender,
-                read_status,
                 logger,
             )
             .await
@@ -222,13 +218,9 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
             handle_rtmp_packet_data(
                 packet,
                 session_id,
-                write_stream,
                 config,
                 server_status,
                 session_status,
-                publish_status,
-                session_msg_sender,
-                read_status,
                 logger,
             )
             .await

@@ -10,7 +10,7 @@ use tokio::{
 
 use crate::{
     log::Logger,
-    rtmp::{RtmpPacket, RTMP_CHANNEL_PROTOCOL, RTMP_CHUNK_TYPE_0, RTMP_PING_TIME, RTMP_TYPE_EVENT},
+    rtmp::{rtmp_make_ping_request, RtmpPacket, RTMP_CHANNEL_PROTOCOL, RTMP_CHUNK_TYPE_0, RTMP_PING_TIME, RTMP_TYPE_EVENT},
     server::RtmpServerConfiguration,
     session::session_write_bytes,
 };
@@ -44,33 +44,13 @@ pub fn spawn_task_to_send_pings<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
                 continue; // Not connected, can't send ping yet
             }
 
-            let now = Utc::now().timestamp();
-            let current_timestamp = now.wrapping_sub(session_status_v.connect_time);
+            let connect_time = session_status_v.connect_time;
+
             drop(session_status_v);
 
-            // Create ping packet
+            // Create ping
 
-            let mut packet = RtmpPacket::new_blank();
-
-            packet.header.format = RTMP_CHUNK_TYPE_0;
-            packet.header.channel_id = RTMP_CHANNEL_PROTOCOL;
-            packet.header.packet_type = RTMP_TYPE_EVENT;
-            packet.header.timestamp = current_timestamp;
-
-            packet.payload = vec![
-                0,
-                6,
-                ((current_timestamp >> 24) as u8) & 0xff,
-                ((current_timestamp >> 16) as u8) & 0xff,
-                ((current_timestamp >> 8) as u8) & 0xff,
-                (current_timestamp as u8) & 0xff,
-            ];
-
-            packet.header.length = packet.payload.len();
-
-            // Serialize packet
-
-            let packet_bytes = packet.create_chunks(config.chunk_size);
+            let ping_bytes = rtmp_make_ping_request(connect_time, config.chunk_size);
 
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("Sending ping request to client");
@@ -78,7 +58,7 @@ pub fn spawn_task_to_send_pings<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
 
             // Send packet
 
-            match session_write_bytes(&write_stream, &packet_bytes).await {
+            match session_write_bytes(&write_stream, &ping_bytes).await {
                 Ok(_) => {
                     if config.log_requests && logger.config.debug_enabled {
                         logger.log_debug("Sent ping request to client");
