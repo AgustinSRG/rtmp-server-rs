@@ -6,10 +6,7 @@ use tokio::sync::{mpsc::Sender, Mutex};
 
 use crate::{
     rtmp::{RtmpPacket, RTMP_TYPE_AUDIO, RTMP_TYPE_VIDEO},
-    session::{
-        RtmpSessionMessage, RtmpSessionPublishStreamStatus, RtmpSessionReadStatus,
-        RtmpSessionStatus,
-    },
+    session::{RtmpSessionMessage, RtmpSessionPublishStreamStatus, RtmpSessionReadStatus},
     utils::string_compare_constant_time,
 };
 
@@ -241,7 +238,10 @@ impl RtmpServerStatus {
 
                 for (_, player) in &mut channel_status.players {
                     player.idle = true;
-                    player.message_sender.send(RtmpSessionMessage::PlayStop);
+                    _ = player
+                        .message_sender
+                        .send(RtmpSessionMessage::PlayStop)
+                        .await;
                 }
             }
             None => {
