@@ -48,8 +48,6 @@ pub struct RtmpSessionStatus {
 
     /// Current number of streams
     pub streams: usize,
-
-    
 }
 
 impl RtmpSessionStatus {

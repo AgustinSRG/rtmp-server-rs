@@ -39,7 +39,7 @@ pub enum AMF3Value {
 impl AMF3Value {
     /// Obtains a string representation of the value
     /// Used for debug logging purposes
-    pub fn to_debug_string(&self, tabs: &str) -> String {
+    pub fn to_debug_string(&self, _tabs: &str) -> String {
         match self {
             AMF3Value::Undefined => "Undefined".to_string(),
             AMF3Value::Null => "Null".to_string(),

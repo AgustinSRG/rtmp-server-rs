@@ -2,7 +2,6 @@
 
 use std::{sync::Arc, time::Duration};
 
-use chrono::Utc;
 use tokio::{
     io::{AsyncWrite, AsyncWriteExt},
     sync::{mpsc::Receiver, Mutex},
@@ -10,7 +9,7 @@ use tokio::{
 
 use crate::{
     log::Logger,
-    rtmp::{rtmp_make_ping_request, RtmpPacket, RTMP_CHANNEL_PROTOCOL, RTMP_CHUNK_TYPE_0, RTMP_PING_TIME, RTMP_TYPE_EVENT},
+    rtmp::{rtmp_make_ping_request, RTMP_PING_TIME},
     server::RtmpServerConfiguration,
     session::session_write_bytes,
 };

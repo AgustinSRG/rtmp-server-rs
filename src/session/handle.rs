@@ -183,7 +183,6 @@ pub async fn handle_rtmp_session<
         config.clone(),
         server_status.clone(),
         session_status.clone(),
-        publish_status.clone(),
         msg_receiver,
         logger.clone(),
     );

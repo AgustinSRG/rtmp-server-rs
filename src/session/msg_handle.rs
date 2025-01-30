@@ -20,7 +20,7 @@ use crate::{
 
 use super::{
     do_session_cleanup, send_status_message, session_write_bytes, RtmpSessionMessage,
-    RtmpSessionPublishStreamStatus, RtmpSessionStatus,
+    RtmpSessionStatus,
 };
 
 /// Handles session message
@@ -34,12 +34,9 @@ use super::{
 /// logger - Session logger
 pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin>(
     msg: RtmpSessionMessage,
-    session_id: u64,
     write_stream: &Mutex<TW>,
     config: &RtmpServerConfiguration,
-    server_status: &Mutex<RtmpServerStatus>,
     session_status: &Mutex<RtmpSessionStatus>,
-    publish_status: &Arc<Mutex<RtmpSessionPublishStreamStatus>>,
     logger: &Logger,
 ) -> bool {
     match msg {
@@ -355,6 +352,204 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
                 logger.log_debug("Changed play status: IDLE");
             }
         }
+        RtmpSessionMessage::Pause => {
+            // Get play status
+            let (is_player, play_stream_id) =
+                RtmpSessionStatus::get_play_stream_id(session_status).await;
+
+            if !is_player {
+                return true;
+            }
+
+            // Send stream status
+
+            let stream_status_bytes = rtmp_make_stream_status_message(STREAM_EOF, play_stream_id);
+
+            if let Err(e) = session_write_bytes(&write_stream, &stream_status_bytes).await {
+                if config.log_requests && logger.config.debug_enabled {
+                    logger.log_debug(&format!(
+                        "Send error: Could not send stream status: {}",
+                        e.to_string()
+                    ));
+                }
+                return true;
+            }
+
+            // Send status message
+
+            if let Err(e) = send_status_message(
+                &write_stream,
+                play_stream_id,
+                "status",
+                "NetStream.Pause.Notify",
+                Some("Paused live"),
+                config.chunk_size,
+            )
+            .await
+            {
+                if config.log_requests && logger.config.debug_enabled {
+                    logger.log_debug(&format!(
+                        "Send error: Could not send status message: {}",
+                        e.to_string()
+                    ));
+                }
+            }
+
+            // Log
+
+            if config.log_requests && logger.config.debug_enabled {
+                logger.log_debug("Changed play status: PAUSED");
+            }
+        }
+        RtmpSessionMessage::Resume {
+            audio_codec,
+            aac_sequence_header,
+            video_codec,
+            avc_sequence_header,
+        } => {
+            // Get play status
+            let (is_player, play_stream_id) =
+                RtmpSessionStatus::get_play_stream_id(session_status).await;
+
+            if !is_player {
+                return true;
+            }
+
+            // Send stream status
+
+            let stream_status_bytes = rtmp_make_stream_status_message(STREAM_BEGIN, play_stream_id);
+
+            if let Err(e) = session_write_bytes(&write_stream, &stream_status_bytes).await {
+                if config.log_requests && logger.config.debug_enabled {
+                    logger.log_debug(&format!(
+                        "Send error: Could not send stream status: {}",
+                        e.to_string()
+                    ));
+                }
+                return true;
+            }
+
+            // Send audio codec header
+
+            if audio_codec == 10 || audio_codec == 13 {
+                let audio_codec_header = rtmp_make_audio_codec_header_message(
+                    play_stream_id,
+                    &aac_sequence_header,
+                    0,
+                    config.chunk_size,
+                );
+
+                if let Err(e) = session_write_bytes(&write_stream, &audio_codec_header).await {
+                    if config.log_requests && logger.config.debug_enabled {
+                        logger.log_debug(&format!(
+                            "Send error: Could not send audio codec header: {}",
+                            e.to_string()
+                        ));
+                    }
+                    return true;
+                }
+
+                logger.log_debug("Sent audio codec header");
+            }
+
+            // Send video codec header
+
+            if video_codec == 7 || video_codec == 12 {
+                let video_codec_header = rtmp_make_video_codec_header_message(
+                    play_stream_id,
+                    &avc_sequence_header,
+                    0,
+                    config.chunk_size,
+                );
+
+                if let Err(e) = session_write_bytes(&write_stream, &video_codec_header).await {
+                    if config.log_requests && logger.config.debug_enabled {
+                        logger.log_debug(&format!(
+                            "Send error: Could not send video codec header: {}",
+                            e.to_string()
+                        ));
+                    }
+                    return true;
+                }
+
+                logger.log_debug("Sent video codec header");
+            }
+
+            // Send status message
+
+            if let Err(e) = send_status_message(
+                &write_stream,
+                play_stream_id,
+                "status",
+                "NetStream.Unpause.Notify",
+                Some("Unpaused live"),
+                config.chunk_size,
+            )
+            .await
+            {
+                if config.log_requests && logger.config.debug_enabled {
+                    logger.log_debug(&format!(
+                        "Send error: Could not send status message: {}",
+                        e.to_string()
+                    ));
+                }
+            }
+
+            // Log
+
+            if config.log_requests && logger.config.debug_enabled {
+                logger.log_debug("Changed play status: PLAYING");
+            }
+        }
+        RtmpSessionMessage::ResumeIdle => {
+            // Get play status
+            let (is_player, play_stream_id) =
+                RtmpSessionStatus::get_play_stream_id(session_status).await;
+
+            if !is_player {
+                return true;
+            }
+
+            // Send stream status
+
+            let stream_status_bytes = rtmp_make_stream_status_message(STREAM_BEGIN, play_stream_id);
+
+            if let Err(e) = session_write_bytes(&write_stream, &stream_status_bytes).await {
+                if config.log_requests && logger.config.debug_enabled {
+                    logger.log_debug(&format!(
+                        "Send error: Could not send stream status: {}",
+                        e.to_string()
+                    ));
+                }
+                return true;
+            }
+
+            // Send status message
+
+            if let Err(e) = send_status_message(
+                &write_stream,
+                play_stream_id,
+                "status",
+                "NetStream.Unpause.Notify",
+                Some("Unpaused live"),
+                config.chunk_size,
+            )
+            .await
+            {
+                if config.log_requests && logger.config.debug_enabled {
+                    logger.log_debug(&format!(
+                        "Send error: Could not send status message: {}",
+                        e.to_string()
+                    ));
+                }
+            }
+
+            // Log
+
+            if config.log_requests && logger.config.debug_enabled {
+                logger.log_debug("Changed play status: IDLE");
+            }
+        }
         RtmpSessionMessage::Kill => {
             RtmpSessionStatus::set_killed(session_status).await;
         }
@@ -383,7 +578,6 @@ pub fn spawn_task_to_read_session_messages<
     config: Arc<RtmpServerConfiguration>,
     server_status: Arc<Mutex<RtmpServerStatus>>,
     session_status: Arc<Mutex<RtmpSessionStatus>>,
-    publish_status: Arc<Mutex<RtmpSessionPublishStreamStatus>>,
     mut session_msg_receiver: Receiver<RtmpSessionMessage>,
     logger: Arc<Logger>,
 ) {
@@ -397,12 +591,9 @@ pub fn spawn_task_to_read_session_messages<
                 Some(msg) => {
                     continue_loop = handle_session_message(
                         msg,
-                        session_id,
                         &write_stream,
                         &config,
-                        &server_status,
                         &session_status,
-                        &publish_status,
                         &logger,
                     )
                     .await;
