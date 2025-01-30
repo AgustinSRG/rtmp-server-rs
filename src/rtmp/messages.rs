@@ -38,14 +38,14 @@ pub fn rtmp_make_window_ack(size: u32) -> Vec<u8> {
 }
 
 /// Makes RTMP control message to indicate peer bandwidth
-pub fn rtmp_make_peer_bandwidth_set_message(size: u32, t: u8) -> Vec<u8> {
+pub fn rtmp_make_peer_bandwidth_set_message(bandwidth: u32) -> Vec<u8> {
     let mut b = vec![
         0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00,
     ];
 
-    BigEndian::write_u32(&mut b[12..16], size);
-    b[16] = t;
+    BigEndian::write_u32(&mut b[12..16], bandwidth);
+    b[16] = 2;
 
     b
 }
@@ -137,9 +137,9 @@ pub fn rtmp_make_data_message(data: &RtmpData, stream_id: u32, out_chunk_size: u
 /// Makes RTMP status message
 pub fn rtmp_make_status_message(
     stream_id: u32,
-    level: String,
-    code: String,
-    description: Option<String>,
+    level: &str,
+    code: &str,
+    description: Option<&str>,
     out_chunk_size: usize,
 ) -> Vec<u8> {
     let mut cmd = RtmpCommand::new("onStatus".to_string());
@@ -149,11 +149,11 @@ pub fn rtmp_make_status_message(
 
     let mut info: HashMap<String, AMF0Value> = HashMap::new();
 
-    info.insert("level".to_string(), AMF0Value::String { value: level });
-    info.insert("code".to_string(), AMF0Value::String { value: code });
+    info.insert("level".to_string(), AMF0Value::String { value: level.to_string() });
+    info.insert("code".to_string(), AMF0Value::String { value: code.to_string() });
 
     if let Some(d) = description {
-        info.insert("description".to_string(), AMF0Value::String { value: d });
+        info.insert("description".to_string(), AMF0Value::String { value: d.to_string() });
     }
 
     cmd.set_argument("info".to_string(), AMF0Value::Object { properties: info });

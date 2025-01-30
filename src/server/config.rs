@@ -1,7 +1,6 @@
 /// RTMP server configuration
 use crate::{
-    log::Logger,
-    utils::{get_env_bool, get_env_string, get_env_u32, IpRangeConfig},
+    log::Logger, rtmp::{RTMP_CHUNK_SIZE, RTMP_MAX_CHUNK_SIZE}, utils::{get_env_bool, get_env_string, get_env_u32, IpRangeConfig, DEFAULT_MAX_ID_LENGTH}
 };
 
 /// RTMP server configuration
@@ -114,10 +113,10 @@ pub struct RtmpServerConfiguration {
     pub play_whitelist: IpRangeConfig,
 
     /// RTMP chunk size
-    pub chunk_size: u32,
+    pub chunk_size: usize,
 
-    /// Size limit in megabytes of packet cache (MB).
-    pub gop_cache_size_mb: u32,
+    /// Size limit in megabytes of packet cache (bytes).
+    pub gop_cache_size: usize,
 
     /// Max number of concurrent connections per IP address
     pub max_concurrent_connections_per_ip: u32,
@@ -144,7 +143,7 @@ impl RtmpServerConfiguration {
         let host = get_env_string("RTMP_HOST", "");
         let bind_address = get_env_string("BIND_ADDRESS", "");
 
-        let id_max_length = get_env_u32("ID_MAX_LENGTH", 128);
+        let id_max_length = get_env_u32("ID_MAX_LENGTH", DEFAULT_MAX_ID_LENGTH as u32);
 
         let play_whitelist_res =
             IpRangeConfig::new_from_string(&get_env_string("RTMP_PLAY_WHITELIST", ""));
@@ -160,8 +159,19 @@ impl RtmpServerConfiguration {
             }
         }
 
-        let chunk_size = get_env_u32("RTMP_CHUNK_SIZE", 128);
-        let gop_cache_size_mb = get_env_u32("GOP_CACHE_SIZE_MB", 256);
+        let chunk_size = get_env_u32("RTMP_CHUNK_SIZE", RTMP_CHUNK_SIZE as u32) as usize;
+
+        if chunk_size < RTMP_CHUNK_SIZE || chunk_size > RTMP_MAX_CHUNK_SIZE {
+            logger.log_error(&format!(
+                "RTMP_CHUNK_SIZE has an invalid value: {}. Min: {}. Max: {}",
+                chunk_size,
+                RTMP_CHUNK_SIZE,
+                RTMP_MAX_CHUNK_SIZE
+            ));
+            return Err(());
+        }
+
+        let gop_cache_size = (get_env_u32("GOP_CACHE_SIZE_MB", 256) as usize) * 1024 * 1024;
         let max_concurrent_connections_per_ip = get_env_u32("MAX_IP_CONCURRENT_CONNECTIONS", 4);
 
         let max_concurrent_connections_whitelist_res =
@@ -215,7 +225,7 @@ impl RtmpServerConfiguration {
             id_max_length: id_max_length as usize,
             play_whitelist,
             chunk_size,
-            gop_cache_size_mb,
+            gop_cache_size,
             max_concurrent_connections_per_ip,
             max_concurrent_connections_whitelist,
             callback,

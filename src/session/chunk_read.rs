@@ -55,6 +55,15 @@ pub async fn read_rtmp_chunk<
     in_packets: &mut HashMap<u32, RtmpPacket>,
     logger: &Logger,
 ) -> bool {
+    // Check if the session was killed before reading any chunk
+
+    if RtmpSessionStatus::is_killed(session_status).await {
+        if config.log_requests && logger.config.debug_enabled {
+            logger.log_debug("Session killed");
+        }
+        return false;
+    }
+
     let mut bytes_read_count: usize = 0; // Counter of read bytes
 
     // Read start byte
@@ -373,7 +382,6 @@ pub async fn read_rtmp_chunk<
             if !handle_rtmp_packet(
                 packet,
                 session_id,
-                read_stream,
                 write_stream,
                 config,
                 server_status,

@@ -28,5 +28,6 @@ pub enum RtmpSessionMessage {
     },
     PlayStop,
     InvalidKey,
+    Kill,
     End,
 }

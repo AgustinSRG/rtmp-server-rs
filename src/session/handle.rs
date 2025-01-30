@@ -15,8 +15,8 @@ use crate::{
 };
 
 use super::{
-    session_write_bytes, spawn_task_to_read_session_messages, RtmpSessionMessage,
-    RtmpSessionPublishStreamStatus, RtmpSessionReadStatus, RtmpSessionStatus,
+    session_write_bytes, spawn_task_to_read_session_messages, spawn_task_to_send_pings,
+    RtmpSessionMessage, RtmpSessionPublishStreamStatus, RtmpSessionReadStatus, RtmpSessionStatus,
     RTMP_SESSION_MESSAGE_BUFFER_SIZE,
 };
 
@@ -186,6 +186,18 @@ pub async fn handle_rtmp_session<
         logger.clone(),
     );
 
+    // Create task to send ping requests
+
+    let (cancel_pings_sender, cancel_pings_receiver) = tokio::sync::mpsc::channel::<()>(1);
+
+    spawn_task_to_send_pings(
+        write_stream.clone(),
+        config.clone(),
+        session_status.clone(),
+        cancel_pings_receiver,
+        logger.clone(),
+    );
+
     // Create data too keep between chunk reads
 
     let mut read_status = RtmpSessionReadStatus::new();
@@ -212,7 +224,8 @@ pub async fn handle_rtmp_session<
         .await;
     }
 
-    // End of loop, make sure the messages task ends
+    // End of loop, make sure all the tasks end
 
+    _ = cancel_pings_sender.send(()).await;
     _ = msg_sender.send(RtmpSessionMessage::End).await;
 }

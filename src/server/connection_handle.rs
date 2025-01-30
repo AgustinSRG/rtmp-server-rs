@@ -44,7 +44,7 @@ pub async fn handle_connection<
     );
 
     // Create status for the session
-    let session_status = Arc::new(Mutex::new(RtmpSessionStatus::new(session_id, ip)));
+    let session_status = Arc::new(Mutex::new(RtmpSessionStatus::new()));
     let publish_status = Arc::new(Mutex::new(RtmpSessionPublishStreamStatus::new()));
 
     // Log request
