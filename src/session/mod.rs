@@ -2,6 +2,7 @@
 
 mod chunk_read;
 mod cleanup;
+mod commands;
 mod handle;
 mod handle_audio;
 mod handle_data;
@@ -11,11 +12,12 @@ mod handle_video;
 mod message;
 mod msg_handle;
 mod ping;
-
 mod status;
 mod write;
+
 pub use chunk_read::*;
 pub use cleanup::*;
+pub use commands::*;
 pub use handle::*;
 pub use handle_audio::*;
 pub use handle_data::*;
