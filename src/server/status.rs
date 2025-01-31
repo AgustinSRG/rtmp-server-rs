@@ -535,4 +535,85 @@ impl RtmpServerStatus {
             None => {} // Nothing to do
         }
     }
+
+    /// Pauses a player
+    pub async fn player_pause(status: &Mutex<RtmpServerStatus>, channel: &str, player_id: u64) {
+        let mut status_v = status.lock().await;
+
+        match status_v.channels.get_mut(channel) {
+            Some(c) => {
+                let channel_mu = c.clone();
+                drop(status_v);
+
+                let mut channel_status = channel_mu.lock().await;
+
+                match channel_status.players.get_mut(&player_id) {
+                    Some(player_status) => {
+                        if player_status.paused {
+                            return; // Already paused
+                        }
+
+                        player_status.paused = true;
+                        _ = player_status
+                            .message_sender
+                            .send(RtmpSessionMessage::Pause)
+                            .await;
+                    }
+                    None => {}
+                }
+            }
+            None => {} // Nothing to do
+        }
+    }
+
+    /// Resumes a player
+    pub async fn player_resume(status: &Mutex<RtmpServerStatus>, channel: &str, player_id: u64) {
+        let mut status_v = status.lock().await;
+
+        match status_v.channels.get_mut(channel) {
+            Some(c) => {
+                let channel_mu = c.clone();
+                drop(status_v);
+
+                let mut channel_status = channel_mu.lock().await;
+
+                let publishing = channel_status.publishing;
+                let publish_status = channel_status.publish_status.clone();
+
+                match channel_status.players.get_mut(&player_id) {
+                    Some(player_status) => {
+                        if !player_status.paused {
+                            return; // Not paused
+                        }
+
+                        player_status.paused = false;
+
+                        if publishing {
+                            if let Some(publish_status) = &publish_status {
+                                let player_resume_message =
+                                    RtmpSessionPublishStreamStatus::get_player_resume_message(
+                                        &publish_status,
+                                    )
+                                    .await;
+
+                                _ = player_status.message_sender.send(player_resume_message);
+                            } else {
+                                _ = player_status
+                                    .message_sender
+                                    .send(RtmpSessionMessage::ResumeIdle)
+                                    .await;
+                            }
+                        } else {
+                            _ = player_status
+                                .message_sender
+                                .send(RtmpSessionMessage::ResumeIdle)
+                                .await;
+                        }
+                    }
+                    None => {}
+                }
+            }
+            None => {} // Nothing to do
+        }
+    }
 }

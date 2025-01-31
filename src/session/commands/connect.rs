@@ -26,7 +26,7 @@ use super::super::{session_write_bytes, RtmpSessionStatus};
 /// session_status - Session status
 /// logger - Session logger
 /// Return true to continue receiving chunks. Returns false to end the session main loop.
-pub async fn handle_rtmp_command_connect<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin>(
+pub async fn handle_rtmp_command_connect<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static>(
     cmd: &RtmpCommand,
     write_stream: &Mutex<TW>,
     config: &RtmpServerConfiguration,

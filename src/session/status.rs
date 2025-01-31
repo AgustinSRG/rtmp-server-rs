@@ -268,6 +268,22 @@ impl RtmpSessionPublishStreamStatus {
         msg
     }
 
+    /// Gets message to wake players
+    pub async fn get_player_resume_message(
+        status_mu: &Mutex<RtmpSessionPublishStreamStatus>,
+    ) -> RtmpSessionMessage {
+        let status = status_mu.lock().await;
+
+        let msg = RtmpSessionMessage::Resume {
+            audio_codec: status.audio_codec,
+            aac_sequence_header: status.aac_sequence_header.clone(),
+            video_codec: status.video_codec,
+            avc_sequence_header: status.avc_sequence_header.clone(),
+        };
+
+        msg
+    }
+
     /// Pushes a new packet to the gop cache
     pub async fn push_new_packet(
         status_mu: &Mutex<RtmpSessionPublishStreamStatus>,

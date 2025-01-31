@@ -32,7 +32,7 @@ use super::{
 /// session_status - Session status
 /// publish_status - Status if the stream being published
 /// logger - Session logger
-pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin>(
+pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static>(
     msg: RtmpSessionMessage,
     write_stream: &Mutex<TW>,
     config: &RtmpServerConfiguration,

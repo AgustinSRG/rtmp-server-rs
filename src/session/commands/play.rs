@@ -27,7 +27,7 @@ use super::super::{RtmpSessionMessage, RtmpSessionReadStatus, RtmpSessionStatus}
 /// read_status - Status for the read task
 /// logger - Session logger
 /// Return true to continue receiving chunks. Returns false to end the session main loop.
-pub async fn handle_rtmp_command_play<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin>(
+pub async fn handle_rtmp_command_play<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static>(
     packet: &RtmpPacket,
     cmd: &RtmpCommand,
     session_id: u64,
@@ -47,7 +47,7 @@ pub async fn handle_rtmp_command_play<TW: AsyncWrite + AsyncWriteExt + Send + Sy
         Some(c) => c,
         None => {
             if config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Protocol error: Received publish before connect");
+                logger.log_debug("Protocol error: Received play before connect");
             }
 
             if let Err(e) = send_status_message(

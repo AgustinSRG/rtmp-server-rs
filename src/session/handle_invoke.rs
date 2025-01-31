@@ -14,10 +14,11 @@ use crate::{
 };
 
 use super::{
-    handle_rtmp_command_connect, handle_rtmp_command_create_stream, handle_rtmp_command_play,
-    handle_rtmp_command_publish, handle_rtmp_command_receive_audio,
-    handle_rtmp_command_receive_video, RtmpSessionMessage, RtmpSessionPublishStreamStatus,
-    RtmpSessionReadStatus, RtmpSessionStatus,
+    handle_rtmp_command_close_stream, handle_rtmp_command_connect,
+    handle_rtmp_command_create_stream, handle_rtmp_command_delete_stream,
+    handle_rtmp_command_pause, handle_rtmp_command_play, handle_rtmp_command_publish,
+    handle_rtmp_command_receive_audio, handle_rtmp_command_receive_video, RtmpSessionMessage,
+    RtmpSessionPublishStreamStatus, RtmpSessionReadStatus, RtmpSessionStatus,
 };
 
 /// Handles RTMP packet (INVOKE)
@@ -32,7 +33,9 @@ use super::{
 /// read_status - Status for the read task
 /// logger - Session logger
 /// Return true to continue receiving chunks. Returns false to end the session main loop.
-pub async fn handle_rtmp_packet_invoke<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin>(
+pub async fn handle_rtmp_packet_invoke<
+    TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static,
+>(
     packet: &RtmpPacket,
     session_id: u64,
     write_stream: &Mutex<TW>,
@@ -120,9 +123,41 @@ pub async fn handle_rtmp_packet_invoke<TW: AsyncWrite + AsyncWriteExt + Send + S
             )
             .await
         }
-        "pause" => true,
-        "deleteStream" => true,
-        "closeStream" => true,
+        "pause" => {
+            handle_rtmp_command_pause(
+                &cmd,
+                session_id,
+                config,
+                server_status,
+                session_status,
+                logger,
+            )
+            .await
+        }
+        "deleteStream" => {
+            handle_rtmp_command_delete_stream(
+                &cmd,
+                session_id,
+                write_stream,
+                config,
+                server_status,
+                session_status,
+                logger,
+            )
+            .await
+        }
+        "closeStream" => {
+            handle_rtmp_command_close_stream(
+                packet,
+                session_id,
+                write_stream,
+                config,
+                server_status,
+                session_status,
+                logger,
+            )
+            .await
+        }
         "receiveAudio" => {
             handle_rtmp_command_receive_audio(
                 &cmd,

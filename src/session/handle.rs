@@ -11,7 +11,7 @@ use crate::{
     log::Logger,
     rtmp::{generate_s0_s1_s2, RtmpPacket, RTMP_HANDSHAKE_SIZE, RTMP_PING_TIMEOUT, RTMP_VERSION},
     server::{RtmpServerConfiguration, RtmpServerStatus},
-    session::chunk_read::read_rtmp_chunk,
+    session::read_rtmp_chunk,
 };
 
 use super::{
@@ -31,7 +31,7 @@ use super::{
 /// logger - Session logger
 pub async fn handle_rtmp_session<
     TR: AsyncRead + AsyncReadExt + Send + Sync + Unpin,
-    TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static,
+    TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin +'static ,
 >(
     session_id: u64,
     ip: IpAddr,

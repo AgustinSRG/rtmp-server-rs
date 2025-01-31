@@ -41,7 +41,7 @@ const BIT_RATE_COMPUTE_INTERVAL_MS: i64 = 1000;
 /// Return true to continue receiving chunk. Returns false to end the session main loop.
 pub async fn read_rtmp_chunk<
     TR: AsyncRead + AsyncReadExt + Send + Sync + Unpin,
-    TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin,
+    TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static,
 >(
     session_id: u64,
     read_stream: &mut TR,

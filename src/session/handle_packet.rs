@@ -37,7 +37,7 @@ use super::{
 /// read_status - Status for the read task
 /// logger - Session logger
 /// Return true to continue receiving chunks. Returns false to end the session main loop.
-pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin>(
+pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static>(
     packet: &RtmpPacket,
     session_id: u64,
     write_stream: &Mutex<TW>,
@@ -50,8 +50,8 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
     logger: &Logger,
 ) -> bool {
     match packet.header.packet_type {
-        // Packet to set chunk size
         RTMP_TYPE_SET_CHUNK_SIZE => {
+            // Packet to set chunk size
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("Received packet: RTMP_TYPE_SET_CHUNK_SIZE");
             }
@@ -97,8 +97,8 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
 
             true
         }
-        // Packet to set ACK size
         RTMP_TYPE_WINDOW_ACKNOWLEDGEMENT_SIZE => {
+            // Packet to set ACK size
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("Received packet: RTMP_TYPE_WINDOW_ACKNOWLEDGEMENT_SIZE");
             }
@@ -120,6 +120,7 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
             true
         }
         RTMP_TYPE_AUDIO => {
+            // Audio packet
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("Received packet: RTMP_TYPE_AUDIO");
             }
@@ -135,6 +136,7 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
             .await
         }
         RTMP_TYPE_VIDEO => {
+            // Video packet
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("Received packet: RTMP_TYPE_VIDEO");
             }
@@ -149,26 +151,8 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
             )
             .await
         }
-        RTMP_TYPE_FLEX_MESSAGE => {
-            if config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Received packet: RTMP_TYPE_FLEX_MESSAGE");
-            }
-
-            handle_rtmp_packet_invoke(
-                packet,
-                session_id,
-                write_stream,
-                config,
-                server_status,
-                session_status,
-                publish_status,
-                session_msg_sender,
-                read_status,
-                logger,
-            )
-            .await
-        }
         RTMP_TYPE_INVOKE => {
+            // Invoke / Command packet
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("Received packet: RTMP_TYPE_INVOKE");
             }
@@ -187,7 +171,28 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
             )
             .await
         }
+        RTMP_TYPE_FLEX_MESSAGE => {
+            // Invoke / Command packet (Alt)
+            if config.log_requests && logger.config.debug_enabled {
+                logger.log_debug("Received packet: RTMP_TYPE_FLEX_MESSAGE");
+            }
+
+            handle_rtmp_packet_invoke(
+                packet,
+                session_id,
+                write_stream,
+                config,
+                server_status,
+                session_status,
+                publish_status,
+                session_msg_sender,
+                read_status,
+                logger,
+            )
+            .await
+        }
         RTMP_TYPE_DATA => {
+            // Data packet
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("Received packet: RTMP_TYPE_DATA");
             }
@@ -203,6 +208,7 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
             .await
         }
         RTMP_TYPE_FLEX_STREAM => {
+            // Data packet (Alt)
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("Received packet: RTMP_TYPE_FLEX_STREAM");
             }
@@ -218,6 +224,7 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
             .await
         }
         _ => {
+            // Other type (not supported by this server implementation)
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug(&format!(
                     "Received unknown packet type: {}",

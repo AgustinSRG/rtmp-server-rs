@@ -3,6 +3,7 @@
 mod chunk_read;
 mod cleanup;
 mod commands;
+mod delete_stream;
 mod handle;
 mod handle_audio;
 mod handle_data;

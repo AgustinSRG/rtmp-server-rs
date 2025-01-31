@@ -8,7 +8,7 @@ use tokio::{
 use crate::rtmp::rtmp_make_status_message;
 
 /// Write bytes to the session write stream
-pub async fn session_write_bytes<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin>(
+pub async fn session_write_bytes<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static>(
     write_stream: &Mutex<TW>,
     bytes: &[u8],
 ) -> Result<(), Error> {
@@ -19,7 +19,7 @@ pub async fn session_write_bytes<TW: AsyncWrite + AsyncWriteExt + Send + Sync + 
 
 
 /// Sends status message to client
-pub async fn send_status_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin>(
+pub async fn send_status_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static>(
     write_stream: &Mutex<TW>,
     stream_id: u32,
     level: &str,

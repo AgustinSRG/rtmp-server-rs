@@ -28,7 +28,7 @@ use super::super::{
 /// read_status - Status for the read task
 /// logger - Session logger
 /// Return true to continue receiving chunks. Returns false to end the session main loop.
-pub async fn handle_rtmp_command_publish<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin>(
+pub async fn handle_rtmp_command_publish<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static>(
     packet: &RtmpPacket,
     cmd: &RtmpCommand,
     session_id: u64,

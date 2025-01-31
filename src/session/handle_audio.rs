@@ -67,6 +67,12 @@ pub async fn handle_rtmp_packet_audio(
 
     drop(publish_status_v);
 
+    // Log
+
+    if config.log_requests && logger.config.trace_enabled {
+        logger.log_trace(&format!("AUDIO PACKET: {} bytes", packet.payload.len()));
+    }
+
     // Prepare packet copy to store
 
     let mut copied_packet = RtmpPacket::new_blank();
