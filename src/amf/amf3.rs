@@ -75,29 +75,12 @@ impl AMF3Value {
         }
     }
 
-    /// Returns true if the value is null
-    pub fn is_null(&self) -> bool {
-        match self {
-            AMF3Value::Null => true,
-            _ => false,
-        }
-    }
-
     /// Returns the value as integer
     pub fn get_integer(&self) -> i64 {
         match self {
             AMF3Value::Integer { value } => *value as i64,
             AMF3Value::Double { value } => *value as i64,
             _ => 0,
-        }
-    }
-
-    /// Returns the value as float
-    pub fn get_float(&self) -> f64 {
-        match self {
-            AMF3Value::Integer { value } => *value as f64,
-            AMF3Value::Double { value } => *value,
-            _ => 0.0,
         }
     }
 
@@ -108,14 +91,6 @@ impl AMF3Value {
             AMF3Value::XmlDocument { content } => content.as_str(),
             AMF3Value::Xml { value } => value.as_str(),
             _ => "",
-        }
-    }
-
-    /// Returns the value as string
-    pub fn get_byte_array(&self) -> Option<&Vec<u8>> {
-        match self {
-            AMF3Value::ByteArray { value } => Some(&value),
-            _ => None,
         }
     }
 

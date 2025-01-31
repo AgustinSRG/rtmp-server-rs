@@ -173,28 +173,11 @@ impl AMF0Value {
 
     // Value check functions:
 
-    /// Returns true if the value is AMF3
-    pub fn is_amf3(&self) -> bool {
-        match self {
-            AMF0Value::SwitchAmf3 { value: _ } => true,
-            _ => false,
-        }
-    }
-
     /// Returns true if the value is undefined
     pub fn is_undefined(&self) -> bool {
         match self {
             AMF0Value::Undefined => true,
             AMF0Value::SwitchAmf3 { value } => value.is_undefined(),
-            _ => false,
-        }
-    }
-
-    /// Returns true if the value is null
-    pub fn is_null(&self) -> bool {
-        match self {
-            AMF0Value::Null => true,
-            AMF0Value::SwitchAmf3 { value } => value.is_null(),
             _ => false,
         }
     }
@@ -221,17 +204,6 @@ impl AMF0Value {
     }
 
     /// Returns the value as float
-    pub fn get_float(&self) -> f64 {
-        match self {
-            AMF0Value::Number { value } => *value,
-            AMF0Value::Ref { addr } => *addr as f64,
-            AMF0Value::Date { timestamp } => *timestamp,
-            AMF0Value::SwitchAmf3 { value } => value.get_float(),
-            _ => 0.0,
-        }
-    }
-
-    /// Returns the value as float
     pub fn get_string(&self) -> &str {
         match self {
             AMF0Value::String { value } => value.as_str(),
@@ -239,14 +211,6 @@ impl AMF0Value {
             AMF0Value::XmlDocument { content } => content.as_str(),
             AMF0Value::SwitchAmf3 { value } => value.get_string(),
             _ => "",
-        }
-    }
-
-    /// Returns the value as byte array
-    pub fn get_byte_array(&self) -> Option<&Vec<u8>> {
-        match self {
-            AMF0Value::SwitchAmf3 { value } => value.get_byte_array(),
-            _ => None,
         }
     }
 
@@ -269,24 +233,6 @@ impl AMF0Value {
 
         match obj {
             Some(o) => o.get(property_name),
-            None => None,
-        }
-    }
-
-    /// Returns the value as array (Vec)
-    pub fn get_array(&self) -> Option<&Vec<AMF0Value>> {
-        match self {
-            AMF0Value::StrictArray { items } => Some(items),
-            _ => None,
-        }
-    }
-
-    /// Gets an element of the array, given its index
-    pub fn get_array_element(&self, index: usize) -> Option<&AMF0Value> {
-        let arr = self.get_array();
-
-        match arr {
-            Some(a) => a.get(index),
             None => None,
         }
     }
