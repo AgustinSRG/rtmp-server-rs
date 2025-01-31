@@ -31,9 +31,6 @@ pub struct RtmpSessionStatus {
     /// Key
     pub key: Option<String>,
 
-    /// Stream ID
-    pub stream_id: Option<String>,
-
     /// True if the session is player for the channel
     pub is_player: bool,
 
@@ -61,7 +58,6 @@ impl RtmpSessionStatus {
             channel: None,
             connect_time: 0,
             key: None,
-            stream_id: None,
             is_publisher: false,
             publish_stream_id: 0,
             is_player: false,

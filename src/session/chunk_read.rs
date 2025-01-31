@@ -433,7 +433,7 @@ pub async fn read_rtmp_chunk<
     // Bitrate
 
     if config.log_requests && logger.config.trace_enabled {
-        let now = Utc::now().timestamp();
+        let now = Utc::now().timestamp_millis();
         read_status.bit_rate_bytes = read_status.bit_rate_bytes.wrapping_add(bytes_read_count);
 
         let time_diff = now - read_status.bit_rate_last_update;

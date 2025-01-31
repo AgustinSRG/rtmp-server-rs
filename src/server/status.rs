@@ -5,6 +5,8 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc::Sender, Mutex};
 
 use crate::{
+    callback::make_stop_callback,
+    log::Logger,
     rtmp::{RtmpPacket, RTMP_TYPE_AUDIO, RTMP_TYPE_VIDEO},
     session::{RtmpSessionMessage, RtmpSessionPublishStreamStatus, RtmpSessionReadStatus},
     utils::string_compare_constant_time,
@@ -202,6 +204,8 @@ impl RtmpServerStatus {
 
     /// Removes a player from a channel
     pub async fn remove_publisher(
+        logger: &Logger,
+        config: &RtmpServerConfiguration,
         status: &Mutex<RtmpServerStatus>,
         channel: &str,
         publisher_id: u64,
@@ -227,6 +231,16 @@ impl RtmpServerStatus {
 
                 // Unpublish
 
+                let unpublished_stream_key = match &channel_status.key {
+                    Some(k) => k.clone(),
+                    None => "".to_string(),
+                };
+
+                let unpublished_stream_id = match &channel_status.stream_id {
+                    Some(i) => i.clone(),
+                    None => "".to_string(),
+                };
+
                 channel_status.publishing = false;
                 channel_status.publisher_id = None;
                 channel_status.publish_status = None;
@@ -243,6 +257,19 @@ impl RtmpServerStatus {
                         .send(RtmpSessionMessage::PlayStop)
                         .await;
                 }
+
+                drop(channel_status);
+
+                // Send callback
+
+                make_stop_callback(
+                    logger,
+                    &config.callback,
+                    channel,
+                    &unpublished_stream_key,
+                    &unpublished_stream_id,
+                )
+                .await;
             }
             None => {
                 return;

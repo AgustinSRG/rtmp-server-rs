@@ -610,7 +610,7 @@ pub fn spawn_task_to_read_session_messages<
             logger.log_debug("Performing session cleanup...");
         }
 
-        do_session_cleanup(session_id, &server_status, &session_status).await;
+        do_session_cleanup(&logger, session_id, &config, &server_status, &session_status).await;
 
         // Drain channel
 

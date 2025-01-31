@@ -118,7 +118,7 @@ pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
         }
 
         if can_clear_publisher {
-            RtmpServerStatus::remove_publisher(server_status, &channel, session_id).await;
+            RtmpServerStatus::remove_publisher(logger, config, server_status, &channel, session_id).await;
             RtmpServerStatus::try_clear_channel(server_status, &channel).await;
         }
     }

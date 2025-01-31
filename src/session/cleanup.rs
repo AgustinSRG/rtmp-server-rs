@@ -2,16 +2,23 @@
 
 use tokio::sync::Mutex;
 
-use crate::server::RtmpServerStatus;
+use crate::{
+    log::Logger,
+    server::{RtmpServerConfiguration, RtmpServerStatus},
+};
 
 use super::RtmpSessionStatus;
 
 /// Performs session cleanup
+/// logger - The logger
 /// session_id - Session ID
+/// config - Server configuration
 /// server_status - Server status
 /// session_status - Session status
 pub async fn do_session_cleanup(
+    logger: &Logger,
     session_id: u64,
+    config: &RtmpServerConfiguration,
     server_status: &Mutex<RtmpServerStatus>,
     session_status: &Mutex<RtmpSessionStatus>,
 ) {
@@ -34,7 +41,8 @@ pub async fn do_session_cleanup(
     }
 
     if must_clear_publisher {
-        RtmpServerStatus::remove_publisher(server_status, &channel, session_id).await
+        RtmpServerStatus::remove_publisher(logger, config, server_status, &channel, session_id)
+            .await
     }
 
     if must_clear_player || must_clear_publisher {

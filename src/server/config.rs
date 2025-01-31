@@ -1,6 +1,6 @@
 /// RTMP server configuration
 use crate::{
-    log::Logger, rtmp::{RTMP_CHUNK_SIZE, RTMP_MAX_CHUNK_SIZE}, utils::{get_env_bool, get_env_string, get_env_u32, IpRangeConfig, DEFAULT_MAX_ID_LENGTH}
+    callback::CallbackConfiguration, log::Logger, rtmp::{RTMP_CHUNK_SIZE, RTMP_MAX_CHUNK_SIZE}, utils::{get_env_bool, get_env_string, get_env_u32, IpRangeConfig, DEFAULT_MAX_ID_LENGTH}
 };
 
 /// RTMP server configuration
@@ -58,47 +58,11 @@ impl TlsServerConfiguration {
     }
 }
 
-/// Callback configuration
-#[derive(Clone)]
-pub struct CallbackConfiguration {
-    /// Callback URL
-    pub callback_url: String,
-
-    /// JWT secret
-    pub jwt_secret: String,
-
-    /// Custom JWT subject
-    pub jwt_custom_subject: String,
-}
-
-impl CallbackConfiguration {
-    pub fn load_from_env(logger: &Logger) -> Result<CallbackConfiguration, ()> {
-        let callback_url = get_env_string("CALLBACK_URL", "");
-
-        let jwt_secret = get_env_string("JWT_SECRET", "");
-
-        if jwt_secret.is_empty() {
-            logger.log_warning("JWT_SECRET is empty. Make sure to set a secure JWT secret to prevent security issues.");
-        }
-
-        let jwt_custom_subject = get_env_string("CUSTOM_JWT_SUBJECT", "");
-
-        Ok(CallbackConfiguration{
-            callback_url,
-            jwt_secret,
-            jwt_custom_subject,
-        })
-    }
-}
-
 /// RTMP server configuration
 #[derive(Clone)]
 pub struct RtmpServerConfiguration {
     /// Port
     pub port: u32,
-
-    /// Host
-    pub host: String,
 
     /// Bind address
     pub bind_address: String,
@@ -140,7 +104,6 @@ impl RtmpServerConfiguration {
             return Err(());
         }
 
-        let host = get_env_string("RTMP_HOST", "");
         let bind_address = get_env_string("BIND_ADDRESS", "");
 
         let id_max_length = get_env_u32("ID_MAX_LENGTH", DEFAULT_MAX_ID_LENGTH as u32);
@@ -219,7 +182,6 @@ impl RtmpServerConfiguration {
 
         Ok(RtmpServerConfiguration {
             port,
-            host,
             bind_address,
             tls,
             id_max_length: id_max_length as usize,

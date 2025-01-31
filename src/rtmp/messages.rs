@@ -78,7 +78,7 @@ pub fn rtmp_make_stream_status_message(status: u16, stream_id: u32) -> Vec<u8> {
 
 /// Makes RTMP ping request message
 pub fn rtmp_make_ping_request(connect_time: i64, out_chunk_size: usize) -> Vec<u8> {
-    let timestamp = Utc::now().timestamp();
+    let timestamp = Utc::now().timestamp_millis();
     let current_timestamp = timestamp.wrapping_sub(connect_time);
 
     let mut packet = RtmpPacket::new_blank();

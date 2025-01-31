@@ -8,7 +8,12 @@ use tokio::{
 };
 
 use crate::{
-    log::Logger, rtmp::{RtmpCommand, RtmpPacket}, server::{RtmpServerConfiguration, RtmpServerStatus}, session::RtmpSessionReadStatus, utils::validate_id_string
+    callback::make_start_callback,
+    log::Logger,
+    rtmp::{RtmpCommand, RtmpPacket},
+    server::{RtmpServerConfiguration, RtmpServerStatus},
+    session::RtmpSessionReadStatus,
+    utils::validate_id_string,
 };
 
 use super::super::{
@@ -28,7 +33,9 @@ use super::super::{
 /// read_status - Status for the read task
 /// logger - Session logger
 /// Return true to continue receiving chunks. Returns false to end the session main loop.
-pub async fn handle_rtmp_command_publish<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static>(
+pub async fn handle_rtmp_command_publish<
+    TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static,
+>(
     packet: &RtmpPacket,
     cmd: &RtmpCommand,
     session_id: u64,
@@ -83,7 +90,7 @@ pub async fn handle_rtmp_command_publish<TW: AsyncWrite + AsyncWriteExt + Send +
             } else {
                 k.get_string()
             }
-        },
+        }
         None => {
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("Command error: streamName property not provided");
@@ -202,8 +209,31 @@ pub async fn handle_rtmp_command_publish<TW: AsyncWrite + AsyncWriteExt + Send +
 
     // Check validity of the key (callback or coordinator)
 
-    let stream_id = "";
-    logger.log_debug("TODO");
+    let stream_id =
+        match make_start_callback(logger, &config.callback, &channel, key, &read_status.ip).await {
+            Some(s) => s,
+            None => {
+                if let Err(e) = send_status_message(
+                    &write_stream,
+                    publish_stream_id,
+                    "error",
+                    "NetStream.Publish.BadName",
+                    Some("Invalid stream key provided"),
+                    config.chunk_size,
+                )
+                .await
+                {
+                    if config.log_requests && logger.config.debug_enabled {
+                        logger.log_debug(&format!(
+                            "Send error: Could not send status message: {}",
+                            e.to_string()
+                        ));
+                    }
+                }
+
+                return false;
+            }
+        };
 
     // Set publisher into the server status
 
@@ -211,7 +241,7 @@ pub async fn handle_rtmp_command_publish<TW: AsyncWrite + AsyncWriteExt + Send +
         server_status,
         &channel,
         key,
-        stream_id,
+        &stream_id,
         session_id,
         publish_status.clone(),
         session_msg_sender.clone(),

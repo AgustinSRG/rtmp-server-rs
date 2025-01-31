@@ -86,7 +86,7 @@ pub async fn handle_rtmp_command_connect<TW: AsyncWrite + AsyncWriteExt + Send +
         None => 0,
     };
 
-    let now = Utc::now().timestamp();
+    let now = Utc::now().timestamp_millis();
 
     // Update the session status
 
