@@ -18,6 +18,7 @@
 			"hmac",
 			"HMAC",
 			"recv",
+			"redis",
 			"rtmp",
 			"RTMP",
 			"RTMPS"

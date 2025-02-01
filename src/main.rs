@@ -4,6 +4,7 @@ mod amf;
 mod callback;
 mod control;
 mod log;
+mod redis;
 mod rtmp;
 mod server;
 mod session;
@@ -16,6 +17,7 @@ use control::{
     ControlKeyValidationRequest, ControlServerConnectionConfig, KEY_VALIDATION_CHANNEL_BUFFER_SIZE,
 };
 use log::{LogConfig, Logger};
+use redis::{spawn_task_redis_client, RedisConfiguration};
 use server::{run_server, RtmpServerConfiguration, RtmpServerStatus};
 use tokio::sync::{mpsc::Sender, Mutex};
 use utils::get_env_bool;
@@ -103,6 +105,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         );
     } else {
         control_key_validator_sender = None;
+    }
+
+    // Redis feature
+
+    let use_redis = get_env_bool("REDIS_USE", false);
+
+    if use_redis {
+        // Load config
+
+        let redis_config = match RedisConfiguration::load_from_env(&logger) {
+            Ok(c) => c,
+            Err(_) => {
+                std::process::exit(1);
+            }
+        };
+
+        // Spawn task
+
+        spawn_task_redis_client(
+            logger.make_child_logger("[REDIS] "),
+            redis_config,
+            server_config.clone(),
+            server_status.clone(),
+            control_key_validator_sender.clone(),
+        );
     }
 
     // Run server

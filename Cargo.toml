@@ -14,6 +14,7 @@ hmac = "0.12.1"
 ipnet = "2.11.0"
 jsonwebtoken = "9.3.0"
 rand = "0.9.0"
+redis = { version = "0.28.2", features = ["tokio-comp"] }
 reqwest = "0.12.12"
 rustls = "0.23.21"
 serde = "1.0.217"
