@@ -18,6 +18,9 @@ use super::{
     ControlServerMessage,
 };
 
+/// Timeout for read operations
+const READ_TIMEOUT_SECONDS: u64 = 60;
+
 pub fn spawn_task_control_client(
     logger: Arc<Logger>,
     config: Arc<ControlServerConnectionConfig>,
@@ -127,6 +130,8 @@ pub fn spawn_task_control_client(
 
             // Connected, split the stream so multiple tasks can use it
 
+            logger.log_info(&format!("Connected: {}", &config.connection_url));
+
             let (write_stream, mut read_stream) = stream.split();
 
             let write_stream_mu = Arc::new(Mutex::new(write_stream));
@@ -151,18 +156,31 @@ pub fn spawn_task_control_client(
             let mut read_loop_continue = true;
 
             while read_loop_continue {
-                let msg = match read_stream.next().await {
-                    Some(r) => match r {
-                        Ok(m) => m,
-                        Err(e) => {
-                            logger.log_error(&format!("Disconnected from the server: {}", e));
+                let msg = match tokio::time::timeout(
+                    Duration::from_secs(READ_TIMEOUT_SECONDS),
+                    read_stream.next(),
+                )
+                .await
+                {
+                    Ok(opt) => match opt {
+                        Some(r) => match r {
+                            Ok(m) => m,
+                            Err(e) => {
+                                logger.log_error(&format!("Disconnected from the server: {}", e));
 
+                                read_loop_continue = false;
+                                continue;
+                            }
+                        },
+                        None => {
                             read_loop_continue = false;
                             continue;
                         }
                     },
-                    None => {
-                        read_loop_continue = false;
+                    Err(_) => {
+                        logger.log_error("Connection timed out");
+
+                        // Reconnect
                         continue;
                     }
                 };
@@ -235,8 +253,7 @@ pub fn spawn_task_control_client(
                                 )
                                 .await;
                             }
-                            "STREAM-KILL" => {}
-                            _ => {
+                            "STREAM-KILL" => {
                                 if logger.config.debug_enabled {
                                     logger.log_debug(&format!(
                                         "Unrecognized message type: {}",
@@ -257,6 +274,13 @@ pub fn spawn_task_control_client(
                                     Some(stream_id),
                                 )
                                 .await;
+                            }
+                            "HEARTBEAT" => {}
+                            _ => {
+                                if logger.config.debug_enabled {
+                                    logger
+                                        .log_debug("Unknown message type received from websocket");
+                                }
                             }
                         }
                     }
