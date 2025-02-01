@@ -47,11 +47,11 @@ pub async fn handle_rtmp_command_create_stream<
 
     let response_bytes =
         rtmp_make_create_stream_response(trans_id, stream_index, config.chunk_size);
-    if let Err(e) = session_write_bytes(&write_stream, &response_bytes).await {
+    if let Err(e) = session_write_bytes(write_stream, &response_bytes).await {
         if config.log_requests && logger.config.debug_enabled {
             logger.log_debug(&format!(
                 "Send error: Could not send connect response: {}",
-                e.to_string()
+                e
             ));
         }
         return false;

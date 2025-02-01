@@ -247,7 +247,7 @@ impl RtmpCommand {
             s.push_str(&format!("    '{}' = {}\n", arg_name, arg_val.to_debug_string("    ")));
         }
 
-        s.push_str("}");
+        s.push('}');
 
         s
     }

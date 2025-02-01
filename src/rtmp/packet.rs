@@ -79,11 +79,11 @@ impl RtmpPacket {
         if channel_id >= 64 + 255 {
             vec![
                 ((format << 6) as u8) | 1,
-                ((channel_id - 64) as u8) & 0xff,
-                ((channel_id - 64 >> 8) as u8) & 0xff,
+                ((channel_id - 64) as u8),
+                (((channel_id - 64) >> 8) as u8),
             ]
         } else if channel_id >= 64 {
-            vec![(format << 6) as u8, ((channel_id - 64) as u8) & 0xff]
+            vec![(format << 6) as u8, ((channel_id - 64) as u8)]
         } else {
             vec![((format << 6) as u8) | (channel_id as u8)]
         }
@@ -118,7 +118,7 @@ impl RtmpPacket {
         if self.header.format == RTMP_CHUNK_TYPE_0 {
             let mut b: Vec<u8> = vec![0; 4];
 
-            LittleEndian::write_u32(&mut b, stream_id as u32);
+            LittleEndian::write_u32(&mut b, stream_id);
 
             out.extend(b);
         }
@@ -196,7 +196,7 @@ impl RtmpPacket {
                 let sub_payload = &self.payload[payload_offset..payload_offset + out_chunk_size];
 
                 chunks[chunks_offset..chunks_offset + sub_payload.len()]
-                    .copy_from_slice(&sub_payload);
+                    .copy_from_slice(sub_payload);
 
                 payload_size -= out_chunk_size;
                 chunks_offset += out_chunk_size;
@@ -217,7 +217,7 @@ impl RtmpPacket {
                 let sub_payload = &self.payload[payload_offset..payload_offset + payload_size];
 
                 chunks[chunks_offset..chunks_offset + sub_payload.len()]
-                    .copy_from_slice(&sub_payload);
+                    .copy_from_slice(sub_payload);
 
                 payload_size -= payload_size;
                 chunks_offset += payload_size;

@@ -35,6 +35,7 @@ use super::{
 /// read_status - Status for the read task
 /// logger - Session logger
 /// Return true to continue receiving chunks. Returns false to end the session main loop.
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static>(
     packet: &RtmpPacket,
     session_id: u64,

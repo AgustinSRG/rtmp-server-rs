@@ -1,6 +1,9 @@
 /// RTMP server configuration
 use crate::{
-    callback::CallbackConfiguration, log::Logger, rtmp::{RTMP_CHUNK_SIZE, RTMP_MAX_CHUNK_SIZE}, utils::{get_env_bool, get_env_string, get_env_u32, IpRangeConfig, DEFAULT_MAX_ID_LENGTH}
+    callback::CallbackConfiguration,
+    log::Logger,
+    rtmp::{RTMP_CHUNK_SIZE, RTMP_MAX_CHUNK_SIZE},
+    utils::{get_env_bool, get_env_string, get_env_u32, IpRangeConfig, DEFAULT_MAX_ID_LENGTH},
 };
 
 /// RTMP server configuration
@@ -49,7 +52,7 @@ impl TlsServerConfiguration {
 
     /// Checks if the TLS config is enabled (cert and key must be present)
     pub fn is_enabled(&self) -> bool {
-        return !self.certificate.is_empty() && !self.key.is_empty();
+        !self.certificate.is_empty() && !self.key.is_empty()
     }
 
     /// Gets TLS address for listening
@@ -108,28 +111,21 @@ impl RtmpServerConfiguration {
 
         let id_max_length = get_env_u32("ID_MAX_LENGTH", DEFAULT_MAX_ID_LENGTH as u32);
 
-        let play_whitelist_res =
-            IpRangeConfig::new_from_string(&get_env_string("RTMP_PLAY_WHITELIST", ""));
-        let play_whitelist: IpRangeConfig;
-
-        match play_whitelist_res {
-            Ok(pw) => {
-                play_whitelist = pw;
-            }
-            Err(s) => {
-                logger.log_error(&format!("RTMP_PLAY_WHITELIST has an invalid value: {}", s));
-                return Err(());
-            }
-        }
+        let play_whitelist =
+            match IpRangeConfig::new_from_string(&get_env_string("RTMP_PLAY_WHITELIST", "")) {
+                Ok(pw) => pw,
+                Err(s) => {
+                    logger.log_error(&format!("RTMP_PLAY_WHITELIST has an invalid value: {}", s));
+                    return Err(());
+                }
+            };
 
         let chunk_size = get_env_u32("RTMP_CHUNK_SIZE", RTMP_CHUNK_SIZE as u32) as usize;
 
-        if chunk_size < RTMP_CHUNK_SIZE || chunk_size > RTMP_MAX_CHUNK_SIZE {
+        if !(RTMP_CHUNK_SIZE..=RTMP_MAX_CHUNK_SIZE).contains(&chunk_size) {
             logger.log_error(&format!(
                 "RTMP_CHUNK_SIZE has an invalid value: {}. Min: {}. Max: {}",
-                chunk_size,
-                RTMP_CHUNK_SIZE,
-                RTMP_MAX_CHUNK_SIZE
+                chunk_size, RTMP_CHUNK_SIZE, RTMP_MAX_CHUNK_SIZE
             ));
             return Err(());
         }
@@ -137,46 +133,32 @@ impl RtmpServerConfiguration {
         let gop_cache_size = (get_env_u32("GOP_CACHE_SIZE_MB", 256) as usize) * 1024 * 1024;
         let max_concurrent_connections_per_ip = get_env_u32("MAX_IP_CONCURRENT_CONNECTIONS", 4);
 
-        let max_concurrent_connections_whitelist_res =
-            IpRangeConfig::new_from_string(&get_env_string("CONCURRENT_LIMIT_WHITELIST", ""));
-        let max_concurrent_connections_whitelist: IpRangeConfig;
+        let max_concurrent_connections_whitelist =
+            match IpRangeConfig::new_from_string(&get_env_string("CONCURRENT_LIMIT_WHITELIST", ""))
+            {
+                Ok(cw) => cw,
+                Err(s) => {
+                    logger.log_error(&format!(
+                        "CONCURRENT_LIMIT_WHITELIST has an invalid value: {}",
+                        s
+                    ));
+                    return Err(());
+                }
+            };
 
-        match max_concurrent_connections_whitelist_res {
-            Ok(cw) => {
-                max_concurrent_connections_whitelist = cw;
-            }
-            Err(s) => {
-                logger.log_error(&format!(
-                    "CONCURRENT_LIMIT_WHITELIST has an invalid value: {}",
-                    s
-                ));
-                return Err(());
-            }
-        }
-
-        let tls_res = TlsServerConfiguration::load_from_env(logger);
-        let tls: TlsServerConfiguration;
-
-        match tls_res {
-            Ok(c) => {
-                tls = c;
-            }
+        let tls = match TlsServerConfiguration::load_from_env(logger) {
+            Ok(c) => c,
             Err(()) => {
                 return Err(());
             }
-        }
+        };
 
-        let callback_res = CallbackConfiguration::load_from_env(logger);
-        let callback: CallbackConfiguration;
-
-        match callback_res {
-            Ok(c) => {
-                callback = c;
-            }
+        let callback = match CallbackConfiguration::load_from_env(logger) {
+            Ok(c) => c,
             Err(()) => {
                 return Err(());
             }
-        }
+        };
 
         let log_requests = get_env_bool("LOG_REQUESTS", true);
 

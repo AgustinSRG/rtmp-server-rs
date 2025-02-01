@@ -36,7 +36,7 @@ pub async fn make_start_callback(
         channel,
         key,
         &CallbackEvent::Start {
-            client_ip: client_ip.clone(),
+            client_ip: *client_ip,
         },
     );
 
@@ -72,7 +72,7 @@ pub async fn make_start_callback(
         }
         Err(e) => {
             if logger.config.debug_enabled {
-                logger.log_debug(&format!("Callback resulted in error: {}", e.to_string()));
+                logger.log_debug(&format!("Callback resulted in error: {}", e));
             }
 
             None
@@ -137,7 +137,7 @@ pub async fn make_stop_callback(
         }
         Err(e) => {
             if logger.config.debug_enabled {
-                logger.log_debug(&format!("Callback resulted in error: {}", e.to_string()));
+                logger.log_debug(&format!("Callback resulted in error: {}", e));
             }
 
             false

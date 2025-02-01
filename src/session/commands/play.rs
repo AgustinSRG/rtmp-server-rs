@@ -27,6 +27,7 @@ use super::super::{RtmpSessionMessage, RtmpSessionReadStatus, RtmpSessionStatus}
 /// read_status - Status for the read task
 /// logger - Session logger
 /// Return true to continue receiving chunks. Returns false to end the session main loop.
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_rtmp_command_play<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static>(
     packet: &RtmpPacket,
     cmd: &RtmpCommand,
@@ -51,7 +52,7 @@ pub async fn handle_rtmp_command_play<TW: AsyncWrite + AsyncWriteExt + Send + Sy
             }
 
             if let Err(e) = send_status_message(
-                &write_stream,
+                write_stream,
                 play_stream_id,
                 "error",
                 "NetStream.Play.BadConnection",
@@ -63,7 +64,7 @@ pub async fn handle_rtmp_command_play<TW: AsyncWrite + AsyncWriteExt + Send + Sy
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send status message: {}",
-                        e.to_string()
+                        e
                     ));
                 }
             }
@@ -97,7 +98,7 @@ pub async fn handle_rtmp_command_play<TW: AsyncWrite + AsyncWriteExt + Send + Sy
             }
 
             if let Err(e) = send_status_message(
-                &write_stream,
+                write_stream,
                 play_stream_id,
                 "error",
                 "NetStream.Play.BadName",
@@ -109,7 +110,7 @@ pub async fn handle_rtmp_command_play<TW: AsyncWrite + AsyncWriteExt + Send + Sy
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send status message: {}",
-                        e.to_string()
+                        e
                     ));
                 }
             }
@@ -124,7 +125,7 @@ pub async fn handle_rtmp_command_play<TW: AsyncWrite + AsyncWriteExt + Send + Sy
         }
 
         if let Err(e) = send_status_message(
-            &write_stream,
+            write_stream,
             play_stream_id,
             "error",
             "NetStream.Play.BadName",
@@ -136,7 +137,7 @@ pub async fn handle_rtmp_command_play<TW: AsyncWrite + AsyncWriteExt + Send + Sy
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug(&format!(
                     "Send error: Could not send status message: {}",
-                    e.to_string()
+                    e
                 ));
             }
         }
@@ -152,7 +153,7 @@ pub async fn handle_rtmp_command_play<TW: AsyncWrite + AsyncWriteExt + Send + Sy
         }
 
         if let Err(e) = send_status_message(
-            &write_stream,
+            write_stream,
             play_stream_id,
             "error",
             "NetStream.Play.BadConnection",
@@ -164,7 +165,7 @@ pub async fn handle_rtmp_command_play<TW: AsyncWrite + AsyncWriteExt + Send + Sy
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug(&format!(
                     "Send error: Could not send status message: {}",
-                    e.to_string()
+                    e
                 ));
             }
         }
@@ -180,7 +181,7 @@ pub async fn handle_rtmp_command_play<TW: AsyncWrite + AsyncWriteExt + Send + Sy
         }
 
         if let Err(e) = send_status_message(
-            &write_stream,
+            write_stream,
             play_stream_id,
             "error",
             "NetStream.Play.BadName",
@@ -192,7 +193,7 @@ pub async fn handle_rtmp_command_play<TW: AsyncWrite + AsyncWriteExt + Send + Sy
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug(&format!(
                     "Send error: Could not send status message: {}",
-                    e.to_string()
+                    e
                 ));
             }
         }
@@ -230,7 +231,7 @@ pub async fn handle_rtmp_command_play<TW: AsyncWrite + AsyncWriteExt + Send + Sy
         }
 
         if let Err(e) = send_status_message(
-            &write_stream,
+            write_stream,
             play_stream_id,
             "error",
             "NetStream.Play.BadName",
@@ -242,7 +243,7 @@ pub async fn handle_rtmp_command_play<TW: AsyncWrite + AsyncWriteExt + Send + Sy
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug(&format!(
                     "Send error: Could not send status message: {}",
-                    e.to_string()
+                    e
                 ));
             }
         }

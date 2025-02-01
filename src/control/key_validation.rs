@@ -62,14 +62,14 @@ pub async fn control_validate_key(
 
     // Send the request
 
-    if let Err(_) = control_key_validator_sender
+    if control_key_validator_sender
         .send(ControlKeyValidationRequest::PublishStart {
             channel: channel.to_string(),
             key: key.to_string(),
             client_ip: client_ip.to_string(),
             response_sender,
         })
-        .await
+        .await.is_err()
     {
         return None;
     }

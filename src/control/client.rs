@@ -30,10 +30,7 @@ pub fn spawn_task_control_client(
         let external_ip_header: HeaderValue = match config.external_ip.parse::<HeaderValue>() {
             Ok(v) => v,
             Err(e) => {
-                logger.log_error(&format!(
-                    "Error creating external ip header: {}",
-                    e.to_string()
-                ));
+                logger.log_error(&format!("Error creating external ip header: {}", e));
 
                 return;
             }
@@ -42,10 +39,7 @@ pub fn spawn_task_control_client(
         let external_port_header: HeaderValue = match config.external_port.parse::<HeaderValue>() {
             Ok(v) => v,
             Err(e) => {
-                logger.log_error(&format!(
-                    "Error creating external port header: {}",
-                    e.to_string()
-                ));
+                logger.log_error(&format!("Error creating external port header: {}", e));
 
                 return;
             }
@@ -55,10 +49,7 @@ pub fn spawn_task_control_client(
             true => match "true".parse::<HeaderValue>() {
                 Ok(v) => v,
                 Err(e) => {
-                    logger.log_error(&format!(
-                        "Error creating external ssl header: {}",
-                        e.to_string()
-                    ));
+                    logger.log_error(&format!("Error creating external ssl header: {}", e));
 
                     return;
                 }
@@ -66,10 +57,7 @@ pub fn spawn_task_control_client(
             false => match "false".parse::<HeaderValue>() {
                 Ok(v) => v,
                 Err(e) => {
-                    logger.log_error(&format!(
-                        "Error creating external ssl header: {}",
-                        e.to_string()
-                    ));
+                    logger.log_error(&format!("Error creating external ssl header: {}", e));
 
                     return;
                 }
@@ -82,7 +70,7 @@ pub fn spawn_task_control_client(
             let mut request = match config.connection_url.clone().into_client_request() {
                 Ok(r) => r,
                 Err(e) => {
-                    logger.log_error(&format!("Error creating request: {}", e.to_string()));
+                    logger.log_error(&format!("Error creating request: {}", e));
 
                     return;
                 }
@@ -94,7 +82,7 @@ pub fn spawn_task_control_client(
                 match make_control_auth_token(&logger, &config).parse::<HeaderValue>() {
                     Ok(v) => v,
                     Err(e) => {
-                        logger.log_error(&format!("Error creating auth header: {}", e.to_string()));
+                        logger.log_error(&format!("Error creating auth header: {}", e));
 
                         return;
                     }
@@ -127,10 +115,7 @@ pub fn spawn_task_control_client(
             let (stream, _) = match connect_async(request).await {
                 Ok((s, r)) => (s, r),
                 Err(e) => {
-                    logger.log_error(&format!(
-                        "Could not connect to the server: {}",
-                        e.to_string()
-                    ));
+                    logger.log_error(&format!("Could not connect to the server: {}", e));
 
                     // Wait
                     tokio::time::sleep(Duration::from_secs(10)).await;
@@ -170,10 +155,7 @@ pub fn spawn_task_control_client(
                     Some(r) => match r {
                         Ok(m) => m,
                         Err(e) => {
-                            logger.log_error(&format!(
-                                "Disconnected from the server: {}",
-                                e.to_string()
-                            ));
+                            logger.log_error(&format!("Disconnected from the server: {}", e));
 
                             read_loop_continue = false;
                             continue;
@@ -203,7 +185,7 @@ pub fn spawn_task_control_client(
                             }
                             "PUBLISH-ACCEPT" => {
                                 let request_id = match msg_parsed.get_parameter("Request-Id") {
-                                    Some(req_id_str) => match u64::from_str_radix(req_id_str, 10) {
+                                    Some(req_id_str) => match str::parse::<u64>(req_id_str) {
                                         Ok(id) => id,
                                         Err(_) => {
                                             logger.log_warning("Received a PUBLISH-ACCEPT message with an invalid Request-Id parameter.");
@@ -231,7 +213,7 @@ pub fn spawn_task_control_client(
                             }
                             "PUBLISH-DENY" => {
                                 let request_id = match msg_parsed.get_parameter("Request-Id") {
-                                    Some(req_id_str) => match u64::from_str_radix(req_id_str, 10) {
+                                    Some(req_id_str) => match str::parse::<u64>(req_id_str) {
                                         Ok(id) => id,
                                         Err(_) => {
                                             logger.log_warning("Received a PUBLISH-DENY message with an invalid Request-Id parameter.");

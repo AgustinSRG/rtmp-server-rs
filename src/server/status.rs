@@ -105,7 +105,7 @@ impl RtmpServerStatus {
 
                 let channel_status = channel_mu.lock().await;
 
-                return channel_status.publishing;
+                channel_status.publishing
             }
             None => false,
         }
@@ -113,6 +113,7 @@ impl RtmpServerStatus {
 
     /// Sets a publisher for a channel
     /// Return true if success, or false if another session was publishing on the channel
+    #[allow(clippy::too_many_arguments)]
     pub async fn set_publisher(
         status: &Mutex<RtmpServerStatus>,
         channel: &str,
@@ -214,81 +215,76 @@ impl RtmpServerStatus {
     ) {
         let status_v = status.lock().await;
 
-        match status_v.channels.get(channel) {
-            Some(c) => {
-                let channel_mu = c.clone();
-                drop(status_v);
+        if let Some(c) = status_v.channels.get(channel) {
+            let channel_mu = c.clone();
+            drop(status_v);
 
-                let mut channel_status = channel_mu.lock().await;
+            let mut channel_status = channel_mu.lock().await;
 
-                if !channel_status.publishing {
+            if !channel_status.publishing {
+                return;
+            }
+
+            if let Some(pid) = channel_status.publisher_id {
+                if pid == publisher_id {
                     return;
                 }
-
-                if let Some(pid) = channel_status.publisher_id {
-                    if pid == publisher_id {
-                        return;
-                    }
-                }
-
-                // Unpublish
-
-                let unpublished_stream_key = match &channel_status.key {
-                    Some(k) => k.clone(),
-                    None => "".to_string(),
-                };
-
-                let unpublished_stream_id = match &channel_status.stream_id {
-                    Some(i) => i.clone(),
-                    None => "".to_string(),
-                };
-
-                channel_status.publishing = false;
-                channel_status.publisher_id = None;
-                channel_status.publish_status = None;
-                channel_status.publisher_message_sender = None;
-                channel_status.key = None;
-                channel_status.stream_id = None;
-
-                // Notify players
-
-                for (_, player) in &mut channel_status.players {
-                    player.idle = true;
-                    _ = player
-                        .message_sender
-                        .send(RtmpSessionMessage::PlayStop)
-                        .await;
-                }
-
-                drop(channel_status);
-
-                // Send callback
-
-                match control_key_validator_sender {
-                    Some(sender) => {
-                        // Notify control server
-                        _ = sender
-                            .send(ControlKeyValidationRequest::PublishEnd {
-                                channel: channel.to_string(),
-                                stream_id: unpublished_stream_id,
-                            })
-                            .await;
-                    }
-                    None => {
-                        // Callback
-                        make_stop_callback(
-                            logger,
-                            &config.callback,
-                            channel,
-                            &unpublished_stream_key,
-                            &unpublished_stream_id,
-                        )
-                        .await;
-                    }
-                }
             }
-            None => {
-                return;
+
+            // Unpublish
+
+            let unpublished_stream_key = match &channel_status.key {
+                Some(k) => k.clone(),
+                None => "".to_string(),
+            };
+
+            let unpublished_stream_id = match &channel_status.stream_id {
+                Some(i) => i.clone(),
+                None => "".to_string(),
+            };
+
+            channel_status.publishing = false;
+            channel_status.publisher_id = None;
+            channel_status.publish_status = None;
+            channel_status.publisher_message_sender = None;
+            channel_status.key = None;
+            channel_status.stream_id = None;
+
+            // Notify players
+
+            for player in channel_status.players.values_mut() {
+                player.idle = true;
+                _ = player
+                    .message_sender
+                    .send(RtmpSessionMessage::PlayStop)
+                    .await;
+            }
+
+            drop(channel_status);
+
+            // Send callback
+
+            match control_key_validator_sender {
+                Some(sender) => {
+                    // Notify control server
+                    _ = sender
+                        .send(ControlKeyValidationRequest::PublishEnd {
+                            channel: channel.to_string(),
+                            stream_id: unpublished_stream_id,
+                        })
+                        .await;
+                }
+                None => {
+                    // Callback
+                    make_stop_callback(
+                        logger,
+                        &config.callback,
+                        channel,
+                        &unpublished_stream_key,
+                        &unpublished_stream_id,
+                    )
+                    .await;
+                }
             }
         }
     }
@@ -304,94 +300,91 @@ impl RtmpServerStatus {
     ) {
         let status_v = status.lock().await;
 
-        match status_v.channels.get(channel) {
-            Some(c) => {
-                let channel_mu = c.clone();
-                drop(status_v);
+        if let Some(c) = status_v.channels.get(channel) {
+                    let channel_mu = c.clone();
+                    drop(status_v);
 
-                let mut channel_status = channel_mu.lock().await;
+                    let mut channel_status = channel_mu.lock().await;
 
-                if !channel_status.publishing {
-                    return;
-                }
-
-                if let Some(sid) = stream_id {
-                    match &channel_status.stream_id {
-                        Some(current_stream_id) => {
-                            if *current_stream_id != sid {
-                                return; // Not the stream id we want to kill
-                            }
-                        },
-                        None => {
-                            return;
-                        },
+                    if !channel_status.publishing {
+                        return;
                     }
-                }
-    
-                // Kill the publisher
-    
-                if let Some(pub_sender) = &channel_status.publisher_message_sender {
-                    _ = pub_sender.send(RtmpSessionMessage::Kill).await;
-                }
-    
-                // Unpublish
 
-                let unpublished_stream_key = match &channel_status.key {
-                    Some(k) => k.clone(),
-                    None => "".to_string(),
-                };
+                    if let Some(sid) = stream_id {
+                        match &channel_status.stream_id {
+                            Some(current_stream_id) => {
+                                if *current_stream_id != sid {
+                                    return; // Not the stream id we want to kill
+                                }
+                            },
+                            None => {
+                                return;
+                            },
+                        }
+                    }
+        
+                    // Kill the publisher
+        
+                    if let Some(pub_sender) = &channel_status.publisher_message_sender {
+                        _ = pub_sender.send(RtmpSessionMessage::Kill).await;
+                    }
+        
+                    // Unpublish
 
-                let unpublished_stream_id = match &channel_status.stream_id {
-                    Some(i) => i.clone(),
-                    None => "".to_string(),
-                };
-    
-                channel_status.publishing = false;
-                channel_status.publisher_id = None;
-                channel_status.publish_status = None;
-                channel_status.publisher_message_sender = None;
-                channel_status.key = None;
-                channel_status.stream_id = None;
-    
-                // Notify players
-    
-                for (_, player) in &mut channel_status.players {
-                    player.idle = true;
-                    _ = player
-                        .message_sender
-                        .send(RtmpSessionMessage::PlayStop)
-                        .await;
-                }
-    
-                drop(channel_status);
+                    let unpublished_stream_key = match &channel_status.key {
+                        Some(k) => k.clone(),
+                        None => "".to_string(),
+                    };
 
-                // Send callback
-
-                match control_key_validator_sender {
-                    Some(sender) => {
-                        // Notify control server
-                        _ = sender
-                            .send(ControlKeyValidationRequest::PublishEnd {
-                                channel: channel.to_string(),
-                                stream_id: unpublished_stream_id,
-                            })
+                    let unpublished_stream_id = match &channel_status.stream_id {
+                        Some(i) => i.clone(),
+                        None => "".to_string(),
+                    };
+        
+                    channel_status.publishing = false;
+                    channel_status.publisher_id = None;
+                    channel_status.publish_status = None;
+                    channel_status.publisher_message_sender = None;
+                    channel_status.key = None;
+                    channel_status.stream_id = None;
+        
+                    // Notify players
+        
+                    for player in channel_status.players.values_mut() {
+                        player.idle = true;
+                        _ = player
+                            .message_sender
+                            .send(RtmpSessionMessage::PlayStop)
                             .await;
                     }
-                    None => {
-                        // Callback
-                        make_stop_callback(
-                            logger,
-                            &config.callback,
-                            channel,
-                            &unpublished_stream_key,
-                            &unpublished_stream_id,
-                        )
-                        .await;
+        
+                    drop(channel_status);
+
+                    // Send callback
+
+                    match control_key_validator_sender {
+                        Some(sender) => {
+                            // Notify control server
+                            _ = sender
+                                .send(ControlKeyValidationRequest::PublishEnd {
+                                    channel: channel.to_string(),
+                                    stream_id: unpublished_stream_id,
+                                })
+                                .await;
+                        }
+                        None => {
+                            // Callback
+                            make_stop_callback(
+                                logger,
+                                &config.callback,
+                                channel,
+                                &unpublished_stream_key,
+                                &unpublished_stream_id,
+                            )
+                            .await;
+                        }
                     }
                 }
-            }
-            None => {}
-        }
     }
 
     /// Removes all the publishers and kills them
@@ -426,7 +419,7 @@ impl RtmpServerStatus {
 
             // Notify players
 
-            for (_, player) in &mut channel_status.players {
+            for player in channel_status.players.values_mut() {
                 player.idle = true;
                 _ = player
                     .message_sender
@@ -467,6 +460,7 @@ impl RtmpServerStatus {
     }
 
     /// Adds a player to a channel
+    #[allow(clippy::too_many_arguments)]
     pub async fn add_player(
         status: &Mutex<RtmpServerStatus>,
         channel: &str,
@@ -489,7 +483,7 @@ impl RtmpServerStatus {
                 let player_status = RtmpPlayerStatus {
                     provided_key: key.to_string(),
                     message_sender: message_sender.clone(),
-                    gop_clear: gop_clear,
+                    gop_clear,
                     paused: false,
                     idle: !channel_status.publishing,
                     receive_audio,
@@ -504,7 +498,7 @@ impl RtmpServerStatus {
                 }
 
                 if let Some(channel_key) = &channel_status.key {
-                    if !string_compare_constant_time(&channel_key, key) {
+                    if !string_compare_constant_time(channel_key, key) {
                         // If the key is invalid, remove the player
                         channel_status.players.remove(&session_id);
                         return false;
@@ -521,7 +515,7 @@ impl RtmpServerStatus {
                 // Send the start message to the new player
 
                 let player_start_msg = RtmpSessionPublishStreamStatus::get_play_start_message(
-                    &publish_status,
+                    publish_status,
                     gop_clear,
                 )
                 .await;
@@ -536,7 +530,7 @@ impl RtmpServerStatus {
                 let player_status = RtmpPlayerStatus {
                     provided_key: key.to_string(),
                     message_sender: message_sender.clone(),
-                    gop_clear: gop_clear,
+                    gop_clear,
                     paused: false,
                     idle: true,
                     receive_audio,
@@ -560,16 +554,13 @@ impl RtmpServerStatus {
     pub async fn remove_player(status: &Mutex<RtmpServerStatus>, channel: &str, player_id: u64) {
         let mut status_v = status.lock().await;
 
-        match status_v.channels.get_mut(channel) {
-            Some(c) => {
-                let channel_mu = c.clone();
-                drop(status_v);
+        if let Some(c) = status_v.channels.get_mut(channel) {
+            let channel_mu = c.clone();
+            drop(status_v);
 
-                let mut channel_status = channel_mu.lock().await;
+            let mut channel_status = channel_mu.lock().await;
 
-                channel_status.players.remove(&player_id);
-            }
-            None => {} // Nothing to do
+            channel_status.players.remove(&player_id);
         }
     }
 
@@ -611,7 +602,7 @@ impl RtmpServerStatus {
 
         // Send packet to players
 
-        for (_, player) in &channel_status.players {
+        for player in channel_status.players.values() {
             if player.paused {
                 continue;
             }
@@ -642,41 +633,38 @@ impl RtmpServerStatus {
     ) {
         let mut status_v = status.lock().await;
 
-        match status_v.channels.get_mut(channel) {
-            Some(c) => {
-                let channel_mu = c.clone();
-                drop(status_v);
+        if let Some(c) = status_v.channels.get_mut(channel) {
+            let channel_mu = c.clone();
+            drop(status_v);
 
-                let channel_status = channel_mu.lock().await;
+            let channel_status = channel_mu.lock().await;
 
-                if let Some(pid) = channel_status.publisher_id {
-                    if pid == publisher_id {
-                        return;
-                    }
-                }
-
-                let publish_status = match &channel_status.publish_status {
-                    Some(s) => s,
-                    None => {
-                        return;
-                    }
-                };
-
-                RtmpSessionPublishStreamStatus::set_metadata(publish_status, metadata.clone())
-                    .await;
-
-                // Send metadata to players
-
-                for (_, player) in &channel_status.players {
-                    _ = player
-                        .message_sender
-                        .send(RtmpSessionMessage::PlayMetadata {
-                            metadata: metadata.clone(),
-                        })
-                        .await;
+            if let Some(pid) = channel_status.publisher_id {
+                if pid == publisher_id {
+                    return;
                 }
             }
-            None => {}
+
+            let publish_status = match &channel_status.publish_status {
+                Some(s) => s,
+                None => {
+                    return;
+                }
+            };
+
+            RtmpSessionPublishStreamStatus::set_metadata(publish_status, metadata.clone())
+                .await;
+
+            // Send metadata to players
+
+            for player in channel_status.players.values() {
+                _ = player
+                    .message_sender
+                    .send(RtmpSessionMessage::PlayMetadata {
+                        metadata: metadata.clone(),
+                    })
+                    .await;
+            }
         }
     }
 
@@ -689,21 +677,15 @@ impl RtmpServerStatus {
     ) {
         let mut status_v = status.lock().await;
 
-        match status_v.channels.get_mut(channel) {
-            Some(c) => {
-                let channel_mu = c.clone();
-                drop(status_v);
+        if let Some(c) = status_v.channels.get_mut(channel) {
+            let channel_mu = c.clone();
+            drop(status_v);
 
-                let mut channel_status = channel_mu.lock().await;
+            let mut channel_status = channel_mu.lock().await;
 
-                match channel_status.players.get_mut(&player_id) {
-                    Some(player_status) => {
-                        player_status.receive_audio = receive_audio;
-                    }
-                    None => {}
-                }
+            if let Some(player_status) = channel_status.players.get_mut(&player_id) {
+                player_status.receive_audio = receive_audio;
             }
-            None => {} // Nothing to do
         }
     }
 
@@ -716,21 +698,15 @@ impl RtmpServerStatus {
     ) {
         let mut status_v = status.lock().await;
 
-        match status_v.channels.get_mut(channel) {
-            Some(c) => {
-                let channel_mu = c.clone();
-                drop(status_v);
+        if let Some(c) = status_v.channels.get_mut(channel) {
+            let channel_mu = c.clone();
+            drop(status_v);
 
-                let mut channel_status = channel_mu.lock().await;
+            let mut channel_status = channel_mu.lock().await;
 
-                match channel_status.players.get_mut(&player_id) {
-                    Some(player_status) => {
-                        player_status.receive_video = receive_video;
-                    }
-                    None => {}
-                }
+            if let Some(player_status) = channel_status.players.get_mut(&player_id) {
+                player_status.receive_video = receive_video;
             }
-            None => {} // Nothing to do
         }
     }
 
@@ -738,29 +714,23 @@ impl RtmpServerStatus {
     pub async fn player_pause(status: &Mutex<RtmpServerStatus>, channel: &str, player_id: u64) {
         let mut status_v = status.lock().await;
 
-        match status_v.channels.get_mut(channel) {
-            Some(c) => {
-                let channel_mu = c.clone();
-                drop(status_v);
+        if let Some(c) = status_v.channels.get_mut(channel) {
+            let channel_mu = c.clone();
+            drop(status_v);
 
-                let mut channel_status = channel_mu.lock().await;
+            let mut channel_status = channel_mu.lock().await;
 
-                match channel_status.players.get_mut(&player_id) {
-                    Some(player_status) => {
-                        if player_status.paused {
-                            return; // Already paused
-                        }
-
-                        player_status.paused = true;
-                        _ = player_status
-                            .message_sender
-                            .send(RtmpSessionMessage::Pause)
-                            .await;
-                    }
-                    None => {}
+            if let Some(player_status) = channel_status.players.get_mut(&player_id) {
+                if player_status.paused {
+                    return; // Already paused
                 }
+
+                player_status.paused = true;
+                _ = player_status
+                    .message_sender
+                    .send(RtmpSessionMessage::Pause)
+                    .await;
             }
-            None => {} // Nothing to do
         }
     }
 
@@ -768,50 +738,44 @@ impl RtmpServerStatus {
     pub async fn player_resume(status: &Mutex<RtmpServerStatus>, channel: &str, player_id: u64) {
         let mut status_v = status.lock().await;
 
-        match status_v.channels.get_mut(channel) {
-            Some(c) => {
-                let channel_mu = c.clone();
-                drop(status_v);
+        if let Some(c) = status_v.channels.get_mut(channel) {
+            let channel_mu = c.clone();
+            drop(status_v);
 
-                let mut channel_status = channel_mu.lock().await;
+            let mut channel_status = channel_mu.lock().await;
 
-                let publishing = channel_status.publishing;
-                let publish_status = channel_status.publish_status.clone();
+            let publishing = channel_status.publishing;
+            let publish_status = channel_status.publish_status.clone();
 
-                match channel_status.players.get_mut(&player_id) {
-                    Some(player_status) => {
-                        if !player_status.paused {
-                            return; // Not paused
-                        }
+            if let Some(player_status) = channel_status.players.get_mut(&player_id) {
+                if !player_status.paused {
+                    return; // Not paused
+                }
 
-                        player_status.paused = false;
+                player_status.paused = false;
 
-                        if publishing {
-                            if let Some(publish_status) = &publish_status {
-                                let player_resume_message =
-                                    RtmpSessionPublishStreamStatus::get_player_resume_message(
-                                        &publish_status,
-                                    )
-                                    .await;
+                if publishing {
+                    if let Some(publish_status) = &publish_status {
+                        let player_resume_message =
+                            RtmpSessionPublishStreamStatus::get_player_resume_message(
+                                publish_status,
+                            )
+                            .await;
 
-                                _ = player_status.message_sender.send(player_resume_message);
-                            } else {
-                                _ = player_status
-                                    .message_sender
-                                    .send(RtmpSessionMessage::ResumeIdle)
-                                    .await;
-                            }
-                        } else {
-                            _ = player_status
-                                .message_sender
-                                .send(RtmpSessionMessage::ResumeIdle)
-                                .await;
-                        }
+                        _ = player_status.message_sender.send(player_resume_message);
+                    } else {
+                        _ = player_status
+                            .message_sender
+                            .send(RtmpSessionMessage::ResumeIdle)
+                            .await;
                     }
-                    None => {}
+                } else {
+                    _ = player_status
+                        .message_sender
+                        .send(RtmpSessionMessage::ResumeIdle)
+                        .await;
                 }
             }
-            None => {} // Nothing to do
         }
     }
 }

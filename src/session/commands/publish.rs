@@ -35,6 +35,7 @@ use super::super::{
 /// control_key_validator_sender - Sender for key validation against the control server
 /// logger - Session logger
 /// Return true to continue receiving chunks. Returns false to end the session main loop.
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_rtmp_command_publish<
     TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static,
 >(
@@ -63,7 +64,7 @@ pub async fn handle_rtmp_command_publish<
             }
 
             if let Err(e) = send_status_message(
-                &write_stream,
+                write_stream,
                 publish_stream_id,
                 "error",
                 "NetStream.Publish.BadConnection",
@@ -75,7 +76,7 @@ pub async fn handle_rtmp_command_publish<
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send status message: {}",
-                        e.to_string()
+                        e
                     ));
                 }
             }
@@ -88,7 +89,7 @@ pub async fn handle_rtmp_command_publish<
         Some(k) => {
             let k_parts: Vec<&str> = k.get_string().split("?").collect();
 
-            if k_parts.len() > 0 {
+            if !k_parts.is_empty() {
                 k_parts[0]
             } else {
                 k.get_string()
@@ -100,7 +101,7 @@ pub async fn handle_rtmp_command_publish<
             }
 
             if let Err(e) = send_status_message(
-                &write_stream,
+                write_stream,
                 publish_stream_id,
                 "error",
                 "NetStream.Publish.BadName",
@@ -112,7 +113,7 @@ pub async fn handle_rtmp_command_publish<
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send status message: {}",
-                        e.to_string()
+                        e
                     ));
                 }
             }
@@ -127,7 +128,7 @@ pub async fn handle_rtmp_command_publish<
         }
 
         if let Err(e) = send_status_message(
-            &write_stream,
+            write_stream,
             publish_stream_id,
             "error",
             "NetStream.Publish.BadName",
@@ -139,7 +140,7 @@ pub async fn handle_rtmp_command_publish<
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug(&format!(
                     "Send error: Could not send status message: {}",
-                    e.to_string()
+                    e
                 ));
             }
         }
@@ -155,7 +156,7 @@ pub async fn handle_rtmp_command_publish<
         }
 
         if let Err(e) = send_status_message(
-            &write_stream,
+            write_stream,
             publish_stream_id,
             "error",
             "NetStream.Publish.BadConnection",
@@ -167,7 +168,7 @@ pub async fn handle_rtmp_command_publish<
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug(&format!(
                     "Send error: Could not send status message: {}",
-                    e.to_string()
+                    e
                 ));
             }
         }
@@ -184,7 +185,7 @@ pub async fn handle_rtmp_command_publish<
         }
 
         if let Err(e) = send_status_message(
-            &write_stream,
+            write_stream,
             publish_stream_id,
             "error",
             "NetStream.Publish.BadName",
@@ -196,7 +197,7 @@ pub async fn handle_rtmp_command_publish<
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug(&format!(
                     "Send error: Could not send status message: {}",
-                    e.to_string()
+                    e
                 ));
             }
         }
@@ -215,7 +216,7 @@ pub async fn handle_rtmp_command_publish<
     let stream_id_res = match control_key_validator_sender {
         Some(control_key_validator_sender_v) => {
             control_validate_key(
-                &control_key_validator_sender_v,
+                control_key_validator_sender_v,
                 &channel,
                 key,
                 &read_status.ip,
@@ -229,7 +230,7 @@ pub async fn handle_rtmp_command_publish<
         Some(s) => s,
         None => {
             if let Err(e) = send_status_message(
-                &write_stream,
+                write_stream,
                 publish_stream_id,
                 "error",
                 "NetStream.Publish.BadName",
@@ -241,7 +242,7 @@ pub async fn handle_rtmp_command_publish<
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send status message: {}",
-                        e.to_string()
+                        e
                     ));
                 }
             }
@@ -270,7 +271,7 @@ pub async fn handle_rtmp_command_publish<
         }
 
         if let Err(e) = send_status_message(
-            &write_stream,
+            write_stream,
             publish_stream_id,
             "error",
             "NetStream.Publish.BadName",
@@ -282,7 +283,7 @@ pub async fn handle_rtmp_command_publish<
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug(&format!(
                     "Send error: Could not send status message: {}",
-                    e.to_string()
+                    e
                 ));
             }
         }
@@ -297,7 +298,7 @@ pub async fn handle_rtmp_command_publish<
     // Respond with status message
 
     if let Err(e) = send_status_message(
-        &write_stream,
+        write_stream,
         publish_stream_id,
         "status",
         "NetStream.Publish.Start",
@@ -309,7 +310,7 @@ pub async fn handle_rtmp_command_publish<
         if config.log_requests && logger.config.debug_enabled {
             logger.log_debug(&format!(
                 "Send error: Could not send status message: {}",
-                e.to_string()
+                e
             ));
         }
     }

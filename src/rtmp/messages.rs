@@ -91,10 +91,10 @@ pub fn rtmp_make_ping_request(connect_time: i64, out_chunk_size: usize) -> Vec<u
     packet.payload = vec![
         0,
         6,
-        ((current_timestamp >> 24) as u8) & 0xff,
-        ((current_timestamp >> 16) as u8) & 0xff,
-        ((current_timestamp >> 8) as u8) & 0xff,
-        (current_timestamp as u8) & 0xff,
+        ((current_timestamp >> 24) as u8),
+        ((current_timestamp >> 16) as u8),
+        ((current_timestamp >> 8) as u8),
+        (current_timestamp as u8),
     ];
 
     packet.header.length = packet.payload.len();

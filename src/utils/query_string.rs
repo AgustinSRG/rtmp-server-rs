@@ -6,7 +6,7 @@ use std::collections::HashMap;
 pub fn parse_query_string_simple(query_string: &str) -> HashMap<String, String> {
     let mut result = HashMap::new();
 
-    if query_string.len() > 0 {
+    if !query_string.is_empty() {
         let parts = query_string.split("&");
 
         for part in parts {
@@ -31,16 +31,16 @@ mod tests {
     fn test_parse_query_string_simple() {
         let params_1 = parse_query_string_simple("");
 
-        assert_eq!(params_1.is_empty(), true);
+        assert!(params_1.is_empty());
        
         let params_2 = parse_query_string_simple("cache=clear");
 
-        assert_eq!(params_2.is_empty(), false);
+        assert!(!params_2.is_empty());
         assert_eq!(params_2.get("cache").unwrap() , "clear");
 
         let params_3 = parse_query_string_simple("cache=clear&opt=1");
 
-        assert_eq!(params_3.is_empty(), false);
+        assert!(!params_3.is_empty());
         assert_eq!(params_3.get("cache").unwrap(), "clear");
         assert_eq!(params_3.get("opt").unwrap(), "1");
     }

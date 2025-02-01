@@ -66,7 +66,7 @@ pub fn spawn_task_to_send_pings<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
                 Err(e) => {
                     if config.log_requests && logger.config.debug_enabled {
                         logger
-                            .log_debug(&format!("Could not send ping request: {}", e.to_string()));
+                            .log_debug(&format!("Could not send ping request: {}", e));
                     }
 
                     finished = true;

@@ -37,6 +37,7 @@ const BIT_RATE_COMPUTE_INTERVAL_MS: i64 = 1000;
 /// read_status_mu - Status for the read task
 /// logger - Session logger
 /// Return true to continue receiving chunk. Returns false to end the session main loop.
+#[allow(clippy::too_many_arguments)]
 pub async fn read_rtmp_chunk<
     TR: AsyncRead + AsyncReadExt + Send + Sync + Unpin,
     TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static,
@@ -79,7 +80,7 @@ pub async fn read_rtmp_chunk<
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Chunk read error. Could not read start byte: {}",
-                        e.to_string()
+                        e
                     ));
                 }
                 return false;
@@ -125,7 +126,7 @@ pub async fn read_rtmp_chunk<
                         logger.log_debug(&format!(
                             "Chunk read error. Could not read basic byte [{}]: {}",
                             i,
-                            e.to_string(),
+                            e,
                         ));
                     }
                     return false;
@@ -160,7 +161,7 @@ pub async fn read_rtmp_chunk<
                     if config.log_requests && logger.config.debug_enabled {
                         logger.log_debug(&format!(
                             "Chunk read error. Could not read header: {}",
-                            e.to_string()
+                            e
                         ));
                     }
                     return false;
@@ -183,7 +184,7 @@ pub async fn read_rtmp_chunk<
 
     let channel_id = match basic_bytes {
         2 => 64 + (header[1] as u32),
-        3 => (64 + (header[1] as u32)) + (header[2] as u32) << 8,
+        3 => ((64 + (header[1] as u32)) + (header[2] as u32)) << 8,
         _ => (header[0] & 0x3f) as u32,
     };
 
@@ -294,7 +295,7 @@ pub async fn read_rtmp_chunk<
                     if config.log_requests && logger.config.debug_enabled {
                         logger.log_debug(&format!(
                             "Chunk read error. Could not read extended timestamp: {}",
-                            e.to_string()
+                            e
                         ));
                     }
                     return false;
@@ -324,7 +325,7 @@ pub async fn read_rtmp_chunk<
             packet.clock = packet.clock.wrapping_add(extended_timestamp);
         }
 
-        RtmpSessionPublishStreamStatus::set_clock(&publish_status, packet.clock).await;
+        RtmpSessionPublishStreamStatus::set_clock(publish_status, packet.clock).await;
 
         if packet.capacity < packet.header.length {
             packet.capacity = packet.header.length.wrapping_add(1024);
@@ -353,7 +354,7 @@ pub async fn read_rtmp_chunk<
                     if config.log_requests && logger.config.debug_enabled {
                         logger.log_debug(&format!(
                             "Chunk read error. Could not read payload bytes: {}",
-                            e.to_string()
+                            e
                         ));
                     }
                     return false;
@@ -377,8 +378,7 @@ pub async fn read_rtmp_chunk<
     if packet.bytes >= packet.header.length {
         packet.handled = true;
 
-        if packet.clock <= 0xffffffff {
-            if !handle_rtmp_packet(
+        if packet.clock <= 0xffffffff && !handle_rtmp_packet(
                 packet,
                 session_id,
                 write_stream,
@@ -391,13 +391,11 @@ pub async fn read_rtmp_chunk<
                 control_key_validator_sender,
                 logger,
             )
-            .await
-            {
-                if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug("Packet handing failed");
-                }
-                return false;
+            .await {
+            if config.log_requests && logger.config.debug_enabled {
+                logger.log_debug("Packet handing failed");
             }
+            return false;
         }
     }
 
@@ -420,7 +418,7 @@ pub async fn read_rtmp_chunk<
 
         if let Err(e) = session_write_bytes(write_stream, &ack_msg).await {
             if config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!("Could not send ACK: {}", e.to_string()));
+                logger.log_debug(&format!("Could not send ACK: {}", e));
             }
             return false;
         }
@@ -450,5 +448,5 @@ pub async fn read_rtmp_chunk<
         }
     }
 
-    return true;
+    true
 }

@@ -28,7 +28,7 @@ impl RedisRtmpCommand {
 
         match cmd.as_str() {
             "kill-session" => {
-                if args.len() < 1 {
+                if args.is_empty() {
                     return RedisRtmpCommand::Unknown;
                 }
 

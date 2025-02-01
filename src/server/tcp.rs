@@ -29,22 +29,17 @@ pub fn tcp_server(
         let listen_addr = config.get_tcp_listen_addr();
 
         // Create listener
-        let listener_res = TcpListener::bind(&listen_addr).await;
-        let listener: TcpListener;
-
-        match listener_res {
-            Ok(l) => {
-                listener = l;
-            }
+        let listener = match TcpListener::bind(&listen_addr).await {
+            Ok(l) => l,
             Err(e) => {
-                logger.log_error(&format!("Could not create TCP listener: {}", e.to_string()));
+                logger.log_error(&format!("Could not create TCP listener: {}", e));
                 end_notifier
                     .send(())
                     .await
                     .expect("failed to notify to main thread");
                 return;
             }
-        }
+        };
 
         logger.log_info(&format!("Listening on {}", listen_addr));
 
@@ -66,7 +61,7 @@ pub fn tcp_server(
                     );
                 }
                 Err(e) => {
-                    logger.log_error(&format!("Could not accept connection: {}", e.to_string()));
+                    logger.log_error(&format!("Could not accept connection: {}", e));
                     end_notifier
                         .send(())
                         .await
@@ -78,6 +73,7 @@ pub fn tcp_server(
     });
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_connection_tcp(
     mut connection: TcpStream,
     ip: IpAddr,
@@ -133,7 +129,7 @@ fn handle_connection_tcp(
             if config.log_requests {
                 logger.as_ref().log_info(&format!(
                     "Rejected request from {} due to connection limit",
-                    ip.to_string()
+                    ip
                 ));
             }
             let _ = connection.shutdown().await;

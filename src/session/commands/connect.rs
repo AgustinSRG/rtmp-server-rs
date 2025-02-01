@@ -92,7 +92,7 @@ pub async fn handle_rtmp_command_connect<TW: AsyncWrite + AsyncWriteExt + Send +
 
     let mut session_status_v = session_status.lock().await;
 
-    if let Some(_) = session_status_v.channel {
+    if session_status_v.channel.is_some() {
         // Already connected. This command is invalid
         drop(session_status_v);
         if config.log_requests && logger.config.debug_enabled {
@@ -110,11 +110,11 @@ pub async fn handle_rtmp_command_connect<TW: AsyncWrite + AsyncWriteExt + Send +
     // Send window ACK
 
     let window_ack_bytes = rtmp_make_window_ack(RTMP_WINDOW_ACK);
-    if let Err(e) = session_write_bytes(&write_stream, &window_ack_bytes).await {
+    if let Err(e) = session_write_bytes(write_stream, &window_ack_bytes).await {
         if config.log_requests && logger.config.debug_enabled {
             logger.log_debug(&format!(
                 "Send error: Could not send window ACK: {}",
-                e.to_string()
+                e
             ));
         }
         return false;
@@ -123,11 +123,11 @@ pub async fn handle_rtmp_command_connect<TW: AsyncWrite + AsyncWriteExt + Send +
     // Set peer bandwidth
 
     let peer_bandwidth_bytes = rtmp_make_peer_bandwidth_set_message(RTMP_PEER_BANDWIDTH);
-    if let Err(e) = session_write_bytes(&write_stream, &peer_bandwidth_bytes).await {
+    if let Err(e) = session_write_bytes(write_stream, &peer_bandwidth_bytes).await {
         if config.log_requests && logger.config.debug_enabled {
             logger.log_debug(&format!(
                 "Send error: Could not set peer bandwidth: {}",
-                e.to_string()
+                e
             ));
         }
         return false;
@@ -136,11 +136,11 @@ pub async fn handle_rtmp_command_connect<TW: AsyncWrite + AsyncWriteExt + Send +
     // Set chunk size
 
     let chunk_size_bytes = rtmp_make_chunk_size_set_message(config.chunk_size as u32);
-    if let Err(e) = session_write_bytes(&write_stream, &chunk_size_bytes).await {
+    if let Err(e) = session_write_bytes(write_stream, &chunk_size_bytes).await {
         if config.log_requests && logger.config.debug_enabled {
             logger.log_debug(&format!(
                 "Send error: Could not set chunk size: {}",
-                e.to_string()
+                e
             ));
         }
         return false;
@@ -150,11 +150,11 @@ pub async fn handle_rtmp_command_connect<TW: AsyncWrite + AsyncWriteExt + Send +
 
     let connect_response_bytes =
         rtmp_make_connect_response(trans_id, object_encoding, config.chunk_size);
-    if let Err(e) = session_write_bytes(&write_stream, &connect_response_bytes).await {
+    if let Err(e) = session_write_bytes(write_stream, &connect_response_bytes).await {
         if config.log_requests && logger.config.debug_enabled {
             logger.log_debug(&format!(
                 "Send error: Could not send connect response: {}",
-                e.to_string()
+                e
             ));
         }
         return false;

@@ -26,7 +26,7 @@ impl AMFDecodingCursor {
             return false;
         }
 
-        return np <= self.len;
+        np <= self.len
     }
 
     /// Reads bytes
@@ -49,7 +49,7 @@ impl AMFDecodingCursor {
     pub fn read_byte(&mut self, buffer: &[u8]) -> Result<u8, ()> {
         let bytes = self.read(buffer, 1)?;
 
-        if let Some(b) = bytes.get(0) {
+        if let Some(b) = bytes.first() {
             Ok(*b)
         } else {
             Err(())
@@ -73,7 +73,7 @@ impl AMFDecodingCursor {
     pub fn look_byte(&self, buffer: &[u8]) -> Result<u8, ()> {
         let bytes = self.look(buffer, 1)?;
 
-        if let Some(b) = bytes.get(0) {
+        if let Some(b) = bytes.first() {
             Ok(*b)
         } else {
             Err(())

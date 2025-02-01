@@ -87,17 +87,17 @@ impl AMF0Value {
             AMF0Value::Object { properties } => {
                 let mut res = "{\n".to_string();
 
-                for (key, value) in properties.into_iter() {
+                for (key, value) in properties.iter() {
                     res.push_str(tabs);
                     res.push_str("    '");
                     res.push_str(key);
                     res.push_str("' = ");
                     res.push_str(&value.to_debug_string(&format!("{}    ", tabs)));
-                    res.push_str("\n");
+                    res.push('\n');
                 }
 
                 res.push_str(tabs);
-                res.push_str("}");
+                res.push('}');
 
                 res
             }
@@ -109,32 +109,32 @@ impl AMF0Value {
             AMF0Value::Array { items } => {
                 let mut res = "ARRAY [\n".to_string();
 
-                for (key, value) in items.into_iter() {
+                for (key, value) in items.iter() {
                     res.push_str(tabs);
                     res.push_str("    '");
                     res.push_str(key);
                     res.push_str("' = ");
                     res.push_str(&value.to_debug_string(&format!("{}    ", tabs)));
-                    res.push_str("\n");
+                    res.push('\n');
                 }
 
                 res.push_str(tabs);
-                res.push_str("]");
+                res.push(']');
 
                 res
             }
             AMF0Value::StrictArray { items } => {
                 let mut res = "STRICT_ARRAY [\n".to_string();
 
-                for value in items.into_iter() {
+                for value in items.iter() {
                     res.push_str(tabs);
                     res.push_str("    ");
                     res.push_str(&value.to_debug_string(&format!("{}    ", tabs)));
-                    res.push_str("\n");
+                    res.push('\n');
                 }
 
                 res.push_str(tabs);
-                res.push_str("]");
+                res.push(']');
 
                 res
             }
@@ -153,17 +153,17 @@ impl AMF0Value {
             } => {
                 let mut res = format!("{} {}\n", type_name, "{");
 
-                for (key, value) in properties.into_iter() {
+                for (key, value) in properties.iter() {
                     res.push_str(tabs);
                     res.push_str("    '");
                     res.push_str(key);
                     res.push_str("' = ");
                     res.push_str(&value.to_debug_string(&format!("{}    ", tabs)));
-                    res.push_str("\n");
+                    res.push('\n');
                 }
 
                 res.push_str(tabs);
-                res.push_str("}");
+                res.push('}');
 
                 res
             }
@@ -353,7 +353,7 @@ impl AMF0Value {
 
         let mut keys: Vec<&str> = Vec::with_capacity(o.len());
 
-        for key in o.keys().into_iter() {
+        for key in o.keys() {
             keys.push(key);
         }
 

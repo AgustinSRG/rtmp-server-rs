@@ -28,7 +28,7 @@ pub fn spawn_task_redis_client(
                 Err(e) => {
                     logger.log_error(&format!(
                         "Could not create a Redis client: {}",
-                        e.to_string()
+                        e
                     ));
                     return;
                 }
@@ -46,7 +46,7 @@ pub fn spawn_task_redis_client(
                 Err(e) => {
                     logger.log_error(&format!(
                         "Could not connect to Redis server: {}",
-                        e.to_string()
+                        e
                     ));
 
                     // Wait
@@ -61,7 +61,7 @@ pub fn spawn_task_redis_client(
                 logger.log_error(&format!(
                     "Could not subscribe to {}: {}",
                     &config.channel,
-                    e.to_string()
+                    e
                 ));
 
                 // Wait
@@ -76,50 +76,47 @@ pub fn spawn_task_redis_client(
             while continue_reading {
                 match rx.recv().await {
                     Some(msg) => match msg.kind {
-                        PushKind::Message => match msg.data.get(0) {
-                            Some(val) => {
-                                let msg_str = value_to_string(val);
+                        PushKind::Message => if let Some(val) = msg.data.first() {
+                            let msg_str = value_to_string(val);
 
-                                if logger.config.trace_enabled {
-                                    logger.log_trace(&format!("Received message: {}", &msg_str));
+                            if logger.config.trace_enabled {
+                                logger.log_trace(&format!("Received message: {}", &msg_str));
+                            }
+
+                            let cmd = RedisRtmpCommand::parse(&msg_str);
+
+                            match cmd {
+                                RedisRtmpCommand::KillSession { channel } => {
+                                    RtmpServerStatus::kill_publisher(
+                                        &logger,
+                                        &server_config,
+                                        &server_status,
+                                        &mut control_key_validator_sender,
+                                        &channel,
+                                        None,
+                                    )
+                                    .await;
                                 }
-
-                                let cmd = RedisRtmpCommand::parse(&msg_str);
-
-                                match cmd {
-                                    RedisRtmpCommand::KillSession { channel } => {
-                                        RtmpServerStatus::kill_publisher(
-                                            &logger,
-                                            &server_config,
-                                            &server_status,
-                                            &mut control_key_validator_sender,
-                                            &channel,
-                                            None,
-                                        )
-                                        .await;
-                                    }
-                                    RedisRtmpCommand::CloseStream { channel, stream_id } => {
-                                        RtmpServerStatus::kill_publisher(
-                                            &logger,
-                                            &server_config,
-                                            &server_status,
-                                            &mut control_key_validator_sender,
-                                            &channel,
-                                            Some(&stream_id),
-                                        )
-                                        .await;
-                                    }
-                                    RedisRtmpCommand::Unknown => {
-                                        if logger.config.debug_enabled {
-                                            logger.log_debug(&format!(
-                                                "Unrecognized message: {}",
-                                                &msg_str
-                                            ));
-                                        }
+                                RedisRtmpCommand::CloseStream { channel, stream_id } => {
+                                    RtmpServerStatus::kill_publisher(
+                                        &logger,
+                                        &server_config,
+                                        &server_status,
+                                        &mut control_key_validator_sender,
+                                        &channel,
+                                        Some(&stream_id),
+                                    )
+                                    .await;
+                                }
+                                RedisRtmpCommand::Unknown => {
+                                    if logger.config.debug_enabled {
+                                        logger.log_debug(&format!(
+                                            "Unrecognized message: {}",
+                                            &msg_str
+                                        ));
                                     }
                                 }
                             }
-                            None => {}
                         },
                         PushKind::Disconnection => {
                             continue_reading = false;

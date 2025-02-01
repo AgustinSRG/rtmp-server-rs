@@ -58,7 +58,7 @@ pub fn get_env_u32(var_name: &str, default_val: u32) -> u32 {
 
     match r_var {
         Ok(var_str) => {
-            let r_num = u32::from_str_radix(&var_str, 10);
+            let r_num: Result<u32, _> = var_str.parse();
 
             match r_num {
                 Ok(num) => num,

@@ -21,6 +21,7 @@ use super::super::RtmpSessionStatus;
 /// control_key_validator_sender - Sender for key validation against the control server
 /// logger - Session logger
 /// Return true to continue receiving chunks. Returns false to end the session main loop.
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_rtmp_command_delete_stream<
     TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static,
 >(
@@ -44,10 +45,8 @@ pub async fn handle_rtmp_command_delete_stream<
         }
     };
 
-    if stream_id == 0 {
-        if config.log_requests && logger.config.debug_enabled {
-            logger.log_debug("Command error: streamId cannot be 0");
-        }
+    if stream_id == 0 && config.log_requests && logger.config.debug_enabled {
+        logger.log_debug("Command error: streamId cannot be 0");
     }
 
     rtmp_delete_stream(

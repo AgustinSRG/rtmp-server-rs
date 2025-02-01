@@ -41,7 +41,7 @@ pub fn make_control_auth_token(logger: &Logger, config: &ControlServerConnection
     ) {
         Ok(token) => token,
         Err(e) => {
-            logger.log_error(&format!("Error encoding JWT: {}", e.to_string()));
+            logger.log_error(&format!("Error encoding JWT: {}", e));
             "".to_string()
         }
     }

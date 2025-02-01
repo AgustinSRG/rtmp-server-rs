@@ -61,18 +61,12 @@ impl AMF3Value {
 
     /// Turns the ANF3 value into a boolean
     pub fn get_bool(&self) -> bool {
-        match self {
-            AMF3Value::True => true,
-            _ => false,
-        }
+        matches!(self, AMF3Value::True)
     }
 
     /// Returns true if the value is undefined
     pub fn is_undefined(&self) -> bool {
-        match self {
-            AMF3Value::Undefined => true,
-            _ => false,
-        }
+        matches!(self, AMF3Value::Undefined)
     }
 
     /// Returns the value as integer
@@ -221,7 +215,7 @@ impl AMF3Value {
         }
 
         if len == 5 {
-            val = val | (b as u32);
+            val |= b as u32;
         }
 
         Ok(val)

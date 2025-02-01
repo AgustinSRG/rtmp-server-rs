@@ -20,6 +20,7 @@ use super::{RtmpServerConfiguration, RtmpServerStatus, SessionIdGenerator};
 /// session_id_generator - Generator of IDs for the session
 /// control_key_validator_sender - Sender for key validation against the control server
 /// logger - Server logger
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_connection<
     TR: AsyncRead + AsyncReadExt + Send + Sync + Unpin,
     TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static,
@@ -51,7 +52,7 @@ pub async fn handle_connection<
 
     // Log request
     if config.log_requests {
-        session_logger.log_info(&format!("Connection accepted from {}", ip.to_string()));
+        session_logger.log_info(&format!("Connection accepted from {}", ip));
     }
 
     // Handle session

@@ -244,7 +244,7 @@ impl RtmpSessionPublishStreamStatus {
     ) -> RtmpSessionMessage {
         let mut status = status_mu.lock().await;
 
-        let copy_of_gop_cache: Vec<Arc<RtmpPacket>> = status.gop_cache.iter().map(|p| p.clone()).collect();
+        let copy_of_gop_cache: Vec<Arc<RtmpPacket>> = status.gop_cache.iter().cloned().collect();
 
         let msg = RtmpSessionMessage::PlayStart {
             metadata: status.metadata.clone(),
@@ -270,14 +270,14 @@ impl RtmpSessionPublishStreamStatus {
     ) -> RtmpSessionMessage {
         let status = status_mu.lock().await;
 
-        let msg = RtmpSessionMessage::Resume {
+        
+
+        RtmpSessionMessage::Resume {
             audio_codec: status.audio_codec,
             aac_sequence_header: status.aac_sequence_header.clone(),
             video_codec: status.video_codec,
             avc_sequence_header: status.avc_sequence_header.clone(),
-        };
-
-        msg
+        }
     }
 
     /// Pushes a new packet to the gop cache

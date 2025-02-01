@@ -1,8 +1,8 @@
+// RTMP data
+
 use std::{collections::HashMap, sync::LazyLock};
 
 use crate::amf::{AMF0Value, AMFDecodingCursor};
-
-/// RTMP Data
 
 /// RTMP data
 pub struct RtmpData {
@@ -64,7 +64,7 @@ impl RtmpData {
             ));
         }
 
-        s.push_str("}");
+        s.push('}');
 
         s
     }

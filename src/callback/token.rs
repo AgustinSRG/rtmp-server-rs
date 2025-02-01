@@ -75,7 +75,7 @@ pub fn make_callback_jwt(
     match encode(&header, &claims, &EncodingKey::from_secret(config.jwt_secret.as_bytes())) {
         Ok(token) => token,
         Err(e) => {
-            logger.log_error(&format!("Error encoding JWT: {}", e.to_string()));
+            logger.log_error(&format!("Error encoding JWT: {}", e));
             "".to_string()
         },
     }

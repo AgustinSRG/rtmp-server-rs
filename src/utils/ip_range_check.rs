@@ -204,37 +204,37 @@ mod tests {
 
         let range_1 = IpRangeConfig::new_from_string("").unwrap();
 
-        assert_eq!(range_1.contains_ip(&ip_v4_1), false);
-        assert_eq!(range_1.contains_ip(&ip_v4_2), false);
-        assert_eq!(range_1.contains_ip(&ip_v6_1), false);
-        assert_eq!(range_1.contains_ip(&ip_v6_2), false);
+        assert!(!range_1.contains_ip(&ip_v4_1));
+        assert!(!range_1.contains_ip(&ip_v4_2));
+        assert!(!range_1.contains_ip(&ip_v6_1));
+        assert!(!range_1.contains_ip(&ip_v6_2));
 
         let range_2 = IpRangeConfig::new_from_string("*").unwrap();
 
-        assert_eq!(range_2.contains_ip(&ip_v4_1), true);
-        assert_eq!(range_2.contains_ip(&ip_v4_2), true);
-        assert_eq!(range_2.contains_ip(&ip_v6_1), true);
-        assert_eq!(range_2.contains_ip(&ip_v6_2), true);
+        assert!(range_2.contains_ip(&ip_v4_1));
+        assert!(range_2.contains_ip(&ip_v4_2));
+        assert!(range_2.contains_ip(&ip_v6_1));
+        assert!(range_2.contains_ip(&ip_v6_2));
 
         let range_3 = IpRangeConfig::new_from_string("10.0.0.0/8").unwrap();
 
-        assert_eq!(range_3.contains_ip(&ip_v4_1), false);
-        assert_eq!(range_3.contains_ip(&ip_v4_2), true);
-        assert_eq!(range_3.contains_ip(&ip_v6_1), false);
-        assert_eq!(range_3.contains_ip(&ip_v6_2), false);
+        assert!(!range_3.contains_ip(&ip_v4_1));
+        assert!(range_3.contains_ip(&ip_v4_2));
+        assert!(!range_3.contains_ip(&ip_v6_1));
+        assert!(!range_3.contains_ip(&ip_v6_2));
 
         let range_4 = IpRangeConfig::new_from_string("10.0.0.0/8,127.0.0.1,::1").unwrap();
 
-        assert_eq!(range_4.contains_ip(&ip_v4_1), true);
-        assert_eq!(range_4.contains_ip(&ip_v4_2), true);
-        assert_eq!(range_4.contains_ip(&ip_v6_1), true);
-        assert_eq!(range_4.contains_ip(&ip_v6_2), false);
+        assert!(range_4.contains_ip(&ip_v4_1));
+        assert!(range_4.contains_ip(&ip_v4_2));
+        assert!(range_4.contains_ip(&ip_v6_1));
+        assert!(!range_4.contains_ip(&ip_v6_2));
 
         let range_5 = IpRangeConfig::new_from_string("10.0.0.0/8,2001:db8:abcd:0012::/64").unwrap();
 
-        assert_eq!(range_5.contains_ip(&ip_v4_1), false);
-        assert_eq!(range_5.contains_ip(&ip_v4_2), true);
-        assert_eq!(range_5.contains_ip(&ip_v6_1), false);
-        assert_eq!(range_5.contains_ip(&ip_v6_2), true);
+        assert!(!range_5.contains_ip(&ip_v4_1));
+        assert!(range_5.contains_ip(&ip_v4_2));
+        assert!(!range_5.contains_ip(&ip_v6_1));
+        assert!(range_5.contains_ip(&ip_v6_2));
     }
 }

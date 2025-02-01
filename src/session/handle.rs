@@ -27,6 +27,7 @@ use super::{
 /// publish_status - Status if the stream being published
 /// control_key_validator_sender - Sender for key validation against the control server
 /// logger - Session logger
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_rtmp_session<
     TR: AsyncRead + AsyncReadExt + Send + Sync + Unpin,
     TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin +'static ,
@@ -60,7 +61,7 @@ pub async fn handle_rtmp_session<
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "BAD HANDSHAKE: Could not read initial version byte: {}",
-                        e.to_string()
+                        e
                     ));
                 }
                 return;
@@ -74,13 +75,11 @@ pub async fn handle_rtmp_session<
         }
     };
 
-    if version_byte != RTMP_VERSION {
-        if config.log_requests {
-            logger.log_error(&format!(
-                "BAD HANDSHAKE: Invalid initial version byte. Expected {}, but got {}",
-                RTMP_VERSION, version_byte
-            ));
-        }
+    if version_byte != RTMP_VERSION && config.log_requests {
+        logger.log_error(&format!(
+            "BAD HANDSHAKE: Invalid initial version byte. Expected {}, but got {}",
+            RTMP_VERSION, version_byte
+        ));
     }
 
     // Now, read client signature bytes
@@ -98,7 +97,7 @@ pub async fn handle_rtmp_session<
                 if config.log_requests {
                     logger.log_error(&format!(
                         "BAD HANDSHAKE: Could not read client signature: {}",
-                        e.to_string()
+                        e
                     ));
                 }
                 return;
@@ -128,7 +127,7 @@ pub async fn handle_rtmp_session<
         if config.log_requests {
             logger.log_error(&format!(
                 "BAD HANDSHAKE: Could not send handshake response: {}",
-                e.to_string()
+                e
             ));
         }
         return;
@@ -147,7 +146,7 @@ pub async fn handle_rtmp_session<
                 if config.log_requests {
                     logger.log_error(&format!(
                         "BAD HANDSHAKE: Could not read client S1 copy: {}",
-                        e.to_string()
+                        e
                     ));
                 }
                 return;

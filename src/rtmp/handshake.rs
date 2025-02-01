@@ -191,7 +191,7 @@ fn calc_hmac(message: &[u8], key: &[u8]) -> Vec<u8> {
 
     mac.update(message);
 
-    let result: Vec<u8> = mac.finalize().into_bytes().iter().map(|f| *f).collect();
+    let result: Vec<u8> = mac.finalize().into_bytes().iter().copied().collect();
 
     result
 }

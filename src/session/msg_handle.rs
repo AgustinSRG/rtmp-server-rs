@@ -58,11 +58,11 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 
             let stream_status_bytes = rtmp_make_stream_status_message(STREAM_BEGIN, play_stream_id);
 
-            if let Err(e) = session_write_bytes(&write_stream, &stream_status_bytes).await {
+            if let Err(e) = session_write_bytes(write_stream, &stream_status_bytes).await {
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send stream status: {}",
-                        e.to_string()
+                        e
                     ));
                 }
                 return true;
@@ -71,7 +71,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
             // Send status messages indicating play
 
             if let Err(e) = send_status_message(
-                &write_stream,
+                write_stream,
                 play_stream_id,
                 "status",
                 "NetStream.Play.Reset",
@@ -83,13 +83,13 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send status message: {}",
-                        e.to_string()
+                        e
                     ));
                 }
             }
 
             if let Err(e) = send_status_message(
-                &write_stream,
+                write_stream,
                 play_stream_id,
                 "status",
                 "NetStream.Play.Start",
@@ -101,7 +101,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send status message: {}",
-                        e.to_string()
+                        e
                     ));
                 }
             }
@@ -110,11 +110,11 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 
             let sample_access_bytes = rtmp_make_sample_access_message(0, config.chunk_size);
 
-            if let Err(e) = session_write_bytes(&write_stream, &sample_access_bytes).await {
+            if let Err(e) = session_write_bytes(write_stream, &sample_access_bytes).await {
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send sample access: {}",
-                        e.to_string()
+                        e
                     ));
                 }
                 return true;
@@ -125,11 +125,11 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
             let metadata_bytes =
                 rtmp_make_metadata_message(play_stream_id, &metadata, 0, config.chunk_size);
 
-            if let Err(e) = session_write_bytes(&write_stream, &metadata_bytes).await {
+            if let Err(e) = session_write_bytes(write_stream, &metadata_bytes).await {
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send metadata bytes: {}",
-                        e.to_string()
+                        e
                     ));
                 }
                 return true;
@@ -145,11 +145,11 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
                     config.chunk_size,
                 );
 
-                if let Err(e) = session_write_bytes(&write_stream, &audio_codec_header).await {
+                if let Err(e) = session_write_bytes(write_stream, &audio_codec_header).await {
                     if config.log_requests && logger.config.debug_enabled {
                         logger.log_debug(&format!(
                             "Send error: Could not send audio codec header: {}",
-                            e.to_string()
+                            e
                         ));
                     }
                     return true;
@@ -168,11 +168,11 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
                     config.chunk_size,
                 );
 
-                if let Err(e) = session_write_bytes(&write_stream, &video_codec_header).await {
+                if let Err(e) = session_write_bytes(write_stream, &video_codec_header).await {
                     if config.log_requests && logger.config.debug_enabled {
                         logger.log_debug(&format!(
                             "Send error: Could not send video codec header: {}",
-                            e.to_string()
+                            e
                         ));
                     }
                     return true;
@@ -196,11 +196,11 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
                     let packet_bytes =
                         packet.create_chunks_for_stream(play_stream_id, config.chunk_size);
 
-                    if let Err(e) = session_write_bytes(&write_stream, &packet_bytes).await {
+                    if let Err(e) = session_write_bytes(write_stream, &packet_bytes).await {
                         if config.log_requests && logger.config.debug_enabled {
                             logger.log_debug(&format!(
                                 "Send error: Could not send GOP cached packet: {}",
-                                e.to_string()
+                                e
                             ));
                         }
                         return true;
@@ -229,11 +229,11 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
             // Send status message
 
             if config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!("Invalid play stream key provided"));
+                logger.log_debug("Invalid play stream key provided");
             }
 
             if let Err(e) = send_status_message(
-                &write_stream,
+                write_stream,
                 play_stream_id,
                 "error",
                 "NetStream.Publish.BadName",
@@ -245,7 +245,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send status message: {}",
-                        e.to_string()
+                        e
                     ));
                 }
             }
@@ -270,11 +270,11 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 
             // Send metadata
 
-            if let Err(e) = session_write_bytes(&write_stream, &metadata_bytes).await {
+            if let Err(e) = session_write_bytes(write_stream, &metadata_bytes).await {
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not channel metadata: {}",
-                        e.to_string()
+                        e
                     ));
                 }
                 return true;
@@ -291,11 +291,11 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 
             let packet_bytes = packet.create_chunks_for_stream(play_stream_id, config.chunk_size);
 
-            if let Err(e) = session_write_bytes(&write_stream, &packet_bytes).await {
+            if let Err(e) = session_write_bytes(write_stream, &packet_bytes).await {
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send packet: {}",
-                        e.to_string()
+                        e
                     ));
                 }
                 return true;
@@ -313,7 +313,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
             // Send status message
 
             if let Err(e) = send_status_message(
-                &write_stream,
+                write_stream,
                 play_stream_id,
                 "status",
                 "NetStream.Play.UnpublishNotify",
@@ -325,7 +325,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send status message: {}",
-                        e.to_string()
+                        e
                     ));
                 }
             }
@@ -334,11 +334,11 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 
             let stream_status_bytes = rtmp_make_stream_status_message(STREAM_EOF, play_stream_id);
 
-            if let Err(e) = session_write_bytes(&write_stream, &stream_status_bytes).await {
+            if let Err(e) = session_write_bytes(write_stream, &stream_status_bytes).await {
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send stream status: {}",
-                        e.to_string()
+                        e
                     ));
                 }
                 return true;
@@ -363,11 +363,11 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 
             let stream_status_bytes = rtmp_make_stream_status_message(STREAM_EOF, play_stream_id);
 
-            if let Err(e) = session_write_bytes(&write_stream, &stream_status_bytes).await {
+            if let Err(e) = session_write_bytes(write_stream, &stream_status_bytes).await {
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send stream status: {}",
-                        e.to_string()
+                        e
                     ));
                 }
                 return true;
@@ -376,7 +376,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
             // Send status message
 
             if let Err(e) = send_status_message(
-                &write_stream,
+                write_stream,
                 play_stream_id,
                 "status",
                 "NetStream.Pause.Notify",
@@ -388,7 +388,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send status message: {}",
-                        e.to_string()
+                        e
                     ));
                 }
             }
@@ -417,11 +417,11 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 
             let stream_status_bytes = rtmp_make_stream_status_message(STREAM_BEGIN, play_stream_id);
 
-            if let Err(e) = session_write_bytes(&write_stream, &stream_status_bytes).await {
+            if let Err(e) = session_write_bytes(write_stream, &stream_status_bytes).await {
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send stream status: {}",
-                        e.to_string()
+                        e
                     ));
                 }
                 return true;
@@ -437,11 +437,11 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
                     config.chunk_size,
                 );
 
-                if let Err(e) = session_write_bytes(&write_stream, &audio_codec_header).await {
+                if let Err(e) = session_write_bytes(write_stream, &audio_codec_header).await {
                     if config.log_requests && logger.config.debug_enabled {
                         logger.log_debug(&format!(
                             "Send error: Could not send audio codec header: {}",
-                            e.to_string()
+                            e
                         ));
                     }
                     return true;
@@ -460,11 +460,11 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
                     config.chunk_size,
                 );
 
-                if let Err(e) = session_write_bytes(&write_stream, &video_codec_header).await {
+                if let Err(e) = session_write_bytes(write_stream, &video_codec_header).await {
                     if config.log_requests && logger.config.debug_enabled {
                         logger.log_debug(&format!(
                             "Send error: Could not send video codec header: {}",
-                            e.to_string()
+                            e
                         ));
                     }
                     return true;
@@ -476,7 +476,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
             // Send status message
 
             if let Err(e) = send_status_message(
-                &write_stream,
+                write_stream,
                 play_stream_id,
                 "status",
                 "NetStream.Unpause.Notify",
@@ -488,7 +488,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send status message: {}",
-                        e.to_string()
+                        e
                     ));
                 }
             }
@@ -512,11 +512,11 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 
             let stream_status_bytes = rtmp_make_stream_status_message(STREAM_BEGIN, play_stream_id);
 
-            if let Err(e) = session_write_bytes(&write_stream, &stream_status_bytes).await {
+            if let Err(e) = session_write_bytes(write_stream, &stream_status_bytes).await {
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send stream status: {}",
-                        e.to_string()
+                        e
                     ));
                 }
                 return true;
@@ -525,7 +525,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
             // Send status message
 
             if let Err(e) = send_status_message(
-                &write_stream,
+                write_stream,
                 play_stream_id,
                 "status",
                 "NetStream.Unpause.Notify",
@@ -537,7 +537,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
                 if config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Send error: Could not send status message: {}",
-                        e.to_string()
+                        e
                     ));
                 }
             }
@@ -568,6 +568,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 /// session_msg_receiver - Receiver for the session messages
 /// control_key_validator_sender - Sender to communicate with the control server
 /// logger - The logger
+#[allow(clippy::too_many_arguments)]
 pub fn spawn_task_to_read_session_messages<
     TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static,
 >(
@@ -613,6 +614,6 @@ pub fn spawn_task_to_read_session_messages<
 
         // Drain channel
 
-        while let Ok(_) = session_msg_receiver.try_recv() {} // Drain the channel to prevent other threads from blocking
+        while session_msg_receiver.try_recv().is_ok() {} // Drain the channel to prevent other threads from blocking
     });
 }

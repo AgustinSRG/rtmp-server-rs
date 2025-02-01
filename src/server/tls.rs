@@ -15,8 +15,6 @@ use tokio::{net::TcpListener, sync::mpsc::Sender};
 
 use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
-
-use tokio_rustls::server::TlsStream;
 use tokio_rustls::{rustls, TlsAcceptor};
 
 use crate::control::ControlKeyValidationRequest;
@@ -41,7 +39,7 @@ pub fn tls_server(
         let cert_file_metadata = match tokio::fs::metadata(&config.tls.certificate).await {
             Ok(m) => m,
             Err(e) => {
-                logger.log_error(&format!("Could not load certificate: {}", e.to_string()));
+                logger.log_error(&format!("Could not load certificate: {}", e));
                 end_notifier
                     .send(())
                     .await
@@ -58,14 +56,12 @@ pub fn tls_server(
 
         match certs_res {
             Ok(certs_iter) => {
-                for c in certs_iter {
-                    if let Ok(cert) = c {
-                        certificate.push(cert);
-                    }
+                for c in certs_iter.flatten() {
+                    certificate.push(c);
                 }
             }
             Err(e) => {
-                logger.log_error(&format!("Could not load certificate: {}", e.to_string()));
+                logger.log_error(&format!("Could not load certificate: {}", e));
                 end_notifier
                     .send(())
                     .await
@@ -77,7 +73,7 @@ pub fn tls_server(
         let key_file_metadata = match tokio::fs::metadata(&config.tls.key).await {
             Ok(m) => m,
             Err(e) => {
-                logger.log_error(&format!("Could not load private key: {}", e.to_string()));
+                logger.log_error(&format!("Could not load private key: {}", e));
                 end_notifier
                     .send(())
                     .await
@@ -89,22 +85,17 @@ pub fn tls_server(
         let key_file_mod_time =
             FileTime::from_last_modification_time(&key_file_metadata).unix_seconds();
 
-        let key_res = PrivateKeyDer::from_pem_file(&config.tls.key);
-        let key: PrivateKeyDer<'_>;
-
-        match key_res {
-            Ok(k) => {
-                key = k;
-            }
+        let key = match PrivateKeyDer::from_pem_file(&config.tls.key) {
+            Ok(k) => k,
             Err(e) => {
-                logger.log_error(&format!("Could not load private key: {}", e.to_string()));
+                logger.log_error(&format!("Could not load private key: {}", e));
                 end_notifier
                     .send(())
                     .await
                     .expect("failed to notify to main thread");
                 return;
             }
-        }
+        };
 
         let listen_addr = config.tls.get_tcp_listen_addr();
 
@@ -115,7 +106,7 @@ pub fn tls_server(
         let signing_key = match key_provider.load_private_key(key) {
             Ok(k) => k,
             Err(e) => {
-                logger.log_error(&format!("Could not load private key: {}", e.to_string()));
+                logger.log_error(&format!("Could not load private key: {}", e));
                 end_notifier
                     .send(())
                     .await
@@ -133,30 +124,23 @@ pub fn tls_server(
         let acceptor = TlsAcceptor::from(Arc::new(tls_config));
 
         // Create listener
-        let listener_res = TcpListener::bind(&listen_addr).await;
-        let listener: TcpListener;
-
-        match listener_res {
-            Ok(l) => {
-                listener = l;
-            }
+        let listener = match TcpListener::bind(&listen_addr).await {
+            Ok(l) => l,
             Err(e) => {
-                logger.log_error(&format!("Could not create TCP listener: {}", e.to_string()));
+                logger.log_error(&format!("Could not create TCP listener: {}", e));
                 end_notifier
                     .send(())
                     .await
                     .expect("failed to notify to main thread");
                 return;
             }
-        }
+        };
 
         logger.log_info(&format!("Listening on {}", listen_addr));
 
         // Spawn task to reload certificates periodically
 
-        let cancel_tls_reloader_sender: Option<Sender<()>>;
-
-        if config.tls.check_reload_seconds > 0 {
+        let cancel_tls_reloader_sender = if config.tls.check_reload_seconds > 0 {
             let (cancel_sender, cancel_receiver) = tokio::sync::mpsc::channel::<()>(1);
 
             spawn_task_periodically_reload_tls_config(
@@ -168,10 +152,10 @@ pub fn tls_server(
                 cancel_receiver,
             );
 
-            cancel_tls_reloader_sender = Some(cancel_sender);
+            Some(cancel_sender)
         } else {
-            cancel_tls_reloader_sender = None;
-        }
+            None
+        };
 
         // Main loop
 
@@ -194,7 +178,7 @@ pub fn tls_server(
                     );
                 }
                 Err(e) => {
-                    logger.log_error(&format!("Could not accept connection: {}", e.to_string()));
+                    logger.log_error(&format!("Could not accept connection: {}", e));
                     end_notifier
                         .send(())
                         .await
@@ -210,6 +194,7 @@ pub fn tls_server(
     });
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_connection_tls(
     acceptor: TlsAcceptor,
     mut connection: TcpStream,
@@ -235,20 +220,15 @@ fn handle_connection_tls(
         }
 
         if should_accept {
-            let stream_res = acceptor.accept(connection).await;
-            let stream: TlsStream<TcpStream>;
-
-            match stream_res {
-                Ok(s) => {
-                    stream = s;
-                }
+            let stream = match acceptor.accept(connection).await {
+                Ok(s) => s,
                 Err(e) => {
                     logger
                         .as_ref()
-                        .log_debug(&format!("Could not accept connection: {}", e.to_string()));
+                        .log_debug(&format!("Could not accept connection: {}", e));
                     return;
                 }
-            }
+            };
 
             // Handle connection
             let (mut read_stream, write_stream) = tokio::io::split(stream);
@@ -283,7 +263,7 @@ fn handle_connection_tls(
             if config.log_requests {
                 logger.as_ref().log_info(&format!(
                     "Rejected request from {} due to connection limit",
-                    ip.to_string()
+                    ip
                 ));
             }
             let _ = connection.shutdown().await;
@@ -356,7 +336,7 @@ fn spawn_task_periodically_reload_tls_config(
             let cert_file_metadata = match tokio::fs::metadata(&config.tls.certificate).await {
                 Ok(m) => m,
                 Err(e) => {
-                    logger.log_error(&format!("Could not load certificate: {}", e.to_string()));
+                    logger.log_error(&format!("Could not load certificate: {}", e));
                     continue;
                 }
             };
@@ -367,7 +347,7 @@ fn spawn_task_periodically_reload_tls_config(
             let key_file_metadata = match tokio::fs::metadata(&config.tls.key).await {
                 Ok(m) => m,
                 Err(e) => {
-                    logger.log_error(&format!("Could not load private key: {}", e.to_string()));
+                    logger.log_error(&format!("Could not load private key: {}", e));
                     continue;
                 }
             };
@@ -390,30 +370,23 @@ fn spawn_task_periodically_reload_tls_config(
 
             match certs_res {
                 Ok(certs_iter) => {
-                    for c in certs_iter {
-                        if let Ok(cert) = c {
-                            certificate.push(cert);
-                        }
+                    for c in certs_iter.flatten() {
+                        certificate.push(c);
                     }
                 }
                 Err(e) => {
-                    logger.log_error(&format!("Could not load certificate: {}", e.to_string()));
+                    logger.log_error(&format!("Could not load certificate: {}", e));
                     continue;
                 }
             }
 
-            let key_res = PrivateKeyDer::from_pem_file(&config.tls.key);
-            let key: PrivateKeyDer<'_>;
-
-            match key_res {
-                Ok(k) => {
-                    key = k;
-                }
+            let key = match PrivateKeyDer::from_pem_file(&config.tls.key) {
+                Ok(k) => k,
                 Err(e) => {
-                    logger.log_error(&format!("Could not load private key: {}", e.to_string()));
+                    logger.log_error(&format!("Could not load private key: {}", e));
                     continue;
                 }
-            }
+            };
 
             let tls_config_builder = rustls::ServerConfig::builder();
 
@@ -422,7 +395,7 @@ fn spawn_task_periodically_reload_tls_config(
             let signing_key = match key_provider.load_private_key(key) {
                 Ok(k) => k,
                 Err(e) => {
-                    logger.log_error(&format!("Could not load private key: {}", e.to_string()));
+                    logger.log_error(&format!("Could not load private key: {}", e));
                     continue;
                 }
             };

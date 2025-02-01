@@ -11,13 +11,15 @@ use crate::log::Logger;
 
 use super::{ControlKeyValidationResponse, ControlServerMessage};
 
+type ControlClientMessageSender = Arc<Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>>;
+
 /// Status of the control client
 pub struct ControlClientStatus {
     /// Connected?
     pub connected: bool,
 
     /// The message sender
-    pub msg_sender: Option<Arc<Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>>>,
+    pub msg_sender: Option<ControlClientMessageSender>,
 
     /// Key validation request counter
     pub request_count: u64,
@@ -40,7 +42,7 @@ impl ControlClientStatus {
     /// Sets the status to connected
     pub async fn set_connected(
         status: &Mutex<ControlClientStatus>,
-        msg_sender: Arc<Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>>,
+        msg_sender: ControlClientMessageSender,
     ) {
         let mut status_v = status.lock().await;
 
@@ -92,7 +94,7 @@ impl ControlClientStatus {
         {
             Ok(_) => true,
             Err(e) => {
-                logger.log_error(&format!("Could not send a message: {}", e.to_string()));
+                logger.log_error(&format!("Could not send a message: {}", e));
 
                 false
             }
@@ -124,16 +126,13 @@ impl ControlClientStatus {
     pub async fn complete_request(status: &Mutex<ControlClientStatus>, id: u64, response: ControlKeyValidationResponse) {
         let mut status_v = status.lock().await;
 
-        match status_v.pending_requests.get_mut(&id) {
-            Some(rs) => {
+        if let Some(rs) = status_v.pending_requests.get_mut(&id) {
 
-                let response_sender = rs.clone();
-                status_v.pending_requests.remove(&id);
-                drop(status_v);
+            let response_sender = rs.clone();
+            status_v.pending_requests.remove(&id);
+            drop(status_v);
 
-                _ = response_sender.send(response).await;
-            },
-            None => {}, // Nothing to do
+            _ = response_sender.send(response).await;
         }
     }
 
@@ -142,7 +141,7 @@ impl ControlClientStatus {
     pub async fn clear_pending_requests(status: &Mutex<ControlClientStatus>) {
         let mut status_v = status.lock().await;
 
-        for (_, response_sender) in &status_v.pending_requests {
+        for response_sender in status_v.pending_requests.values() {
             _ = response_sender.send(ControlKeyValidationResponse::Rejected).await;
         }
 

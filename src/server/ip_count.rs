@@ -25,7 +25,7 @@ impl IpConnectionCounter {
     /// Adds IP address, trying to fit it into the limit
     /// Returns true if accepted, false if rejected
     pub fn add(&mut self, ip: &IpAddr) -> bool {
-        match self.counters.get(&ip) {
+        match self.counters.get(ip) {
             Some(old_count) => {
                 if *old_count < self.limit {
                     let (new_counter, overflow) = (*old_count).overflowing_add(1);
@@ -49,11 +49,11 @@ impl IpConnectionCounter {
 
     /// Removes IP address
     pub fn remove(&mut self, ip: &IpAddr) {
-        if let Some(old_count) = self.counters.get(&ip) {
+        if let Some(old_count) = self.counters.get(ip) {
             if *old_count > 0 {
                 self.counters.insert(*ip, *old_count - 1);
             } else {
-                self.counters.remove(&ip);
+                self.counters.remove(ip);
             }
         }
     }

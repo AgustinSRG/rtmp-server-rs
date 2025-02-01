@@ -20,6 +20,7 @@ use super::{send_status_message, RtmpSessionStatus};
 /// session_status - Session status
 /// logger - Session logger
 /// Return true to continue receiving chunks. Returns false to end the session main loop.
+#[allow(clippy::too_many_arguments)]
 pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static>(
     stream_id: u32,
     session_id: u64,
@@ -71,7 +72,7 @@ pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
         }
 
         if let Err(e) = send_status_message(
-            &write_stream,
+            write_stream,
             stream_id,
             "status",
             "NetStream.Play.Stop",
@@ -83,7 +84,7 @@ pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug(&format!(
                     "Send error: Could not send status message: {}",
-                    e.to_string()
+                    e
                 ));
             }
         }
@@ -100,7 +101,7 @@ pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
         }
 
         if let Err(e) = send_status_message(
-            &write_stream,
+            write_stream,
             stream_id,
             "status",
             "NetStream.Unpublish.Success",
@@ -112,7 +113,7 @@ pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug(&format!(
                     "Send error: Could not send status message: {}",
-                    e.to_string()
+                    e
                 ));
             }
         }

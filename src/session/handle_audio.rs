@@ -87,7 +87,7 @@ pub async fn handle_rtmp_packet_audio(
     // Send packet to the channel
 
     RtmpServerStatus::send_packet_to_channel(
-        &channel_status,
+        channel_status,
         session_id,
         Arc::new(copied_packet),
         is_header,
