@@ -52,8 +52,8 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
     match packet.header.packet_type {
         RTMP_TYPE_SET_CHUNK_SIZE => {
             // Packet to set chunk size
-            if config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Received packet: RTMP_TYPE_SET_CHUNK_SIZE");
+            if config.log_requests && logger.config.trace_enabled {
+                logger.log_trace("Received packet: RTMP_TYPE_SET_CHUNK_SIZE");
             }
 
             if packet.payload.len() < 4 {
@@ -99,8 +99,8 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
         }
         RTMP_TYPE_WINDOW_ACKNOWLEDGEMENT_SIZE => {
             // Packet to set ACK size
-            if config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Received packet: RTMP_TYPE_WINDOW_ACKNOWLEDGEMENT_SIZE");
+            if config.log_requests && logger.config.trace_enabled {
+                logger.log_trace("Received packet: RTMP_TYPE_WINDOW_ACKNOWLEDGEMENT_SIZE");
             }
 
             if packet.payload.len() < 4 {
@@ -121,8 +121,8 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
         }
         RTMP_TYPE_AUDIO => {
             // Audio packet
-            if config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Received packet: RTMP_TYPE_AUDIO");
+            if config.log_requests && logger.config.trace_enabled {
+                logger.log_trace("Received packet: RTMP_TYPE_AUDIO");
             }
 
             handle_rtmp_packet_audio(
@@ -137,8 +137,8 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
         }
         RTMP_TYPE_VIDEO => {
             // Video packet
-            if config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Received packet: RTMP_TYPE_VIDEO");
+            if config.log_requests && logger.config.trace_enabled {
+                logger.log_trace("Received packet: RTMP_TYPE_VIDEO");
             }
 
             handle_rtmp_packet_video(
@@ -153,8 +153,8 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
         }
         RTMP_TYPE_INVOKE => {
             // Invoke / Command packet
-            if config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Received packet: RTMP_TYPE_INVOKE");
+            if config.log_requests && logger.config.trace_enabled {
+                logger.log_trace("Received packet: RTMP_TYPE_INVOKE");
             }
 
             handle_rtmp_packet_invoke(
@@ -174,8 +174,8 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
         }
         RTMP_TYPE_FLEX_MESSAGE => {
             // Invoke / Command packet (Alt)
-            if config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Received packet: RTMP_TYPE_FLEX_MESSAGE");
+            if config.log_requests && logger.config.trace_enabled {
+                logger.log_trace("Received packet: RTMP_TYPE_FLEX_MESSAGE");
             }
 
             handle_rtmp_packet_invoke(
@@ -195,8 +195,8 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
         }
         RTMP_TYPE_DATA => {
             // Data packet
-            if config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Received packet: RTMP_TYPE_DATA");
+            if config.log_requests && logger.config.trace_enabled {
+                logger.log_trace("Received packet: RTMP_TYPE_DATA");
             }
 
             handle_rtmp_packet_data(
@@ -211,8 +211,8 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
         }
         RTMP_TYPE_FLEX_STREAM => {
             // Data packet (Alt)
-            if config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Received packet: RTMP_TYPE_FLEX_STREAM");
+            if config.log_requests && logger.config.trace_enabled {
+                logger.log_trace("Received packet: RTMP_TYPE_FLEX_STREAM");
             }
 
             handle_rtmp_packet_data(

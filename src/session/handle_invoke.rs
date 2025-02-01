@@ -82,7 +82,7 @@ pub async fn handle_rtmp_packet_invoke<
     };
 
     if config.log_requests && logger.config.trace_enabled {
-        logger.log_trace(&format!("DATA COMMAND: {}", cmd.to_debug_string()));
+        logger.log_trace(&format!("COMMAND: {}", cmd.to_debug_string()));
     }
 
     match cmd.cmd.as_str() {

@@ -434,7 +434,7 @@ pub async fn read_rtmp_chunk<
 
     // Bitrate
 
-    if config.log_requests && logger.config.trace_enabled {
+    if config.log_requests && logger.config.debug_enabled {
         let now = Utc::now().timestamp_millis();
         read_status.bit_rate_bytes = read_status.bit_rate_bytes.wrapping_add(bytes_read_count);
 
@@ -448,7 +448,7 @@ pub async fn read_rtmp_chunk<
             read_status.bit_rate_bytes = 0;
             read_status.bit_rate_last_update = now;
 
-            logger.log_trace(&format!("Bitrate is now: {} bps", bit_rate));
+            logger.log_debug(&format!("Bitrate is now: {} bps", bit_rate));
         }
     }
 

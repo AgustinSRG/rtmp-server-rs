@@ -54,6 +54,10 @@ pub async fn handle_session_message<
             avc_sequence_header,
             gop_cache,
         } => {
+            if config.log_requests && logger.config.debug_enabled {
+                logger.log_debug("RtmpSessionMessage::PlayStart");
+            }
+
             // Get play status
             let (is_player, play_stream_id, receive_gop, receive_audio, receive_video) =
                 RtmpSessionStatus::check_play_status(session_status).await;
@@ -71,6 +75,10 @@ pub async fn handle_session_message<
                     logger.log_debug(&format!("Send error: Could not send stream status: {}", e));
                 }
                 return true;
+            }
+
+            if config.log_requests && logger.config.debug_enabled {
+                logger.log_debug("RtmpSessionMessage::PlayStart - Sent stream status");
             }
 
             // Send status messages indicating play
@@ -105,6 +113,10 @@ pub async fn handle_session_message<
                 }
             }
 
+            if config.log_requests && logger.config.debug_enabled {
+                logger.log_debug("RtmpSessionMessage::PlayStart - Sent status messages");
+            }
+
             // Send sample access message
 
             let sample_access_bytes = rtmp_make_sample_access_message(0, config.chunk_size);
@@ -118,14 +130,23 @@ pub async fn handle_session_message<
 
             // Send metadata
 
-            let metadata_bytes =
-                rtmp_make_metadata_message(play_stream_id, &metadata, 0, config.chunk_size);
+            if !metadata.is_empty() {
+                let metadata_bytes =
+                    rtmp_make_metadata_message(play_stream_id, &metadata, 0, config.chunk_size);
 
-            if let Err(e) = session_write_bytes(write_stream, &metadata_bytes).await {
-                if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send metadata bytes: {}", e));
+                if let Err(e) = session_write_bytes(write_stream, &metadata_bytes).await {
+                    if config.log_requests && logger.config.debug_enabled {
+                        logger.log_debug(&format!(
+                            "Send error: Could not send metadata bytes: {}",
+                            e
+                        ));
+                    }
+                    return true;
                 }
-                return true;
+
+                if config.log_requests && logger.config.debug_enabled {
+                    logger.log_debug("RtmpSessionMessage::PlayStart - Sent metadata message");
+                }
             }
 
             // Send audio codec header
@@ -198,6 +219,13 @@ pub async fn handle_session_message<
                         }
                         return true;
                     }
+
+                    if config.log_requests && logger.config.debug_enabled {
+                        logger.log_debug(&format!(
+                            "RtmpSessionMessage::PlayStart - Sent GOP packet: {} bytes",
+                            packet.payload.len()
+                        ));
+                    }
                 }
             }
 
@@ -208,6 +236,10 @@ pub async fn handle_session_message<
             }
         }
         RtmpSessionMessage::InvalidKey => {
+            if config.log_requests && logger.config.debug_enabled {
+                logger.log_debug("RtmpSessionMessage::InvalidKey");
+            }
+
             // Get play status
             let (is_player, play_stream_id) =
                 RtmpSessionStatus::get_play_stream_id(session_status).await;
@@ -241,6 +273,10 @@ pub async fn handle_session_message<
             }
         }
         RtmpSessionMessage::PlayMetadata { metadata } => {
+            if config.log_requests && logger.config.debug_enabled {
+                logger.log_debug("RtmpSessionMessage::PlayMetadata");
+            }
+
             // Get play status
             let (is_player, play_stream_id) =
                 RtmpSessionStatus::get_play_stream_id(session_status).await;
@@ -268,6 +304,10 @@ pub async fn handle_session_message<
             }
         }
         RtmpSessionMessage::PlayPacket { packet } => {
+            if config.log_requests && logger.config.trace_enabled {
+                logger.log_trace("RtmpSessionMessage::PlayPacket");
+            }
+
             // Get play status
             let (is_player, play_stream_id) =
                 RtmpSessionStatus::get_play_stream_id(session_status).await;
@@ -286,6 +326,10 @@ pub async fn handle_session_message<
             }
         }
         RtmpSessionMessage::PlayStop => {
+            if config.log_requests && logger.config.debug_enabled {
+                logger.log_debug("RtmpSessionMessage::PlayStop");
+            }
+
             // Get play status
             let (is_player, play_stream_id) =
                 RtmpSessionStatus::get_play_stream_id(session_status).await;
@@ -329,6 +373,10 @@ pub async fn handle_session_message<
             }
         }
         RtmpSessionMessage::Pause => {
+            if config.log_requests && logger.config.debug_enabled {
+                logger.log_debug("RtmpSessionMessage::Pause");
+            }
+
             // Get play status
             let (is_player, play_stream_id) =
                 RtmpSessionStatus::get_play_stream_id(session_status).await;
@@ -377,6 +425,10 @@ pub async fn handle_session_message<
             video_codec,
             avc_sequence_header,
         } => {
+            if config.log_requests && logger.config.debug_enabled {
+                logger.log_debug("RtmpSessionMessage::Resume");
+            }
+
             // Get play status
             let (is_player, play_stream_id) =
                 RtmpSessionStatus::get_play_stream_id(session_status).await;
@@ -466,6 +518,10 @@ pub async fn handle_session_message<
             }
         }
         RtmpSessionMessage::ResumeIdle => {
+            if config.log_requests && logger.config.debug_enabled {
+                logger.log_debug("RtmpSessionMessage::ResumeIdle");
+            }
+
             // Get play status
             let (is_player, play_stream_id) =
                 RtmpSessionStatus::get_play_stream_id(session_status).await;
@@ -509,9 +565,17 @@ pub async fn handle_session_message<
             }
         }
         RtmpSessionMessage::Kill => {
+            if config.log_requests && logger.config.debug_enabled {
+                logger.log_debug("RtmpSessionMessage::Kill");
+            }
+
             RtmpSessionStatus::set_killed(session_status).await;
         }
         RtmpSessionMessage::End => {
+            if config.log_requests && logger.config.debug_enabled {
+                logger.log_debug("RtmpSessionMessage::End");
+            }
+
             return false;
         }
     }

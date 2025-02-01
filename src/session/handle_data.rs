@@ -68,6 +68,7 @@ pub async fn handle_rtmp_packet_data(
     match data.tag.as_str() {
         "@setDataFrame" => {
             let metadata = Arc::new(rtmp_build_metadata(&data));
+            let metadata_size = metadata.len();
 
             let channel_opt = RtmpSessionStatus::get_channel(session_status).await;
 
@@ -79,6 +80,10 @@ pub async fn handle_rtmp_packet_data(
                     metadata,
                 )
                 .await;
+
+                if config.log_requests && logger.config.debug_enabled {
+                    logger.log_debug(&format!("Set channel metadata: {} -> {} bytes", channel, metadata_size));
+                }
             }
 
             true

@@ -285,7 +285,7 @@ pub fn rtmp_make_metadata_message(
     packet.header.packet_type = RTMP_TYPE_DATA;
     packet.header.stream_id = play_stream_id;
 
-    let mut payload: Vec<u8> = Vec::with_capacity(metadata.len());
+    let mut payload: Vec<u8> = vec![0; metadata.len()];
     payload[..].copy_from_slice(metadata);
     packet.payload = payload;
 
@@ -310,7 +310,7 @@ pub fn rtmp_make_audio_codec_header_message(
     packet.header.packet_type = RTMP_TYPE_AUDIO;
     packet.header.stream_id = play_stream_id;
 
-    let mut payload: Vec<u8> = Vec::with_capacity(aac_sequence_header.len());
+    let mut payload: Vec<u8> = vec![0; aac_sequence_header.len()];
     payload[..].copy_from_slice(aac_sequence_header);
     packet.payload = payload;
 
@@ -335,7 +335,7 @@ pub fn rtmp_make_video_codec_header_message(
     packet.header.packet_type = RTMP_TYPE_VIDEO;
     packet.header.stream_id = play_stream_id;
 
-    let mut payload: Vec<u8> = Vec::with_capacity(avc_sequence_header.len());
+    let mut payload: Vec<u8> = vec![0; avc_sequence_header.len()];
     payload[..].copy_from_slice(avc_sequence_header);
     packet.payload = payload;
 

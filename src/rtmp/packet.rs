@@ -166,7 +166,7 @@ impl RtmpPacket {
             n += (payload_size / out_chunk_size) * 4
         }
 
-        if payload_size % out_chunk_size == 0 {
+        if payload_size > 0 && payload_size % out_chunk_size == 0 {
             n -= 1;
 
             if use_extended_timestamp {
@@ -207,7 +207,7 @@ impl RtmpPacket {
 
                 chunks[chunks_offset..chunks_offset + chunk_basic_header_3.len()]
                     .copy_from_slice(&chunk_basic_header_3);
-                
+
                 chunks_offset += chunk_basic_header_3.len();
 
                 if use_extended_timestamp {
@@ -223,7 +223,7 @@ impl RtmpPacket {
                 chunks[chunks_offset..chunks_offset + sub_payload.len()]
                     .copy_from_slice(sub_payload);
 
-                payload_size -= payload_size;
+                payload_size = 0;
                 chunks_offset += payload_size;
                 payload_offset += payload_size;
             }
