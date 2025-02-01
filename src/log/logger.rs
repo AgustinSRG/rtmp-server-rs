@@ -28,7 +28,12 @@ impl Logger {
     pub fn log(&self, line: &str) {
         let time_local: DateTime<Local> = Local::now();
         let time_format = time_local.format("[%Y-%m-%d %H:%M:%S] ");
-        println!("{}{}{}", time_format, self.config.prefix, line);
+
+        if self.config.trace_enabled {
+            eprintln!("{}{}{}", time_format, self.config.prefix, line);
+        } else {
+            println!("{}{}{}", time_format, self.config.prefix, line);
+        }
     }
 
     /// Logs error message
