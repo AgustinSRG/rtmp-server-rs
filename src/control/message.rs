@@ -55,7 +55,7 @@ impl ControlServerMessage {
                 continue;
             }
 
-            parameters.insert(line_parts[0].to_string(), line_parts[1..].join(":"));
+            parameters.insert(line_parts[0].to_lowercase(), line_parts[1..].join(":"));
         }
 
         ControlServerMessage::new_with_parameters(msg_type, parameters)

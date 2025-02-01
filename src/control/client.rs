@@ -254,16 +254,18 @@ pub fn spawn_task_control_client(
                                 .await;
                             }
                             "STREAM-KILL" => {
-                                if logger.config.debug_enabled {
-                                    logger.log_debug(&format!(
-                                        "Unrecognized message type: {}",
-                                        &msg_parsed.msg_type
-                                    ));
-                                }
-
                                 let channel =
                                     msg_parsed.get_parameter("Stream-Channel").unwrap_or("");
-                                let stream_id = msg_parsed.get_parameter("Stream-Id").unwrap_or("");
+                                let stream_id = match msg_parsed.get_parameter("Stream-Id") {
+                                    Some(s) => {
+                                        if !s.is_empty() {
+                                            Some(s)
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                    None => None,
+                                };
 
                                 RtmpServerStatus::kill_publisher(
                                     &logger,
@@ -271,15 +273,17 @@ pub fn spawn_task_control_client(
                                     &server_status,
                                     &mut control_key_validator_sender,
                                     channel,
-                                    Some(stream_id),
+                                    stream_id,
                                 )
                                 .await;
                             }
                             "HEARTBEAT" => {}
                             _ => {
                                 if logger.config.debug_enabled {
-                                    logger
-                                        .log_debug("Unknown message type received from websocket");
+                                    logger.log_debug(&format!(
+                                        "Unrecognized message type: {}",
+                                        &msg_parsed.msg_type
+                                    ));
                                 }
                             }
                         }

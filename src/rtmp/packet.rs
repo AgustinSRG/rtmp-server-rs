@@ -138,6 +138,7 @@ impl RtmpPacket {
     pub fn create_chunks_for_stream(&self, stream_id: u32, out_chunk_size: usize) -> Vec<u8> {
         let chunk_basic_header =
             Self::serialize_basic_header(self.header.format, self.header.channel_id);
+            
         let chunk_basic_header_3 =
             Self::serialize_basic_header(RTMP_CHUNK_TYPE_3, self.header.channel_id);
 
@@ -177,10 +178,12 @@ impl RtmpPacket {
 
         chunks[chunks_offset..chunks_offset + chunk_basic_header.len()]
             .copy_from_slice(&chunk_basic_header);
+
         chunks_offset += chunk_basic_header.len();
 
         chunks[chunks_offset..chunks_offset + chunk_message_header.len()]
             .copy_from_slice(&chunk_message_header);
+
         chunks_offset += chunk_message_header.len();
 
         if use_extended_timestamp {
@@ -204,6 +207,7 @@ impl RtmpPacket {
 
                 chunks[chunks_offset..chunks_offset + chunk_basic_header_3.len()]
                     .copy_from_slice(&chunk_basic_header_3);
+                
                 chunks_offset += chunk_basic_header_3.len();
 
                 if use_extended_timestamp {

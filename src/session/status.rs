@@ -2,6 +2,7 @@
 
 use std::{collections::VecDeque, net::IpAddr, sync::Arc};
 
+use chrono::Utc;
 use tokio::sync::Mutex;
 
 use crate::{rtmp::{RtmpPacket, RTMP_CHUNK_SIZE}, server::RtmpChannelStatus};
@@ -172,7 +173,7 @@ impl RtmpSessionReadStatus {
             in_last_ack: 0,
             ack_size: 0,
             bit_rate_bytes: 0,
-            bit_rate_last_update: 0,
+            bit_rate_last_update: Utc::now().timestamp_millis(),
             channel_status: None,
         }
     }

@@ -150,7 +150,7 @@ pub async fn handle_rtmp_command_publish<
 
     // Ensure the session is not already publishing
 
-    if !RtmpSessionStatus::check_is_publisher(session_status).await {
+    if RtmpSessionStatus::check_is_publisher(session_status).await {
         if config.log_requests && logger.config.debug_enabled {
             logger.log_debug("Protocol error: Received publish command, but already publishing");
         }
@@ -178,7 +178,7 @@ pub async fn handle_rtmp_command_publish<
 
     // Ensure the channel is free to publish
 
-    if !RtmpServerStatus::check_channel_publishing_status(server_status, &channel).await {
+    if RtmpServerStatus::check_channel_publishing_status(server_status, &channel).await {
         if config.log_requests && logger.config.debug_enabled {
             logger
                 .log_debug("Cannot publish: Another session is already publishing on the channel");

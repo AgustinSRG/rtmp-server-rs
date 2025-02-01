@@ -373,7 +373,7 @@ impl AMF0Value {
 
     /// Encodes array value
     pub fn encode_array(arr: &HashMap<String, AMF0Value>) -> Vec<u8> {
-        let mut buf = vec![0, 4];
+        let mut buf = vec![0; 4];
         BigEndian::write_u32(&mut buf, arr.len() as u32);
         buf.extend(Self::encode_object(arr));
         buf
@@ -381,7 +381,7 @@ impl AMF0Value {
 
     /// Encodes strict array value
     pub fn encode_strict_array(arr: &Vec<AMF0Value>) -> Vec<u8> {
-        let mut buf = vec![0, 4];
+        let mut buf = vec![0; 4];
         BigEndian::write_u32(&mut buf, arr.len() as u32);
 
         for item in arr {

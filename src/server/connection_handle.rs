@@ -66,7 +66,7 @@ pub async fn handle_connection<
         session_status,
         publish_status,
         control_key_validator_sender,
-        logger,
+        session_logger,
     )
     .await;
 }

@@ -226,7 +226,7 @@ impl RtmpServerStatus {
             }
 
             if let Some(pid) = channel_status.publisher_id {
-                if pid == publisher_id {
+                if pid != publisher_id {
                     return;
                 }
             }

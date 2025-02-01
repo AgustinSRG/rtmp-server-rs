@@ -147,7 +147,7 @@ pub async fn handle_rtmp_command_play<TW: AsyncWrite + AsyncWriteExt + Send + Sy
 
     // Ensure it is not playing
 
-    if !RtmpSessionStatus::check_is_player(session_status).await {
+    if RtmpSessionStatus::check_is_player(session_status).await {
         if config.log_requests && logger.config.debug_enabled {
             logger.log_debug("Protocol error: Received play command, but already playing");
         }

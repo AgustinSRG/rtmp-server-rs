@@ -4,16 +4,22 @@ use std::sync::Arc;
 
 use tokio::{
     io::{AsyncWrite, AsyncWriteExt},
-    sync::{mpsc::{Receiver, Sender}, Mutex},
+    sync::{
+        mpsc::{Receiver, Sender},
+        Mutex,
+    },
 };
 
 use crate::{
-    control::ControlKeyValidationRequest, log::Logger, rtmp::{
+    control::ControlKeyValidationRequest,
+    log::Logger,
+    rtmp::{
         rtmp_make_audio_codec_header_message, rtmp_make_metadata_message,
         rtmp_make_sample_access_message, rtmp_make_stream_status_message,
         rtmp_make_video_codec_header_message, RTMP_TYPE_AUDIO, RTMP_TYPE_VIDEO, STREAM_BEGIN,
         STREAM_EOF,
-    }, server::{RtmpServerConfiguration, RtmpServerStatus}
+    },
+    server::{RtmpServerConfiguration, RtmpServerStatus},
 };
 
 use super::{
@@ -30,7 +36,9 @@ use super::{
 /// session_status - Session status
 /// publish_status - Status if the stream being published
 /// logger - Session logger
-pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static>(
+pub async fn handle_session_message<
+    TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static,
+>(
     msg: RtmpSessionMessage,
     write_stream: &Mutex<TW>,
     config: &RtmpServerConfiguration,
@@ -60,10 +68,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 
             if let Err(e) = session_write_bytes(write_stream, &stream_status_bytes).await {
                 if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Send error: Could not send stream status: {}",
-                        e
-                    ));
+                    logger.log_debug(&format!("Send error: Could not send stream status: {}", e));
                 }
                 return true;
             }
@@ -81,10 +86,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
             .await
             {
                 if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Send error: Could not send status message: {}",
-                        e
-                    ));
+                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
                 }
             }
 
@@ -99,10 +101,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
             .await
             {
                 if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Send error: Could not send status message: {}",
-                        e
-                    ));
+                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
                 }
             }
 
@@ -112,10 +111,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 
             if let Err(e) = session_write_bytes(write_stream, &sample_access_bytes).await {
                 if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Send error: Could not send sample access: {}",
-                        e
-                    ));
+                    logger.log_debug(&format!("Send error: Could not send sample access: {}", e));
                 }
                 return true;
             }
@@ -127,10 +123,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 
             if let Err(e) = session_write_bytes(write_stream, &metadata_bytes).await {
                 if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Send error: Could not send metadata bytes: {}",
-                        e
-                    ));
+                    logger.log_debug(&format!("Send error: Could not send metadata bytes: {}", e));
                 }
                 return true;
             }
@@ -243,10 +236,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
             .await
             {
                 if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Send error: Could not send status message: {}",
-                        e
-                    ));
+                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
                 }
             }
         }
@@ -272,10 +262,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 
             if let Err(e) = session_write_bytes(write_stream, &metadata_bytes).await {
                 if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Send error: Could not channel metadata: {}",
-                        e
-                    ));
+                    logger.log_debug(&format!("Send error: Could not channel metadata: {}", e));
                 }
                 return true;
             }
@@ -293,10 +280,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 
             if let Err(e) = session_write_bytes(write_stream, &packet_bytes).await {
                 if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Send error: Could not send packet: {}",
-                        e
-                    ));
+                    logger.log_debug(&format!("Send error: Could not send packet: {}", e));
                 }
                 return true;
             }
@@ -323,10 +307,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
             .await
             {
                 if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Send error: Could not send status message: {}",
-                        e
-                    ));
+                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
                 }
             }
 
@@ -336,10 +317,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 
             if let Err(e) = session_write_bytes(write_stream, &stream_status_bytes).await {
                 if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Send error: Could not send stream status: {}",
-                        e
-                    ));
+                    logger.log_debug(&format!("Send error: Could not send stream status: {}", e));
                 }
                 return true;
             }
@@ -365,10 +343,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 
             if let Err(e) = session_write_bytes(write_stream, &stream_status_bytes).await {
                 if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Send error: Could not send stream status: {}",
-                        e
-                    ));
+                    logger.log_debug(&format!("Send error: Could not send stream status: {}", e));
                 }
                 return true;
             }
@@ -386,10 +361,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
             .await
             {
                 if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Send error: Could not send status message: {}",
-                        e
-                    ));
+                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
                 }
             }
 
@@ -419,10 +391,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 
             if let Err(e) = session_write_bytes(write_stream, &stream_status_bytes).await {
                 if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Send error: Could not send stream status: {}",
-                        e
-                    ));
+                    logger.log_debug(&format!("Send error: Could not send stream status: {}", e));
                 }
                 return true;
             }
@@ -486,10 +455,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
             .await
             {
                 if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Send error: Could not send status message: {}",
-                        e
-                    ));
+                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
                 }
             }
 
@@ -514,10 +480,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 
             if let Err(e) = session_write_bytes(write_stream, &stream_status_bytes).await {
                 if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Send error: Could not send stream status: {}",
-                        e
-                    ));
+                    logger.log_debug(&format!("Send error: Could not send stream status: {}", e));
                 }
                 return true;
             }
@@ -535,10 +498,7 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
             .await
             {
                 if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Send error: Could not send status message: {}",
-                        e
-                    ));
+                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
                 }
             }
 
@@ -610,10 +570,26 @@ pub fn spawn_task_to_read_session_messages<
             logger.log_debug("Performing session cleanup...");
         }
 
-        do_session_cleanup(&logger, session_id, &config, &server_status, &session_status, &mut control_key_validator_sender).await;
+        do_session_cleanup(
+            &logger,
+            session_id,
+            &config,
+            &server_status,
+            &session_status,
+            &mut control_key_validator_sender,
+        )
+        .await;
+
+        if config.log_requests && logger.config.debug_enabled {
+            logger.log_debug("Draining message channel...");
+        }
 
         // Drain channel
 
         while session_msg_receiver.try_recv().is_ok() {} // Drain the channel to prevent other threads from blocking
+
+        if config.log_requests && logger.config.debug_enabled {
+            logger.log_debug("Completed session messages handling task");
+        }
     });
 }

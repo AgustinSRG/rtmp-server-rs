@@ -10,10 +10,13 @@ use tokio::{
 };
 
 use crate::{
-    control::ControlKeyValidationRequest, log::Logger, rtmp::{
+    control::ControlKeyValidationRequest,
+    log::Logger,
+    rtmp::{
         get_rtmp_header_size, rtmp_make_ack, RtmpPacket, RTMP_CHUNK_TYPE_0, RTMP_CHUNK_TYPE_1,
         RTMP_CHUNK_TYPE_2, RTMP_PING_TIMEOUT, RTMP_TYPE_METADATA,
-    }, server::{RtmpServerConfiguration, RtmpServerStatus}
+    },
+    server::{RtmpServerConfiguration, RtmpServerStatus},
 };
 
 use super::{
@@ -108,61 +111,60 @@ pub async fn read_rtmp_chunk<
 
     let header_res_bytes_size = get_rtmp_header_size(start_byte >> 6);
 
-    let mut header: Vec<u8> = vec![0; 1 + basic_bytes + header_res_bytes_size];
+    let mut header: Vec<u8> = vec![0; basic_bytes + header_res_bytes_size];
 
     header[0] = start_byte;
 
-    for i in 0..basic_bytes {
-        let basic_byte = match tokio::time::timeout(
-            Duration::from_secs(RTMP_PING_TIMEOUT),
-            read_stream.read_u8(),
-        )
-        .await
-        {
-            Ok(br) => match br {
-                Ok(b) => b,
-                Err(e) => {
+    if basic_bytes > 1 {
+        for i in 1..basic_bytes {
+            let basic_byte = match tokio::time::timeout(
+                Duration::from_secs(RTMP_PING_TIMEOUT),
+                read_stream.read_u8(),
+            )
+            .await
+            {
+                Ok(br) => match br {
+                    Ok(b) => b,
+                    Err(e) => {
+                        if config.log_requests && logger.config.debug_enabled {
+                            logger.log_debug(&format!(
+                                "Chunk read error. Could not read basic byte [{}]: {}",
+                                i, e,
+                            ));
+                        }
+                        return false;
+                    }
+                },
+                Err(_) => {
                     if config.log_requests && logger.config.debug_enabled {
                         logger.log_debug(&format!(
-                            "Chunk read error. Could not read basic byte [{}]: {}",
-                            i,
-                            e,
+                            "Chunk read error. Could not read basic byte [{}]: Timed out",
+                            i
                         ));
                     }
                     return false;
                 }
-            },
-            Err(_) => {
-                if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Chunk read error. Could not read basic byte [{}]: Timed out",
-                        i
-                    ));
-                }
-                return false;
-            }
-        };
+            };
 
-        header[i + 1] = basic_byte;
+            header[i] = basic_byte;
 
-        bytes_read_count += 1;
+            bytes_read_count += 1;
+        }
     }
 
     if header_res_bytes_size > 0 {
         // Read the rest of the header
         match tokio::time::timeout(
             Duration::from_secs(RTMP_PING_TIMEOUT),
-            read_stream.read_exact(&mut header[1 + basic_bytes..]),
+            read_stream.read_exact(&mut header[basic_bytes..]),
         )
         .await
         {
             Ok(r) => {
                 if let Err(e) = r {
                     if config.log_requests && logger.config.debug_enabled {
-                        logger.log_debug(&format!(
-                            "Chunk read error. Could not read header: {}",
-                            e
-                        ));
+                        logger
+                            .log_debug(&format!("Chunk read error. Could not read header: {}", e));
                     }
                     return false;
                 }
@@ -334,7 +336,7 @@ pub async fn read_rtmp_chunk<
 
     // Packet payload
 
-    let size_to_read: usize = cmp::max(
+    let size_to_read: usize = cmp::min(
         read_status.in_chunk_size - (packet.bytes % read_status.in_chunk_size),
         packet.header.length - packet.bytes,
     );
@@ -378,7 +380,8 @@ pub async fn read_rtmp_chunk<
     if packet.bytes >= packet.header.length {
         packet.handled = true;
 
-        if packet.clock <= 0xffffffff && !handle_rtmp_packet(
+        if packet.clock <= 0xffffffff
+            && !handle_rtmp_packet(
                 packet,
                 session_id,
                 write_stream,
@@ -391,7 +394,8 @@ pub async fn read_rtmp_chunk<
                 control_key_validator_sender,
                 logger,
             )
-            .await {
+            .await
+        {
             if config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("Packet handing failed");
             }
