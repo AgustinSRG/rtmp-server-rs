@@ -9,13 +9,11 @@ use tokio::{
 };
 
 use crate::{
-    log::Logger,
-    rtmp::{
+    control::ControlKeyValidationRequest, log::Logger, rtmp::{
         RtmpPacket, RTMP_CHUNK_SIZE, RTMP_MAX_CHUNK_SIZE, RTMP_TYPE_AUDIO, RTMP_TYPE_DATA,
         RTMP_TYPE_FLEX_MESSAGE, RTMP_TYPE_FLEX_STREAM, RTMP_TYPE_INVOKE, RTMP_TYPE_SET_CHUNK_SIZE,
         RTMP_TYPE_VIDEO, RTMP_TYPE_WINDOW_ACKNOWLEDGEMENT_SIZE,
-    },
-    server::{RtmpServerConfiguration, RtmpServerStatus},
+    }, server::{RtmpServerConfiguration, RtmpServerStatus}
 };
 
 use super::{
@@ -47,6 +45,7 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
     publish_status: &Arc<Mutex<RtmpSessionPublishStreamStatus>>,
     session_msg_sender: &Sender<RtmpSessionMessage>,
     read_status: &mut RtmpSessionReadStatus,
+    control_key_validator_sender: &mut Option<Sender<ControlKeyValidationRequest>>,
     logger: &Logger,
 ) -> bool {
     match packet.header.packet_type {
@@ -167,6 +166,7 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
                 publish_status,
                 session_msg_sender,
                 read_status,
+                control_key_validator_sender,
                 logger,
             )
             .await
@@ -187,6 +187,7 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
                 publish_status,
                 session_msg_sender,
                 read_status,
+                control_key_validator_sender,
                 logger,
             )
             .await

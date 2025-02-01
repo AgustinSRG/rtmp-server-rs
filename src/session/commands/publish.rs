@@ -9,6 +9,7 @@ use tokio::{
 
 use crate::{
     callback::make_start_callback,
+    control::{control_validate_key, ControlKeyValidationRequest},
     log::Logger,
     rtmp::{RtmpCommand, RtmpPacket},
     server::{RtmpServerConfiguration, RtmpServerStatus},
@@ -31,6 +32,7 @@ use super::super::{
 /// publish_status - Status if the stream being published
 /// session_msg_sender - Message sender for the session
 /// read_status - Status for the read task
+/// control_key_validator_sender - Sender for key validation against the control server
 /// logger - Session logger
 /// Return true to continue receiving chunks. Returns false to end the session main loop.
 pub async fn handle_rtmp_command_publish<
@@ -46,6 +48,7 @@ pub async fn handle_rtmp_command_publish<
     publish_status: &Arc<Mutex<RtmpSessionPublishStreamStatus>>,
     session_msg_sender: &Sender<RtmpSessionMessage>,
     read_status: &mut RtmpSessionReadStatus,
+    control_key_validator_sender: &mut Option<Sender<ControlKeyValidationRequest>>,
     logger: &Logger,
 ) -> bool {
     // Load and validate parameters
@@ -209,31 +212,43 @@ pub async fn handle_rtmp_command_publish<
 
     // Check validity of the key (callback or coordinator)
 
-    let stream_id =
-        match make_start_callback(logger, &config.callback, &channel, key, &read_status.ip).await {
-            Some(s) => s,
-            None => {
-                if let Err(e) = send_status_message(
-                    &write_stream,
-                    publish_stream_id,
-                    "error",
-                    "NetStream.Publish.BadName",
-                    Some("Invalid stream key provided"),
-                    config.chunk_size,
-                )
-                .await
-                {
-                    if config.log_requests && logger.config.debug_enabled {
-                        logger.log_debug(&format!(
-                            "Send error: Could not send status message: {}",
-                            e.to_string()
-                        ));
-                    }
-                }
+    let stream_id_res = match control_key_validator_sender {
+        Some(control_key_validator_sender_v) => {
+            control_validate_key(
+                &control_key_validator_sender_v,
+                &channel,
+                key,
+                &read_status.ip,
+            )
+            .await
+        }
+        None => make_start_callback(logger, &config.callback, &channel, key, &read_status.ip).await,
+    };
 
-                return false;
+    let stream_id = match stream_id_res {
+        Some(s) => s,
+        None => {
+            if let Err(e) = send_status_message(
+                &write_stream,
+                publish_stream_id,
+                "error",
+                "NetStream.Publish.BadName",
+                Some("Invalid stream key provided"),
+                config.chunk_size,
+            )
+            .await
+            {
+                if config.log_requests && logger.config.debug_enabled {
+                    logger.log_debug(&format!(
+                        "Send error: Could not send status message: {}",
+                        e.to_string()
+                    ));
+                }
             }
-        };
+
+            return false;
+        }
+    };
 
     // Set publisher into the server status
 

@@ -19,6 +19,7 @@ use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::server::TlsStream;
 use tokio_rustls::{rustls, TlsAcceptor};
 
+use crate::control::ControlKeyValidationRequest;
 use crate::log::Logger;
 
 use super::{
@@ -33,6 +34,7 @@ pub fn tls_server(
     server_status: Arc<Mutex<RtmpServerStatus>>,
     ip_counter: Arc<Mutex<IpConnectionCounter>>,
     session_id_generator: Arc<Mutex<SessionIdGenerator>>,
+    control_key_validator_sender: Option<Sender<ControlKeyValidationRequest>>,
     end_notifier: Sender<()>,
 ) {
     tokio::spawn(async move {
@@ -187,6 +189,7 @@ pub fn tls_server(
                         server_status.clone(),
                         ip_counter.clone(),
                         session_id_generator.clone(),
+                        control_key_validator_sender.clone(),
                         logger.clone(),
                     );
                 }
@@ -215,6 +218,7 @@ fn handle_connection_tls(
     server_status: Arc<Mutex<RtmpServerStatus>>,
     ip_counter: Arc<Mutex<IpConnectionCounter>>,
     session_id_generator: Arc<Mutex<SessionIdGenerator>>,
+    control_key_validator_sender: Option<Sender<ControlKeyValidationRequest>>,
     logger: Arc<Logger>,
 ) {
     tokio::spawn(async move {
@@ -258,6 +262,7 @@ fn handle_connection_tls(
                 config.clone(),
                 server_status,
                 session_id_generator,
+                control_key_validator_sender,
                 logger.clone(),
             )
             .await;

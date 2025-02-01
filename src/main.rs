@@ -5,14 +5,19 @@ mod callback;
 mod control;
 mod log;
 mod rtmp;
-mod session;
 mod server;
+mod session;
 mod utils;
 
 use std::sync::Arc;
 
+use control::{
+    spawn_task_control_client, spawn_task_handle_control_key_validations, ControlClientStatus,
+    ControlKeyValidationRequest, ControlServerConnectionConfig, KEY_VALIDATION_CHANNEL_BUFFER_SIZE,
+};
 use log::{LogConfig, Logger};
-use server::{run_server, RtmpServerConfiguration};
+use server::{run_server, RtmpServerConfiguration, RtmpServerStatus};
+use tokio::sync::{mpsc::Sender, Mutex};
 use utils::get_env_bool;
 
 /// Main function
@@ -32,6 +37,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         trace_enabled: get_env_bool("LOG_TRACE", get_env_bool("LOG_DEBUG", false)),
     });
 
+    // Initialize server status
+
+    let server_status = Arc::new(Mutex::new(RtmpServerStatus::new()));
+
     // Print version
 
     const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -40,21 +49,71 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // Load configuration
 
-    let server_config_res = RtmpServerConfiguration::load_from_env(&logger);
-    let server_config;
-
-    match server_config_res {
-        Ok(c) => {
-            server_config = c;
-        }
+    let server_config = match RtmpServerConfiguration::load_from_env(&logger) {
+        Ok(c) => Arc::new(c),
         Err(_) => {
             std::process::exit(1);
         }
+    };
+
+    // Load and run control client
+
+    let control_client_enabled = get_env_bool("CONTROL_USE", false);
+    let control_key_validator_sender: Option<Sender<ControlKeyValidationRequest>>;
+
+    if control_client_enabled {
+        // Load config
+
+        let control_config = match ControlServerConnectionConfig::load_from_env(&logger) {
+            Ok(c) => Arc::new(c),
+            Err(_) => {
+                std::process::exit(1);
+            }
+        };
+
+        // Initialize status
+
+        let control_client_status = Arc::new(Mutex::new(ControlClientStatus::new()));
+
+        // Create key validation channel
+
+        let (kv_sender, kv_receiver) = tokio::sync::mpsc::channel::<ControlKeyValidationRequest>(
+            KEY_VALIDATION_CHANNEL_BUFFER_SIZE,
+        );
+
+        control_key_validator_sender = Some(kv_sender);
+
+        // Spawn client task
+
+        spawn_task_control_client(
+            Arc::new(logger.make_child_logger("[CONTROL/CLIENT] ")),
+            control_config.clone(),
+            control_client_status.clone(),
+            server_config.clone(),
+            server_status.clone(),
+            control_key_validator_sender.clone(),
+        );
+
+        // Spawn task to handle key validations
+
+        spawn_task_handle_control_key_validations(
+            Arc::new(logger.make_child_logger("[CONTROL/KEY_VALIDATION] ")),
+            control_client_status,
+            kv_receiver,
+        );
+    } else {
+        control_key_validator_sender = None;
     }
 
     // Run server
 
-    run_server(logger, Arc::new(server_config)).await;
+    run_server(
+        logger,
+        server_config,
+        server_status,
+        control_key_validator_sender,
+    )
+    .await;
 
     // End of main
 

@@ -6,6 +6,7 @@ use tokio::sync::{mpsc::Sender, Mutex};
 
 use crate::{
     callback::make_stop_callback,
+    control::ControlKeyValidationRequest,
     log::Logger,
     rtmp::{RtmpPacket, RTMP_TYPE_AUDIO, RTMP_TYPE_VIDEO},
     session::{RtmpSessionMessage, RtmpSessionPublishStreamStatus, RtmpSessionReadStatus},
@@ -207,6 +208,7 @@ impl RtmpServerStatus {
         logger: &Logger,
         config: &RtmpServerConfiguration,
         status: &Mutex<RtmpServerStatus>,
+        control_key_validator_sender: &mut Option<Sender<ControlKeyValidationRequest>>,
         channel: &str,
         publisher_id: u64,
     ) {
@@ -262,18 +264,187 @@ impl RtmpServerStatus {
 
                 // Send callback
 
-                make_stop_callback(
-                    logger,
-                    &config.callback,
-                    channel,
-                    &unpublished_stream_key,
-                    &unpublished_stream_id,
-                )
-                .await;
+                match control_key_validator_sender {
+                    Some(sender) => {
+                        // Notify control server
+                        _ = sender
+                            .send(ControlKeyValidationRequest::PublishEnd {
+                                channel: channel.to_string(),
+                                stream_id: unpublished_stream_id,
+                            })
+                            .await;
+                    }
+                    None => {
+                        // Callback
+                        make_stop_callback(
+                            logger,
+                            &config.callback,
+                            channel,
+                            &unpublished_stream_key,
+                            &unpublished_stream_id,
+                        )
+                        .await;
+                    }
+                }
             }
             None => {
                 return;
             }
+        }
+    }
+
+    /// Removes and kills a publisher
+    pub async fn kill_publisher(
+        logger: &Logger,
+        config: &RtmpServerConfiguration,
+        status: &Mutex<RtmpServerStatus>,
+        control_key_validator_sender: &mut Option<Sender<ControlKeyValidationRequest>>,
+        channel: &str,
+        stream_id: Option<&str>,
+    ) {
+        let status_v = status.lock().await;
+
+        match status_v.channels.get(channel) {
+            Some(c) => {
+                let channel_mu = c.clone();
+                drop(status_v);
+
+                let mut channel_status = channel_mu.lock().await;
+
+                if !channel_status.publishing {
+                    return;
+                }
+
+                if let Some(sid) = stream_id {
+                    match &channel_status.stream_id {
+                        Some(current_stream_id) => {
+                            if *current_stream_id != sid {
+                                return; // Not the stream id we want to kill
+                            }
+                        },
+                        None => {
+                            return;
+                        },
+                    }
+                }
+    
+                // Kill the publisher
+    
+                if let Some(pub_sender) = &channel_status.publisher_message_sender {
+                    _ = pub_sender.send(RtmpSessionMessage::Kill).await;
+                }
+    
+                // Unpublish
+
+                let unpublished_stream_key = match &channel_status.key {
+                    Some(k) => k.clone(),
+                    None => "".to_string(),
+                };
+
+                let unpublished_stream_id = match &channel_status.stream_id {
+                    Some(i) => i.clone(),
+                    None => "".to_string(),
+                };
+    
+                channel_status.publishing = false;
+                channel_status.publisher_id = None;
+                channel_status.publish_status = None;
+                channel_status.publisher_message_sender = None;
+                channel_status.key = None;
+                channel_status.stream_id = None;
+    
+                // Notify players
+    
+                for (_, player) in &mut channel_status.players {
+                    player.idle = true;
+                    _ = player
+                        .message_sender
+                        .send(RtmpSessionMessage::PlayStop)
+                        .await;
+                }
+    
+                drop(channel_status);
+
+                // Send callback
+
+                match control_key_validator_sender {
+                    Some(sender) => {
+                        // Notify control server
+                        _ = sender
+                            .send(ControlKeyValidationRequest::PublishEnd {
+                                channel: channel.to_string(),
+                                stream_id: unpublished_stream_id,
+                            })
+                            .await;
+                    }
+                    None => {
+                        // Callback
+                        make_stop_callback(
+                            logger,
+                            &config.callback,
+                            channel,
+                            &unpublished_stream_key,
+                            &unpublished_stream_id,
+                        )
+                        .await;
+                    }
+                }
+            }
+            None => {}
+        }
+    }
+
+    /// Removes all the publishers and kills them
+    pub async fn remove_all_publishers(
+        status: &Mutex<RtmpServerStatus>,
+    ) {
+        let mut status_v = status.lock().await;
+
+        let mut channels_to_delete: Vec<String> = Vec::new();
+
+        for (channel, c) in &mut status_v.channels {
+            let mut channel_status = c.lock().await;
+
+            if !channel_status.publishing {
+                continue;
+            }
+
+            // Kill the publisher
+
+            if let Some(pub_sender) = &channel_status.publisher_message_sender {
+                _ = pub_sender.send(RtmpSessionMessage::Kill).await;
+            }
+
+            // Unpublish
+
+            channel_status.publishing = false;
+            channel_status.publisher_id = None;
+            channel_status.publish_status = None;
+            channel_status.publisher_message_sender = None;
+            channel_status.key = None;
+            channel_status.stream_id = None;
+
+            // Notify players
+
+            for (_, player) in &mut channel_status.players {
+                player.idle = true;
+                _ = player
+                    .message_sender
+                    .send(RtmpSessionMessage::PlayStop)
+                    .await;
+            }
+
+            // Check if it can be deleted
+
+            if channel_status.players.is_empty() {
+                channels_to_delete.push(channel.clone());
+            }
+        }
+
+        // Remove empty channels
+
+        for channel in channels_to_delete {
+            status_v.channels.remove(&channel);
         }
     }
 

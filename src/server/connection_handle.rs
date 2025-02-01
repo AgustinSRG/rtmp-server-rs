@@ -4,10 +4,10 @@ use std::{net::IpAddr, sync::Arc};
 
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
-    sync::Mutex,
+    sync::{mpsc::Sender, Mutex},
 };
 
-use crate::{log::Logger, session::{handle_rtmp_session, RtmpSessionPublishStreamStatus, RtmpSessionStatus}};
+use crate::{control::ControlKeyValidationRequest, log::Logger, session::{handle_rtmp_session, RtmpSessionPublishStreamStatus, RtmpSessionStatus}};
 
 use super::{RtmpServerConfiguration, RtmpServerStatus, SessionIdGenerator};
 
@@ -18,6 +18,7 @@ use super::{RtmpServerConfiguration, RtmpServerStatus, SessionIdGenerator};
 /// config - RTMP configuration
 /// server_status - Server status
 /// session_id_generator - Generator of IDs for the session
+/// control_key_validator_sender - Sender for key validation against the control server
 /// logger - Server logger
 pub async fn handle_connection<
     TR: AsyncRead + AsyncReadExt + Send + Sync + Unpin,
@@ -29,6 +30,7 @@ pub async fn handle_connection<
     config: Arc<RtmpServerConfiguration>,
     server_status: Arc<Mutex<RtmpServerStatus>>,
     session_id_generator: Arc<Mutex<SessionIdGenerator>>,
+    control_key_validator_sender: Option<Sender<ControlKeyValidationRequest>>,
     logger: Arc<Logger>,
 ) {
     // Generate an unique ID for the session
@@ -62,6 +64,7 @@ pub async fn handle_connection<
         server_status,
         session_status,
         publish_status,
+        control_key_validator_sender,
         logger,
     )
     .await;

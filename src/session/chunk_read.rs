@@ -10,12 +10,10 @@ use tokio::{
 };
 
 use crate::{
-    log::Logger,
-    rtmp::{
+    control::ControlKeyValidationRequest, log::Logger, rtmp::{
         get_rtmp_header_size, rtmp_make_ack, RtmpPacket, RTMP_CHUNK_TYPE_0, RTMP_CHUNK_TYPE_1,
         RTMP_CHUNK_TYPE_2, RTMP_PING_TIMEOUT, RTMP_TYPE_METADATA,
-    },
-    server::{RtmpServerConfiguration, RtmpServerStatus},
+    }, server::{RtmpServerConfiguration, RtmpServerStatus}
 };
 
 use super::{
@@ -53,6 +51,7 @@ pub async fn read_rtmp_chunk<
     session_msg_sender: &Sender<RtmpSessionMessage>,
     read_status: &mut RtmpSessionReadStatus,
     in_packets: &mut HashMap<u32, RtmpPacket>,
+    control_key_validator_sender: &mut Option<Sender<ControlKeyValidationRequest>>,
     logger: &Logger,
 ) -> bool {
     // Check if the session was killed before reading any chunk
@@ -389,6 +388,7 @@ pub async fn read_rtmp_chunk<
                 publish_status,
                 session_msg_sender,
                 read_status,
+                control_key_validator_sender,
                 logger,
             )
             .await

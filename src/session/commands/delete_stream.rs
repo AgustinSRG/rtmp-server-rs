@@ -2,14 +2,11 @@
 
 use tokio::{
     io::{AsyncWrite, AsyncWriteExt},
-    sync::Mutex,
+    sync::{mpsc::Sender, Mutex},
 };
 
 use crate::{
-    log::Logger,
-    rtmp::RtmpCommand,
-    server::{RtmpServerConfiguration, RtmpServerStatus},
-    session::delete_stream::rtmp_delete_stream,
+    control::ControlKeyValidationRequest, log::Logger, rtmp::RtmpCommand, server::{RtmpServerConfiguration, RtmpServerStatus}, session::delete_stream::rtmp_delete_stream
 };
 
 use super::super::RtmpSessionStatus;
@@ -21,6 +18,7 @@ use super::super::RtmpSessionStatus;
 /// config - RTMP configuration
 /// server_status - Server status
 /// session_status - Session status
+/// control_key_validator_sender - Sender for key validation against the control server
 /// logger - Session logger
 /// Return true to continue receiving chunks. Returns false to end the session main loop.
 pub async fn handle_rtmp_command_delete_stream<
@@ -32,6 +30,7 @@ pub async fn handle_rtmp_command_delete_stream<
     config: &RtmpServerConfiguration,
     server_status: &Mutex<RtmpServerStatus>,
     session_status: &Mutex<RtmpSessionStatus>,
+    control_key_validator_sender: &mut Option<Sender<ControlKeyValidationRequest>>,
     logger: &Logger,
 ) -> bool {
     let stream_id = match cmd.get_argument("streamId") {
@@ -58,6 +57,7 @@ pub async fn handle_rtmp_command_delete_stream<
         config,
         server_status,
         session_status,
+        control_key_validator_sender,
         logger,
     )
     .await

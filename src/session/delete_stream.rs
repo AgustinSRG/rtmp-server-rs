@@ -2,12 +2,11 @@
 
 use tokio::{
     io::{AsyncWrite, AsyncWriteExt},
-    sync::Mutex,
+    sync::{mpsc::Sender, Mutex},
 };
 
 use crate::{
-    log::Logger,
-    server::{RtmpServerConfiguration, RtmpServerStatus},
+    control::ControlKeyValidationRequest, log::Logger, server::{RtmpServerConfiguration, RtmpServerStatus}
 };
 
 use super::{send_status_message, RtmpSessionStatus};
@@ -28,6 +27,7 @@ pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
     config: &RtmpServerConfiguration,
     server_status: &Mutex<RtmpServerStatus>,
     session_status: &Mutex<RtmpSessionStatus>,
+    control_key_validator_sender: &mut Option<Sender<ControlKeyValidationRequest>>,
     logger: &Logger,
 ) -> bool {
     let mut session_status_v = session_status.lock().await;
@@ -118,7 +118,7 @@ pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
         }
 
         if can_clear_publisher {
-            RtmpServerStatus::remove_publisher(logger, config, server_status, &channel, session_id).await;
+            RtmpServerStatus::remove_publisher(logger, config, server_status, control_key_validator_sender, &channel, session_id).await;
             RtmpServerStatus::try_clear_channel(server_status, &channel).await;
         }
     }

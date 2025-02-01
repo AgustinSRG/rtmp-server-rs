@@ -4,18 +4,16 @@ use std::sync::Arc;
 
 use tokio::{
     io::{AsyncWrite, AsyncWriteExt},
-    sync::{mpsc::Receiver, Mutex},
+    sync::{mpsc::{Receiver, Sender}, Mutex},
 };
 
 use crate::{
-    log::Logger,
-    rtmp::{
+    control::ControlKeyValidationRequest, log::Logger, rtmp::{
         rtmp_make_audio_codec_header_message, rtmp_make_metadata_message,
         rtmp_make_sample_access_message, rtmp_make_stream_status_message,
         rtmp_make_video_codec_header_message, RTMP_TYPE_AUDIO, RTMP_TYPE_VIDEO, STREAM_BEGIN,
         STREAM_EOF,
-    },
-    server::{RtmpServerConfiguration, RtmpServerStatus},
+    }, server::{RtmpServerConfiguration, RtmpServerStatus}
 };
 
 use super::{
@@ -562,14 +560,14 @@ pub async fn handle_session_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync
 }
 
 /// Creates a task to read and handle session messages
-/// msg - Session message to handle
-/// session_id - Session ID
-/// write_stream - IO stream to read and write bytes
-/// config - RTMP configuration
+/// session_id - The session ID
+/// write_stream - IO stream to write bytes
+/// config - Server configuration
 /// server_status - Server status
 /// session_status - Session status
-/// publish_status - Status if the stream being published
-/// logger - Session logger
+/// session_msg_receiver - Receiver for the session messages
+/// control_key_validator_sender - Sender to communicate with the control server
+/// logger - The logger
 pub fn spawn_task_to_read_session_messages<
     TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static,
 >(
@@ -579,6 +577,7 @@ pub fn spawn_task_to_read_session_messages<
     server_status: Arc<Mutex<RtmpServerStatus>>,
     session_status: Arc<Mutex<RtmpSessionStatus>>,
     mut session_msg_receiver: Receiver<RtmpSessionMessage>,
+    mut control_key_validator_sender: Option<Sender<ControlKeyValidationRequest>>,
     logger: Arc<Logger>,
 ) {
     tokio::spawn(async move {
@@ -610,7 +609,7 @@ pub fn spawn_task_to_read_session_messages<
             logger.log_debug("Performing session cleanup...");
         }
 
-        do_session_cleanup(&logger, session_id, &config, &server_status, &session_status).await;
+        do_session_cleanup(&logger, session_id, &config, &server_status, &session_status, &mut control_key_validator_sender).await;
 
         // Drain channel
 

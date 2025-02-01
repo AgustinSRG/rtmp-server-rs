@@ -1,10 +1,9 @@
 // Session cleanup logic
 
-use tokio::sync::Mutex;
+use tokio::sync::{mpsc::Sender, Mutex};
 
 use crate::{
-    log::Logger,
-    server::{RtmpServerConfiguration, RtmpServerStatus},
+    control::ControlKeyValidationRequest, log::Logger, server::{RtmpServerConfiguration, RtmpServerStatus}
 };
 
 use super::RtmpSessionStatus;
@@ -21,6 +20,7 @@ pub async fn do_session_cleanup(
     config: &RtmpServerConfiguration,
     server_status: &Mutex<RtmpServerStatus>,
     session_status: &Mutex<RtmpSessionStatus>,
+    control_key_validator_sender: &mut Option<Sender<ControlKeyValidationRequest>>,
 ) {
     let session_status_v = session_status.lock().await;
 
@@ -41,8 +41,15 @@ pub async fn do_session_cleanup(
     }
 
     if must_clear_publisher {
-        RtmpServerStatus::remove_publisher(logger, config, server_status, &channel, session_id)
-            .await
+        RtmpServerStatus::remove_publisher(
+            logger,
+            config,
+            server_status,
+            control_key_validator_sender,
+            &channel,
+            session_id,
+        )
+        .await
     }
 
     if must_clear_player || must_clear_publisher {

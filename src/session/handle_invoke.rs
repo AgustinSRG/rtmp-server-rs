@@ -8,9 +8,7 @@ use tokio::{
 };
 
 use crate::{
-    log::Logger,
-    rtmp::{RtmpCommand, RtmpPacket, RTMP_TYPE_FLEX_MESSAGE},
-    server::{RtmpServerConfiguration, RtmpServerStatus},
+    control::ControlKeyValidationRequest, log::Logger, rtmp::{RtmpCommand, RtmpPacket, RTMP_TYPE_FLEX_MESSAGE}, server::{RtmpServerConfiguration, RtmpServerStatus}
 };
 
 use super::{
@@ -31,6 +29,7 @@ use super::{
 /// publish_status - Status if the stream being published
 /// session_msg_sender - Message sender for the session
 /// read_status - Status for the read task
+/// control_key_validator_sender - Sender for key validation against the control server
 /// logger - Session logger
 /// Return true to continue receiving chunks. Returns false to end the session main loop.
 pub async fn handle_rtmp_packet_invoke<
@@ -45,6 +44,7 @@ pub async fn handle_rtmp_packet_invoke<
     publish_status: &Arc<Mutex<RtmpSessionPublishStreamStatus>>,
     session_msg_sender: &Sender<RtmpSessionMessage>,
     read_status: &mut RtmpSessionReadStatus,
+    control_key_validator_sender: &mut Option<Sender<ControlKeyValidationRequest>>,
     logger: &Logger,
 ) -> bool {
     let offset: usize = if packet.header.packet_type == RTMP_TYPE_FLEX_MESSAGE {
@@ -104,6 +104,7 @@ pub async fn handle_rtmp_packet_invoke<
                 publish_status,
                 session_msg_sender,
                 read_status,
+                control_key_validator_sender,
                 logger,
             )
             .await
@@ -142,6 +143,7 @@ pub async fn handle_rtmp_packet_invoke<
                 config,
                 server_status,
                 session_status,
+                control_key_validator_sender,
                 logger,
             )
             .await
@@ -154,6 +156,7 @@ pub async fn handle_rtmp_packet_invoke<
                 config,
                 server_status,
                 session_status,
+                control_key_validator_sender,
                 logger,
             )
             .await

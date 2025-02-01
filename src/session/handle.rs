@@ -4,14 +4,11 @@ use std::{collections::HashMap, net::IpAddr, sync::Arc, time::Duration};
 
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
-    sync::Mutex,
+    sync::{mpsc::Sender, Mutex},
 };
 
 use crate::{
-    log::Logger,
-    rtmp::{generate_s0_s1_s2, RtmpPacket, RTMP_HANDSHAKE_SIZE, RTMP_PING_TIMEOUT, RTMP_VERSION},
-    server::{RtmpServerConfiguration, RtmpServerStatus},
-    session::read_rtmp_chunk,
+    control::ControlKeyValidationRequest, log::Logger, rtmp::{generate_s0_s1_s2, RtmpPacket, RTMP_HANDSHAKE_SIZE, RTMP_PING_TIMEOUT, RTMP_VERSION}, server::{RtmpServerConfiguration, RtmpServerStatus}, session::read_rtmp_chunk
 };
 
 use super::{
@@ -28,6 +25,7 @@ use super::{
 /// server_status - Server status
 /// session_status - Session status
 /// publish_status - Status if the stream being published
+/// control_key_validator_sender - Sender for key validation against the control server
 /// logger - Session logger
 pub async fn handle_rtmp_session<
     TR: AsyncRead + AsyncReadExt + Send + Sync + Unpin,
@@ -41,6 +39,7 @@ pub async fn handle_rtmp_session<
     server_status: Arc<Mutex<RtmpServerStatus>>,
     session_status: Arc<Mutex<RtmpSessionStatus>>,
     publish_status: Arc<Mutex<RtmpSessionPublishStreamStatus>>,
+    mut control_key_validator_sender: Option<Sender<ControlKeyValidationRequest>>,
     logger: Arc<Logger>,
 ) {
     ////////////////////
@@ -184,6 +183,7 @@ pub async fn handle_rtmp_session<
         server_status.clone(),
         session_status.clone(),
         msg_receiver,
+        control_key_validator_sender.clone(),
         logger.clone(),
     );
 
@@ -220,6 +220,7 @@ pub async fn handle_rtmp_session<
             &msg_sender,
             &mut read_status,
             &mut in_packets,
+            &mut control_key_validator_sender,
             &logger,
         )
         .await;
