@@ -1,5 +1,3 @@
-**RTMP Server (Rust)** | [RTMP Server (Go)](https://github.com/AgustinSRG/rtmp-server) | [TCP streaming tools](https://github.com/AgustinSRG/tcp-video-streaming) | [HLS WebSocket CDN](https://github.com/AgustinSRG/hls-websocket-cdn)
-
 # RTMP Server (Rust Implementation)
 
 This is a RTMP (Real Time Messaging Protocol) server for live streaming broadcasting, implemented in [Rust](https://www.rust-lang.org/).
@@ -21,7 +19,7 @@ You can find the docker image for this project available in Docker Hub: [https:/
 To pull it type:
 
 ```
-docker pull asanrom/rtmp-server
+docker pull asanrom/rtmp-server-rs
 ```
 
 Example compose file:
