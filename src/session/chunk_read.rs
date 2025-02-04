@@ -1,6 +1,6 @@
 // Chunk read logic
 
-use std::{cmp, collections::HashMap, sync::Arc, time::Duration};
+use std::{cmp, sync::Arc, time::Duration};
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
 use chrono::Utc;
@@ -21,7 +21,7 @@ use crate::{
 
 use super::{
     handle_rtmp_packet, session_write_bytes, RtmpSessionMessage, RtmpSessionPublishStreamStatus,
-    RtmpSessionReadStatus, RtmpSessionStatus,
+    RtmpSessionReadStatus, RtmpSessionStatus, IN_PACKETS_BUFFER_SIZE,
 };
 
 /// Interval to compute bit rate (milliseconds)
@@ -54,7 +54,7 @@ pub async fn read_rtmp_chunk<
     publish_status: &Arc<Mutex<RtmpSessionPublishStreamStatus>>,
     session_msg_sender: &Sender<RtmpSessionMessage>,
     read_status: &mut RtmpSessionReadStatus,
-    in_packets: &mut HashMap<u32, RtmpPacket>,
+    in_packets: &mut [RtmpPacket; IN_PACKETS_BUFFER_SIZE],
     control_key_validator_sender: &mut Option<Sender<ControlKeyValidationRequest>>,
     logger: &Logger,
 ) -> bool {
@@ -190,31 +190,15 @@ pub async fn read_rtmp_chunk<
         _ => (header[0] & 0x3f) as u32,
     };
 
-    let packet = match in_packets.get_mut(&channel_id) {
-        Some(p) => {
-            if p.handled {
-                p.handled = false;
-                p.payload = Vec::new();
-                p.bytes = 0;
-            }
-            p
-        }
-        None => {
-            let p = RtmpPacket::new_blank();
+    // Find the packet in the buffer
 
-            in_packets.insert(channel_id, p);
+    let (packet_buf_index, packet_buf_dropped) =
+        get_input_packet_from_buffer(in_packets, channel_id);
+    let packet = in_packets.get_mut(packet_buf_index).unwrap();
 
-            match in_packets.get_mut(&channel_id) {
-                Some(p) => p,
-                None => {
-                    if config.log_requests && logger.config.debug_enabled {
-                        logger.log_debug("Could not create RTMP packet.");
-                    }
-                    return false;
-                }
-            }
-        }
-    };
+    if packet_buf_dropped && config.log_requests && logger.config.debug_enabled {
+        logger.log_debug("An unhandled packet was dropped from the buffer");
+    }
 
     packet.header.channel_id = channel_id;
     packet.header.format = format;
@@ -328,10 +312,6 @@ pub async fn read_rtmp_chunk<
         }
 
         RtmpSessionPublishStreamStatus::set_clock(publish_status, packet.clock).await;
-
-        if packet.capacity < packet.header.length {
-            packet.capacity = packet.header.length.wrapping_add(1024);
-        }
     }
 
     // Packet payload
@@ -342,12 +322,13 @@ pub async fn read_rtmp_chunk<
     );
 
     if size_to_read > 0 {
-        let mut payload_bytes: Vec<u8> = vec![0; size_to_read];
+        let new_payload_size = packet.bytes + size_to_read;
+        packet.payload.resize(packet.bytes + size_to_read, 0);
 
         // Read payload bytes
         match tokio::time::timeout(
             Duration::from_secs(RTMP_PING_TIMEOUT),
-            read_stream.read_exact(&mut payload_bytes),
+            read_stream.read_exact(&mut packet.payload[packet.bytes..new_payload_size]),
         )
         .await
         {
@@ -371,9 +352,7 @@ pub async fn read_rtmp_chunk<
         };
 
         bytes_read_count += size_to_read;
-
-        packet.bytes += size_to_read;
-        packet.payload.extend(payload_bytes);
+        packet.bytes = new_payload_size;
     }
 
     // If packet is ready, handle
@@ -448,9 +427,38 @@ pub async fn read_rtmp_chunk<
             read_status.bit_rate_bytes = 0;
             read_status.bit_rate_last_update = now;
 
-            logger.log_debug(&format!("Bitrate is now: {} bps", bit_rate));
+            logger.log_debug(&format!("Input bit rate is now: {} bps", bit_rate));
         }
     }
 
     true
+}
+
+/// Gets an input packet from the buffer
+/// in_packets - Input packets buffer
+/// channel_id - Channel ID
+/// Returns the index of the slot to use, and true if there were no slots, so the first one was chosen
+pub fn get_input_packet_from_buffer(
+    in_packets: &mut [RtmpPacket; IN_PACKETS_BUFFER_SIZE],
+    channel_id: u32,
+) -> (usize, bool) {
+    for i in 0..IN_PACKETS_BUFFER_SIZE {
+        if in_packets[i].header.channel_id == channel_id {
+            if in_packets[i].handled {
+                in_packets[i].reset();
+            }
+            return (i, false);
+        }
+    }
+
+    for i in 0..IN_PACKETS_BUFFER_SIZE {
+        if in_packets[i].handled {
+            in_packets[i].reset();
+            return (i, false);
+        }
+    }
+
+    in_packets[0].reset();
+
+    return (0, true);
 }

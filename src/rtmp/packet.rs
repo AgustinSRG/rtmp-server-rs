@@ -5,6 +5,7 @@ use byteorder::{BigEndian, ByteOrder, LittleEndian};
 use super::{RTMP_CHUNK_TYPE_0, RTMP_CHUNK_TYPE_1, RTMP_CHUNK_TYPE_2, RTMP_CHUNK_TYPE_3, RTMP_PACKET_BASE_SIZE};
 
 /// Header of an RTMP packet
+#[derive(Clone)]
 pub struct RtmpPacketHeader {
     /// Timestamp
     pub timestamp: i64,
@@ -26,15 +27,13 @@ pub struct RtmpPacketHeader {
 }
 
 /// RTMP packet
+#[derive(Clone)]
 pub struct RtmpPacket {
     /// Packet header
     pub header: RtmpPacketHeader,
 
     /// Clock value (Used for extended timestamp)
     pub clock: i64,
-
-    /// Current packet capacity
-    pub capacity: usize,
 
     /// Current packet size
     pub bytes: usize,
@@ -59,11 +58,17 @@ impl RtmpPacket {
                 length: 0,
             },
             clock: 0,
-            capacity: 0,
             bytes: 0,
-            handled: false,
+            handled: true,
             payload: Vec::new(),
         }
+    }
+
+    /// Resets the payload and sets handled to false
+    pub fn reset(&mut self) {
+        self.handled = false;
+        self.payload.truncate(0);
+        self.bytes = 0;
     }
 
     /// Gets packet total size
