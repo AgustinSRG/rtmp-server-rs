@@ -14,3 +14,23 @@ pub fn string_compare_constant_time(a: &str, b: &str) -> bool {
 
     true
 }
+
+// Tests
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_string_compare_constant_time() {
+        assert!(string_compare_constant_time("aaa123", "aaa123"));
+        assert!(string_compare_constant_time("", ""));
+
+        assert!(!string_compare_constant_time("", "aaa123"));
+        assert!(!string_compare_constant_time("aaa123", "aaa1234"));
+        assert!(!string_compare_constant_time("aaa123", ""));
+        assert!(!string_compare_constant_time("aaa123", "aaa122"));
+        assert!(!string_compare_constant_time("aaa123", "baa123"));
+        assert!(!string_compare_constant_time("aaa123", "aba123"));
+    }
+}
