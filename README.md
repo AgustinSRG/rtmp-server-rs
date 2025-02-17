@@ -2,6 +2,14 @@
 
 This is a RTMP (Real Time Messaging Protocol) server for live streaming broadcasting, implemented in [Rust](https://www.rust-lang.org/).
 
+This is a rewrite of [RTMP Server (Go Implementation)](https://github.com/AgustinSRG/rtmp-server).
+
+This version's main goal is performance and efficiency:
+
+ - Lower memory usage
+ - Lower CPU usage
+ - Greater bit rate
+
 ## Compilation
 
 In order to compile the project, run the following command:
