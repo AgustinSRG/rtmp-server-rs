@@ -3,7 +3,7 @@
 use byteorder::{BigEndian, ByteOrder};
 use std::collections::HashMap;
 
-use super::{AMF3Value, AMFDecodingCursor};
+use super::AMFDecodingCursor;
 
 const AMF0_TYPE_NUMBER: u8 = 0x00;
 const AMF0_TYPE_BOOL: u8 = 0x01;
@@ -18,7 +18,6 @@ const AMF0_TYPE_DATE: u8 = 0x0B;
 const AMF0_TYPE_LONG_STRING: u8 = 0x0C;
 const AMF0_TYPE_XML_DOC: u8 = 0x0F;
 const AMF0_TYPE_TYPED_OBJ: u8 = 0x10;
-const AMF0_TYPE_SWITCH_AMF3: u8 = 0x11;
 
 const AMF0_OBJECT_TERM_CODE: u8 = 0x09;
 
@@ -60,9 +59,6 @@ pub enum AMF0Value {
     TypedObject {
         type_name: String,
         properties: HashMap<String, AMF0Value>,
-    },
-    SwitchAmf3 {
-        value: AMF3Value,
     },
 }
 
@@ -167,7 +163,6 @@ impl AMF0Value {
 
                 res
             }
-            AMF0Value::SwitchAmf3 { value } => format!("AMF3({})", value.to_debug_string(tabs)),
         }
     }
 
@@ -175,11 +170,7 @@ impl AMF0Value {
 
     /// Returns true if the value is undefined
     pub fn is_undefined(&self) -> bool {
-        match self {
-            AMF0Value::Undefined => true,
-            AMF0Value::SwitchAmf3 { value } => value.is_undefined(),
-            _ => false,
-        }
+        matches!(self, AMF0Value::Undefined)
     }
 
     /// Returns the value as boolean
@@ -187,7 +178,6 @@ impl AMF0Value {
         match self {
             AMF0Value::Bool { value } => *value,
             AMF0Value::Number { value } => *value != 0.0,
-            AMF0Value::SwitchAmf3 { value } => value.get_bool(),
             _ => false,
         }
     }
@@ -198,7 +188,6 @@ impl AMF0Value {
             AMF0Value::Number { value } => *value as i64,
             AMF0Value::Ref { addr } => *addr as i64,
             AMF0Value::Date { timestamp } => *timestamp as i64,
-            AMF0Value::SwitchAmf3 { value } => value.get_integer(),
             _ => 0,
         }
     }
@@ -209,7 +198,6 @@ impl AMF0Value {
             AMF0Value::String { value } => value.as_str(),
             AMF0Value::LongString { value } => value.as_str(),
             AMF0Value::XmlDocument { content } => content.as_str(),
-            AMF0Value::SwitchAmf3 { value } => value.get_string(),
             _ => "",
         }
     }
@@ -302,7 +290,6 @@ impl AMF0Value {
                 buf.extend(Self::encode_typed_object(type_name, properties));
                 buf
             }
-            AMF0Value::SwitchAmf3 { value } => value.encode(),
         }
     }
 
@@ -451,9 +438,6 @@ impl AMF0Value {
             }),
             AMF0_TYPE_STRICT_ARRAY => Ok(AMF0Value::StrictArray {
                 items: Self::read_strict_array(cursor, buffer)?,
-            }),
-            AMF0_TYPE_SWITCH_AMF3 => Ok(AMF0Value::SwitchAmf3 {
-                value: AMF3Value::read(cursor, buffer)?,
             }),
             _ => Ok(AMF0Value::Undefined),
         }
