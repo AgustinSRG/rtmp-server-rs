@@ -4,38 +4,37 @@ use std::{net::IpAddr, sync::Arc};
 
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
-    sync::{mpsc::Sender, Mutex},
+    sync::Mutex,
 };
 
-use crate::{control::ControlKeyValidationRequest, log::Logger, session::{handle_rtmp_session, RtmpSessionPublishStreamStatus, RtmpSessionStatus}};
+use crate::{
+    log::Logger,
+    session::{handle_rtmp_session, RtmpSessionPublishStreamStatus, RtmpSessionStatus, SessionContext},
+};
 
-use super::{RtmpServerConfiguration, RtmpServerStatus, SessionIdGenerator};
+use super::{RtmpServerContext, RtmpServerContextExtended};
 
 /// Handles incoming connection (after accepting it)
-/// read_stream - IO stream to read bytes
-/// write_stream - IO stream to write bytes
-/// ip - Client IP address
-/// config - RTMP configuration
-/// server_status - Server status
-/// session_id_generator - Generator of IDs for the session
-/// control_key_validator_sender - Sender for key validation against the control server
-/// logger - Server logger
-#[allow(clippy::too_many_arguments)]
+///
+/// # Arguments
+///
+/// * `logger` - The server logger
+/// * `server_context` - The server context
+/// * `read_stream` - The stream to read from the client
+/// * `write_stream` - The stream to write to the client
+/// * `ip` - The client IP address
 pub async fn handle_connection<
     TR: AsyncRead + AsyncReadExt + Send + Sync + Unpin,
     TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static,
 >(
+    logger: Arc<Logger>,
+    server_context: RtmpServerContextExtended,
     read_stream: TR,
     write_stream: Arc<Mutex<TW>>,
     ip: IpAddr,
-    config: Arc<RtmpServerConfiguration>,
-    server_status: Arc<Mutex<RtmpServerStatus>>,
-    session_id_generator: Arc<Mutex<SessionIdGenerator>>,
-    control_key_validator_sender: Option<Sender<ControlKeyValidationRequest>>,
-    logger: Arc<Logger>,
 ) {
     // Generate an unique ID for the session
-    let mut session_id_generator_v = session_id_generator.as_ref().lock().await;
+    let mut session_id_generator_v = server_context.session_id_generator.as_ref().lock().await;
     let session_id = (*session_id_generator_v).generate_id();
     drop(session_id_generator_v);
 
@@ -51,22 +50,29 @@ pub async fn handle_connection<
     let publish_status = Arc::new(Mutex::new(RtmpSessionPublishStreamStatus::new()));
 
     // Log request
-    if config.log_requests {
+    if server_context.config.log_requests {
         session_logger.log_info(&format!("Connection accepted from {}", ip));
     }
 
+    // Create session context
+    let session_context = SessionContext{
+        id: session_id,
+        ip,
+        status: session_status,
+        publish_status,
+    };
+
     // Handle session
     handle_rtmp_session(
-        session_id,
-        ip,
+        session_logger,
+        RtmpServerContext{
+            config: server_context.config,
+            status: server_context.status,
+            control_key_validator_sender: server_context.control_key_validator_sender,
+        },
+        session_context,
         read_stream,
         write_stream,
-        config,
-        server_status,
-        session_status,
-        publish_status,
-        control_key_validator_sender,
-        session_logger,
     )
     .await;
 }

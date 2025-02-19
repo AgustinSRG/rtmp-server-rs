@@ -4,6 +4,15 @@
 pub const DEFAULT_MAX_ID_LENGTH: usize = 128;
 
 /// Validates ID as string
+/// 
+/// # Arguments
+/// 
+/// * `id` - ID to validate
+/// * `max_len` - Max allowed length for identifiers
+/// 
+/// # Return value
+/// 
+/// Returns true if the ID is valid, false otherwise
 pub fn validate_id_string(id: &str, max_len: usize) -> bool {
     if id.is_empty() || id.len() > max_len {
         return false;

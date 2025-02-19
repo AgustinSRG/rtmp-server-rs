@@ -17,41 +17,34 @@ use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::{rustls, TlsAcceptor};
 
-use crate::control::ControlKeyValidationRequest;
 use crate::log::Logger;
 
-use super::{
-    handle_connection, IpConnectionCounter, RtmpServerConfiguration, RtmpServerStatus,
-    SessionIdGenerator,
-};
+use super::{handle_connection, RtmpServerConfiguration, RtmpServerContextExtended};
 
 /// Run the TCP server
 pub fn tls_server(
     logger: Arc<Logger>,
-    config: Arc<RtmpServerConfiguration>,
-    server_status: Arc<Mutex<RtmpServerStatus>>,
-    ip_counter: Arc<Mutex<IpConnectionCounter>>,
-    session_id_generator: Arc<Mutex<SessionIdGenerator>>,
-    control_key_validator_sender: Option<Sender<ControlKeyValidationRequest>>,
+    server_context: RtmpServerContextExtended,
     end_notifier: Sender<()>,
 ) {
     tokio::spawn(async move {
-        let cert_file_metadata = match tokio::fs::metadata(&config.tls.certificate).await {
-            Ok(m) => m,
-            Err(e) => {
-                logger.log_error(&format!("Could not load certificate: {}", e));
-                end_notifier
-                    .send(())
-                    .await
-                    .expect("failed to notify to main thread");
-                return;
-            }
-        };
+        let cert_file_metadata =
+            match tokio::fs::metadata(&server_context.config.tls.certificate).await {
+                Ok(m) => m,
+                Err(e) => {
+                    logger.log_error(&format!("Could not load certificate: {}", e));
+                    end_notifier
+                        .send(())
+                        .await
+                        .expect("failed to notify to main thread");
+                    return;
+                }
+            };
 
         let cert_file_mod_time =
             FileTime::from_last_modification_time(&cert_file_metadata).unix_seconds();
 
-        let certs_res = CertificateDer::pem_file_iter(&config.tls.certificate);
+        let certs_res = CertificateDer::pem_file_iter(&server_context.config.tls.certificate);
         let mut certificate: Vec<CertificateDer<'_>> = Vec::new();
 
         match certs_res {
@@ -70,7 +63,7 @@ pub fn tls_server(
             }
         }
 
-        let key_file_metadata = match tokio::fs::metadata(&config.tls.key).await {
+        let key_file_metadata = match tokio::fs::metadata(&server_context.config.tls.key).await {
             Ok(m) => m,
             Err(e) => {
                 logger.log_error(&format!("Could not load private key: {}", e));
@@ -85,7 +78,7 @@ pub fn tls_server(
         let key_file_mod_time =
             FileTime::from_last_modification_time(&key_file_metadata).unix_seconds();
 
-        let key = match PrivateKeyDer::from_pem_file(&config.tls.key) {
+        let key = match PrivateKeyDer::from_pem_file(&server_context.config.tls.key) {
             Ok(k) => k,
             Err(e) => {
                 logger.log_error(&format!("Could not load private key: {}", e));
@@ -97,7 +90,7 @@ pub fn tls_server(
             }
         };
 
-        let listen_addr = config.tls.get_tcp_listen_addr();
+        let listen_addr = server_context.config.tls.get_tcp_listen_addr();
 
         let tls_config_builder = rustls::ServerConfig::builder();
 
@@ -140,16 +133,16 @@ pub fn tls_server(
 
         // Spawn task to reload certificates periodically
 
-        let cancel_tls_reloader_sender = if config.tls.check_reload_seconds > 0 {
+        let cancel_tls_reloader_sender = if server_context.config.tls.check_reload_seconds > 0 {
             let (cancel_sender, cancel_receiver) = tokio::sync::mpsc::channel::<()>(1);
 
             spawn_task_periodically_reload_tls_config(
-                cert_file_mod_time,
-                key_file_mod_time,
                 logger.clone(),
-                config.clone(),
+                server_context.config.clone(),
                 cert_resolver,
                 cancel_receiver,
+                cert_file_mod_time,
+                key_file_mod_time,
             );
 
             Some(cancel_sender)
@@ -166,15 +159,11 @@ pub fn tls_server(
                 Ok((connection, addr)) => {
                     // Handle connection
                     handle_connection_tls(
+                        logger.clone(),
+                        server_context.clone(),
                         acceptor.clone(),
                         connection,
                         addr.ip(),
-                        config.clone(),
-                        server_status.clone(),
-                        ip_counter.clone(),
-                        session_id_generator.clone(),
-                        control_key_validator_sender.clone(),
-                        logger.clone(),
                     );
                 }
                 Err(e) => {
@@ -194,33 +183,30 @@ pub fn tls_server(
     });
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Handles a TLS connection
 fn handle_connection_tls(
-    acceptor: TlsAcceptor,
+    logger: Arc<Logger>,
+    server_context: RtmpServerContextExtended,
+    tls_acceptor: TlsAcceptor,
     mut connection: TcpStream,
     ip: IpAddr,
-    config: Arc<RtmpServerConfiguration>,
-    server_status: Arc<Mutex<RtmpServerStatus>>,
-    ip_counter: Arc<Mutex<IpConnectionCounter>>,
-    session_id_generator: Arc<Mutex<SessionIdGenerator>>,
-    control_key_validator_sender: Option<Sender<ControlKeyValidationRequest>>,
-    logger: Arc<Logger>,
 ) {
     tokio::spawn(async move {
-        let is_exempted = config
+        let is_exempted = server_context
+            .config
             .as_ref()
             .max_concurrent_connections_whitelist
             .contains_ip(&ip);
         let mut should_accept = true;
 
         if !is_exempted {
-            let mut ip_counter_v = ip_counter.as_ref().lock().await;
+            let mut ip_counter_v = server_context.ip_counter.as_ref().lock().await;
             should_accept = (*ip_counter_v).add(&ip);
             drop(ip_counter_v);
         }
 
         if should_accept {
-            let stream = match acceptor.accept(connection).await {
+            let stream = match tls_acceptor.accept(connection).await {
                 Ok(s) => s,
                 Err(e) => {
                     logger
@@ -236,14 +222,11 @@ fn handle_connection_tls(
             let write_stream_mu = Arc::new(Mutex::new(write_stream));
 
             handle_connection(
+                logger.clone(),
+                server_context.clone(),
                 &mut read_stream,
                 write_stream_mu.clone(),
                 ip,
-                config.clone(),
-                server_status,
-                session_id_generator,
-                control_key_validator_sender,
-                logger.clone(),
             )
             .await;
 
@@ -255,12 +238,12 @@ fn handle_connection_tls(
 
             // After connection is closed, remove from ip counter
             if !is_exempted {
-                let mut ip_counter_v = ip_counter.as_ref().lock().await;
+                let mut ip_counter_v = server_context.ip_counter.as_ref().lock().await;
                 (*ip_counter_v).remove(&ip);
                 drop(ip_counter_v);
             }
         } else {
-            if config.log_requests {
+            if server_context.config.log_requests {
                 logger.as_ref().log_info(&format!(
                     "Rejected request from {} due to connection limit",
                     ip
@@ -304,12 +287,12 @@ impl ResolvesServerCert for CustomCertResolver {
 }
 
 fn spawn_task_periodically_reload_tls_config(
-    initial_cert_time: i64,
-    initial_key_time: i64,
     logger: Arc<Logger>,
     config: Arc<RtmpServerConfiguration>,
     cert_resolver: Arc<CustomCertResolver>,
     mut cancel_receiver: Receiver<()>,
+    initial_cert_time: i64,
+    initial_key_time: i64,
 ) {
     tokio::spawn(async move {
         let mut cert_time = initial_cert_time;

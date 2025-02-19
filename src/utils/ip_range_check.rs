@@ -8,6 +8,7 @@ use std::{
 use ipnet::{Ipv4Net, Ipv6Net};
 
 // IP range configuration
+// Represents a list of IP ranges
 #[derive(Clone)]
 pub struct IpRangeConfig {
     all: bool,
@@ -21,6 +22,15 @@ pub struct IpRangeConfig {
 
 impl IpRangeConfig {
     /// Creates IP range config from string
+    /// 
+    /// # Arguments
+    /// 
+    /// * `config_str` - String configuration from environment
+    /// 
+    /// # Return value
+    /// 
+    /// A result for the config. In case of error, a sub-string
+    /// of the invalid range is provided to indicate the user
     pub fn new_from_string(config_str: &str) -> Result<IpRangeConfig, String> {
         if config_str.is_empty() {
             return Ok(IpRangeConfig {
@@ -115,6 +125,7 @@ impl IpRangeConfig {
         })
     }
 
+    /// Checks if IP (V4) is included in the range
     fn check_ip_v4(&self, ipv4_addr: &Ipv4Addr) -> bool {
         if let Some(ips_v4) = &self.ips_v4 {
             for n in ips_v4 {
@@ -134,6 +145,7 @@ impl IpRangeConfig {
         false
     }
 
+    /// Checks if IP (V6) is included in the range
     fn check_ip_v6(&self, ipv6_addr: &Ipv6Addr) -> bool {
         if let Some(ips_v6) = &self.ips_v6 {
             for n in ips_v6 {
@@ -163,6 +175,14 @@ impl IpRangeConfig {
     }
 
     /// Checks if the configured range contains an IP address
+    /// 
+    /// # Arguments
+    /// 
+    /// * `ip` - The IP address to check
+    /// 
+    /// # Return value
+    /// 
+    /// Returns true if the IP is contained in the range, false otherwise
     pub fn contains_ip(&self, ip: &IpAddr) -> bool {
         if self.all {
             return true;

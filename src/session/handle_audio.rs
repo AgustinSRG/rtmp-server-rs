@@ -2,36 +2,36 @@
 
 use std::sync::Arc;
 
-use tokio::sync::Mutex;
-
 use crate::{
     log::Logger,
     rtmp::{RtmpPacket, RTMP_CHANNEL_AUDIO, RTMP_CHUNK_TYPE_0, RTMP_TYPE_AUDIO},
-    server::{RtmpServerConfiguration, RtmpServerStatus},
+    server::{RtmpServerContext, RtmpServerStatus},
 };
 
-use super::{RtmpSessionPublishStreamStatus, RtmpSessionReadStatus};
+use super::SessionReadThreadContext;
 
-/// Handles RTMP packet (AUDIO)
-/// packet - The packet to handle
-/// session_id - Session ID
-/// config - RTMP configuration
-/// publish_status - Status if the stream being published
-/// read_status - Status for the read task
-/// logger - Session logger
-/// Return true to continue receiving chunks. Returns false to end the session main loop.
+/// Handles AUDIO RTMP packet
+///
+/// # Arguments
+///
+/// * `logger` - The session logger
+/// * `server_context` - The server context
+/// * `session_context` - The session context
+/// * `packet` - The packet
+///
+/// # Return value
+///
+/// Returns true to continue receiving chunks. Returns false to end the session main loop.
 pub async fn handle_rtmp_packet_audio(
-    packet: &RtmpPacket,
-    session_id: u64,
-    config: &RtmpServerConfiguration,
-    publish_status: &Arc<Mutex<RtmpSessionPublishStreamStatus>>,
-    read_status: &mut RtmpSessionReadStatus,
     logger: &Logger,
+    server_context: &mut RtmpServerContext,
+    session_context: &mut SessionReadThreadContext,
+    packet: &RtmpPacket,
 ) -> bool {
-    let channel_status = match &read_status.channel_status {
+    let channel_status = match &session_context.read_status.channel_status {
         Some(s) => s,
         None => {
-            if config.log_requests && logger.config.debug_enabled {
+            if server_context.config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("Audio packet ignored since it was not publishing");
             }
 
@@ -40,7 +40,7 @@ pub async fn handle_rtmp_packet_audio(
     };
 
     if packet.header.length <= 3 {
-        if config.log_requests && logger.config.debug_enabled {
+        if server_context.config.log_requests && logger.config.debug_enabled {
             logger.log_debug("Packet error: Packet length too short");
         }
 
@@ -49,7 +49,7 @@ pub async fn handle_rtmp_packet_audio(
 
     // Load packet metadata and update publish status
 
-    let mut publish_status_v = publish_status.lock().await;
+    let mut publish_status_v = session_context.publish_status.lock().await;
 
     let sound_format = (packet.payload[0] >> 4) & 0x0f;
 
@@ -69,7 +69,7 @@ pub async fn handle_rtmp_packet_audio(
 
     // Log
 
-    if config.log_requests && logger.config.trace_enabled {
+    if server_context.config.log_requests && logger.config.trace_enabled {
         logger.log_trace(&format!("AUDIO PACKET: {} bytes", packet.payload.len()));
     }
 
@@ -88,10 +88,10 @@ pub async fn handle_rtmp_packet_audio(
 
     RtmpServerStatus::send_packet_to_channel(
         channel_status,
-        session_id,
+        session_context.id,
         Arc::new(copied_packet),
         is_header,
-        config,
+        &server_context.config,
     )
     .await;
 

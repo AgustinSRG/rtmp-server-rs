@@ -18,7 +18,7 @@ use control::{
 };
 use log::{LogConfig, Logger};
 use redis::{spawn_task_redis_client, RedisConfiguration};
-use server::{run_server, RtmpServerConfiguration, RtmpServerStatus};
+use server::{run_server, RtmpServerConfiguration, RtmpServerContext, RtmpServerStatus};
 use tokio::sync::{mpsc::Sender, Mutex};
 use utils::get_env_bool;
 
@@ -134,11 +134,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // Run server
 
+    let server_context = RtmpServerContext{
+        config: server_config.clone(),
+        status: server_status.clone(),
+        control_key_validator_sender,
+    };
+
     run_server(
         logger,
-        server_config,
-        server_status,
-        control_key_validator_sender,
+        server_context,
     )
     .await;
 

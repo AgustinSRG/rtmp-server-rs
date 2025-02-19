@@ -1,28 +1,25 @@
 // Session cleanup logic
 
-use tokio::sync::{mpsc::Sender, Mutex};
-
 use crate::{
-    control::ControlKeyValidationRequest, log::Logger, server::{RtmpServerConfiguration, RtmpServerStatus}
+    log::Logger,
+    server::{RtmpServerContext, RtmpServerStatus},
 };
 
-use super::RtmpSessionStatus;
+use super::SessionContext;
 
 /// Performs session cleanup
-/// logger - The logger
-/// session_id - Session ID
-/// config - Server configuration
-/// server_status - Server status
-/// session_status - Session status
+///
+/// # Arguments
+///
+/// * `logger` - The server logger
+/// * `server_context` - The server context
+/// * `session_context` - The session context
 pub async fn do_session_cleanup(
     logger: &Logger,
-    session_id: u64,
-    config: &RtmpServerConfiguration,
-    server_status: &Mutex<RtmpServerStatus>,
-    session_status: &Mutex<RtmpSessionStatus>,
-    control_key_validator_sender: &mut Option<Sender<ControlKeyValidationRequest>>,
+    server_context: &mut RtmpServerContext,
+    session_context: &SessionContext,
 ) {
-    let session_status_v = session_status.lock().await;
+    let session_status_v = session_context.status.lock().await;
 
     let channel = match &session_status_v.channel {
         Some(c) => c.clone(),
@@ -37,22 +34,22 @@ pub async fn do_session_cleanup(
     drop(session_status_v);
 
     if must_clear_player {
-        RtmpServerStatus::remove_player(server_status, &channel, session_id).await;
+        RtmpServerStatus::remove_player(&server_context.status, &channel, session_context.id).await;
     }
 
     if must_clear_publisher {
         RtmpServerStatus::remove_publisher(
             logger,
-            config,
-            server_status,
-            control_key_validator_sender,
+            &server_context.config,
+            &server_context.status,
+            &mut server_context.control_key_validator_sender,
             &channel,
-            session_id,
+            session_context.id,
         )
         .await
     }
 
     if must_clear_player || must_clear_publisher {
-        RtmpServerStatus::try_clear_channel(server_status, &channel).await;
+        RtmpServerStatus::try_clear_channel(&server_context.status, &channel).await;
     }
 }

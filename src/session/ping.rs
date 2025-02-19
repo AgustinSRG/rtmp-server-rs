@@ -10,18 +10,27 @@ use tokio::{
 use crate::{
     log::Logger,
     rtmp::{rtmp_make_ping_request, RTMP_PING_TIME},
-    server::RtmpServerConfiguration,
+    server::RtmpServerContext,
     session::session_write_bytes,
 };
 
-use super::RtmpSessionStatus;
+use super::SessionContext;
 
+/// Creates a task to send ping requests to the client
+///
+/// # Arguments
+///
+/// * `logger` - The session logger
+/// * `server_context` - The server context
+/// * `session_context` - The session context
+/// * `write_stream` - The stream to write to the client
+/// * `cancel_pings_receiver` - A receiver to listen for a cancel signal
 pub fn spawn_task_to_send_pings<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static>(
-    write_stream: Arc<Mutex<TW>>,
-    config: Arc<RtmpServerConfiguration>,
-    session_status: Arc<Mutex<RtmpSessionStatus>>,
-    mut cancel_pings_receiver: Receiver<()>,
     logger: Arc<Logger>,
+    server_context: RtmpServerContext,
+    session_context: SessionContext,
+    write_stream: Arc<Mutex<TW>>,
+    mut cancel_pings_receiver: Receiver<()>,
 ) {
     tokio::spawn(async move {
         let mut finished = false;
@@ -36,7 +45,7 @@ pub fn spawn_task_to_send_pings<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
             }
 
             // Check status
-            let session_status_v = session_status.lock().await;
+            let session_status_v = session_context.status.lock().await;
 
             if session_status_v.channel.is_none() {
                 drop(session_status_v);
@@ -49,9 +58,9 @@ pub fn spawn_task_to_send_pings<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
 
             // Create ping
 
-            let ping_bytes = rtmp_make_ping_request(connect_time, config.chunk_size);
+            let ping_bytes = rtmp_make_ping_request(connect_time, server_context.config.chunk_size);
 
-            if config.log_requests && logger.config.debug_enabled {
+            if server_context.config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("Sending ping request to client");
             }
 
@@ -59,14 +68,13 @@ pub fn spawn_task_to_send_pings<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
 
             match session_write_bytes(&write_stream, &ping_bytes).await {
                 Ok(_) => {
-                    if config.log_requests && logger.config.debug_enabled {
+                    if server_context.config.log_requests && logger.config.debug_enabled {
                         logger.log_debug("Sent ping request to client");
                     }
                 }
                 Err(e) => {
-                    if config.log_requests && logger.config.debug_enabled {
-                        logger
-                            .log_debug(&format!("Could not send ping request: {}", e));
+                    if server_context.config.log_requests && logger.config.debug_enabled {
+                        logger.log_debug(&format!("Could not send ping request: {}", e));
                     }
 
                     finished = true;

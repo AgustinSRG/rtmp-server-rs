@@ -1,67 +1,57 @@
 // Chunk read logic
 
-use std::{cmp, sync::Arc, time::Duration};
+use std::{cmp, time::Duration};
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
 use chrono::Utc;
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
-    sync::{mpsc::Sender, Mutex},
+    sync::Mutex,
 };
 
 use crate::{
-    control::ControlKeyValidationRequest,
     log::Logger,
     rtmp::{
         get_rtmp_header_size, rtmp_make_ack, RtmpPacket, RTMP_CHUNK_TYPE_0, RTMP_CHUNK_TYPE_1,
         RTMP_CHUNK_TYPE_2, RTMP_PING_TIMEOUT, RTMP_TYPE_METADATA,
     },
-    server::{RtmpServerConfiguration, RtmpServerStatus},
+    server::RtmpServerContext,
 };
 
 use super::{
-    handle_rtmp_packet, session_write_bytes, RtmpSessionMessage, RtmpSessionPublishStreamStatus,
-    RtmpSessionReadStatus, RtmpSessionStatus, IN_PACKETS_BUFFER_SIZE,
+    handle_rtmp_packet, session_write_bytes, RtmpSessionPublishStreamStatus, RtmpSessionStatus,
+    SessionReadThreadContext, IN_PACKETS_BUFFER_SIZE,
 };
 
 /// Interval to compute bit rate (milliseconds)
 const BIT_RATE_COMPUTE_INTERVAL_MS: i64 = 1000;
 
-/// Reads RTMP chunk and, if ready, handles it
-/// session_id - Session ID
-/// read_stream - IO stream to read bytes
-/// write_stream - IO stream to write bytes
-/// config - RTMP configuration
-/// server_status - Server status
-/// session_status - Session status
-/// publish_status - Status if the stream being published
-/// session_msg_sender - Message sender for the session
-/// session_msg_receiver - Message receiver for the session
-/// read_status_mu - Status for the read task
-/// logger - Session logger
-/// Return true to continue receiving chunk. Returns false to end the session main loop.
-#[allow(clippy::too_many_arguments)]
+/// Reads a RTMP chunk
+/// Handles the packet when the last chunk of the packet is read
+///
+/// # Arguments
+///
+/// * `logger` - The session logger
+/// * `server_context` - The server context
+/// * `session_context` - The session context
+/// * `read_stream` - The stream to read from the client
+/// * `write_stream` - The stream to write to the client
+/// * `in_packets` - Array of input packets
 pub async fn read_rtmp_chunk<
     TR: AsyncRead + AsyncReadExt + Send + Sync + Unpin,
     TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static,
 >(
-    session_id: u64,
+    logger: &Logger,
+    server_context: &mut RtmpServerContext,
+    session_context: &mut SessionReadThreadContext,
     read_stream: &mut TR,
     write_stream: &Mutex<TW>,
-    config: &RtmpServerConfiguration,
-    server_status: &Mutex<RtmpServerStatus>,
-    session_status: &Mutex<RtmpSessionStatus>,
-    publish_status: &Arc<Mutex<RtmpSessionPublishStreamStatus>>,
-    session_msg_sender: &Sender<RtmpSessionMessage>,
-    read_status: &mut RtmpSessionReadStatus,
     in_packets: &mut [RtmpPacket; IN_PACKETS_BUFFER_SIZE],
-    control_key_validator_sender: &mut Option<Sender<ControlKeyValidationRequest>>,
-    logger: &Logger,
 ) -> bool {
     // Check if the session was killed before reading any chunk
 
-    if RtmpSessionStatus::is_killed(session_status).await {
-        if config.log_requests && logger.config.debug_enabled {
+    if RtmpSessionStatus::is_killed(&session_context.status).await {
+        if server_context.config.log_requests && logger.config.debug_enabled {
             logger.log_debug("Session killed");
         }
         return false;
@@ -80,7 +70,7 @@ pub async fn read_rtmp_chunk<
         Ok(br) => match br {
             Ok(b) => b,
             Err(e) => {
-                if config.log_requests && logger.config.debug_enabled {
+                if server_context.config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Chunk read error. Could not read start byte: {}",
                         e
@@ -90,7 +80,7 @@ pub async fn read_rtmp_chunk<
             }
         },
         Err(_) => {
-            if config.log_requests && logger.config.debug_enabled {
+            if server_context.config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("Chunk read error. Could not read start byte: Timed out");
             }
             return false;
@@ -116,7 +106,7 @@ pub async fn read_rtmp_chunk<
     header[0] = start_byte;
 
     if basic_bytes > 1 {
-        for i in 1..basic_bytes {
+        for (i, header_byte) in header.iter_mut().enumerate().take(basic_bytes).skip(1) {
             let basic_byte = match tokio::time::timeout(
                 Duration::from_secs(RTMP_PING_TIMEOUT),
                 read_stream.read_u8(),
@@ -126,7 +116,7 @@ pub async fn read_rtmp_chunk<
                 Ok(br) => match br {
                     Ok(b) => b,
                     Err(e) => {
-                        if config.log_requests && logger.config.debug_enabled {
+                        if server_context.config.log_requests && logger.config.debug_enabled {
                             logger.log_debug(&format!(
                                 "Chunk read error. Could not read basic byte [{}]: {}",
                                 i, e,
@@ -136,7 +126,7 @@ pub async fn read_rtmp_chunk<
                     }
                 },
                 Err(_) => {
-                    if config.log_requests && logger.config.debug_enabled {
+                    if server_context.config.log_requests && logger.config.debug_enabled {
                         logger.log_debug(&format!(
                             "Chunk read error. Could not read basic byte [{}]: Timed out",
                             i
@@ -146,7 +136,7 @@ pub async fn read_rtmp_chunk<
                 }
             };
 
-            header[i] = basic_byte;
+            *header_byte = basic_byte;
 
             bytes_read_count += 1;
         }
@@ -162,7 +152,7 @@ pub async fn read_rtmp_chunk<
         {
             Ok(r) => {
                 if let Err(e) = r {
-                    if config.log_requests && logger.config.debug_enabled {
+                    if server_context.config.log_requests && logger.config.debug_enabled {
                         logger
                             .log_debug(&format!("Chunk read error. Could not read header: {}", e));
                     }
@@ -170,7 +160,7 @@ pub async fn read_rtmp_chunk<
                 }
             }
             Err(_) => {
-                if config.log_requests && logger.config.debug_enabled {
+                if server_context.config.log_requests && logger.config.debug_enabled {
                     logger.log_debug("Chunk read error. Could not read header: Timed out");
                 }
                 return false;
@@ -196,7 +186,7 @@ pub async fn read_rtmp_chunk<
         get_input_packet_from_buffer(in_packets, channel_id);
     let packet = in_packets.get_mut(packet_buf_index).unwrap();
 
-    if packet_buf_dropped && config.log_requests && logger.config.debug_enabled {
+    if packet_buf_dropped && server_context.config.log_requests && logger.config.debug_enabled {
         logger.log_debug("An unhandled packet was dropped from the buffer");
     }
 
@@ -208,7 +198,7 @@ pub async fn read_rtmp_chunk<
     // Timestamp / delta
     if packet.header.format <= RTMP_CHUNK_TYPE_2 {
         if header.len() < offset + 3 {
-            if config.log_requests {
+            if server_context.config.log_requests {
                 logger.log_error("Header parsing error: Could not parse timestamp/delta");
             }
             return false;
@@ -226,7 +216,7 @@ pub async fn read_rtmp_chunk<
     // Message length + type
     if packet.header.format <= RTMP_CHUNK_TYPE_1 {
         if header.len() < offset + 4 {
-            if config.log_requests {
+            if server_context.config.log_requests {
                 logger.log_error("Header parsing error: Could not parse message length + type");
             }
             return false;
@@ -245,7 +235,7 @@ pub async fn read_rtmp_chunk<
     // Stream id
     if packet.header.format == RTMP_CHUNK_TYPE_0 {
         if header.len() < offset + 4 {
-            if config.log_requests {
+            if server_context.config.log_requests {
                 logger.log_error("Header parsing error: Could not parse stream id");
             }
             return false;
@@ -256,7 +246,7 @@ pub async fn read_rtmp_chunk<
 
     // Stop packet
     if packet.header.packet_type > RTMP_TYPE_METADATA {
-        if config.log_requests && logger.config.debug_enabled {
+        if server_context.config.log_requests && logger.config.debug_enabled {
             logger.log_debug(&format!(
                 "Received stop packet: {}",
                 packet.header.packet_type
@@ -278,7 +268,7 @@ pub async fn read_rtmp_chunk<
         {
             Ok(r) => {
                 if let Err(e) = r {
-                    if config.log_requests && logger.config.debug_enabled {
+                    if server_context.config.log_requests && logger.config.debug_enabled {
                         logger.log_debug(&format!(
                             "Chunk read error. Could not read extended timestamp: {}",
                             e
@@ -288,7 +278,7 @@ pub async fn read_rtmp_chunk<
                 }
             }
             Err(_) => {
-                if config.log_requests && logger.config.debug_enabled {
+                if server_context.config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(
                         "Chunk read error. Could not read extended timestamp: Timed out",
                     );
@@ -311,13 +301,15 @@ pub async fn read_rtmp_chunk<
             packet.clock = packet.clock.wrapping_add(extended_timestamp);
         }
 
-        RtmpSessionPublishStreamStatus::set_clock(publish_status, packet.clock).await;
+        RtmpSessionPublishStreamStatus::set_clock(&session_context.publish_status, packet.clock)
+            .await;
     }
 
     // Packet payload
 
     let size_to_read: usize = cmp::min(
-        read_status.in_chunk_size - (packet.bytes % read_status.in_chunk_size),
+        session_context.read_status.in_chunk_size
+            - (packet.bytes % session_context.read_status.in_chunk_size),
         packet.header.length - packet.bytes,
     );
 
@@ -334,7 +326,7 @@ pub async fn read_rtmp_chunk<
         {
             Ok(r) => {
                 if let Err(e) = r {
-                    if config.log_requests && logger.config.debug_enabled {
+                    if server_context.config.log_requests && logger.config.debug_enabled {
                         logger.log_debug(&format!(
                             "Chunk read error. Could not read payload bytes: {}",
                             e
@@ -344,7 +336,7 @@ pub async fn read_rtmp_chunk<
                 }
             }
             Err(_) => {
-                if config.log_requests && logger.config.debug_enabled {
+                if server_context.config.log_requests && logger.config.debug_enabled {
                     logger.log_debug("Chunk read error. Could not read payload bytes: Timed out");
                 }
                 return false;
@@ -361,21 +353,15 @@ pub async fn read_rtmp_chunk<
 
         if packet.clock <= 0xffffffff
             && !handle_rtmp_packet(
-                packet,
-                session_id,
-                write_stream,
-                config,
-                server_status,
-                session_status,
-                publish_status,
-                session_msg_sender,
-                read_status,
-                control_key_validator_sender,
                 logger,
+                server_context,
+                session_context,
+                write_stream,
+                packet,
             )
             .await
         {
-            if config.log_requests && logger.config.debug_enabled {
+            if server_context.config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("Packet handing failed");
             }
             return false;
@@ -384,48 +370,59 @@ pub async fn read_rtmp_chunk<
 
     // ACK
 
-    read_status.in_ack_size = read_status.in_ack_size.wrapping_add(bytes_read_count);
+    session_context.read_status.in_ack_size = session_context
+        .read_status
+        .in_ack_size
+        .wrapping_add(bytes_read_count);
 
-    if read_status.in_ack_size >= 0xf0000000 {
-        read_status.in_ack_size = 0;
-        read_status.in_last_ack = 0;
+    if session_context.read_status.in_ack_size >= 0xf0000000 {
+        session_context.read_status.in_ack_size = 0;
+        session_context.read_status.in_last_ack = 0;
     }
 
-    if read_status.ack_size > 0
-        && read_status.in_ack_size - read_status.in_last_ack >= read_status.ack_size
+    if session_context.read_status.ack_size > 0
+        && session_context.read_status.in_ack_size - session_context.read_status.in_last_ack
+            >= session_context.read_status.ack_size
     {
-        read_status.in_last_ack = read_status.in_ack_size;
+        session_context.read_status.in_last_ack = session_context.read_status.in_ack_size;
 
         // Send ACK
-        let ack_msg = rtmp_make_ack(read_status.in_ack_size);
+        let ack_msg = rtmp_make_ack(session_context.read_status.in_ack_size);
 
         if let Err(e) = session_write_bytes(write_stream, &ack_msg).await {
-            if config.log_requests && logger.config.debug_enabled {
+            if server_context.config.log_requests && logger.config.debug_enabled {
                 logger.log_debug(&format!("Could not send ACK: {}", e));
             }
             return false;
         }
 
-        if config.log_requests && logger.config.debug_enabled {
-            logger.log_debug(&format!("Sent ACK: {}", read_status.in_ack_size));
+        if server_context.config.log_requests && logger.config.debug_enabled {
+            logger.log_debug(&format!(
+                "Sent ACK: {}",
+                session_context.read_status.in_ack_size
+            ));
         }
     }
 
     // Bitrate
 
-    if config.log_requests && logger.config.debug_enabled {
+    if server_context.config.log_requests && logger.config.debug_enabled {
         let now = Utc::now().timestamp_millis();
-        read_status.bit_rate_bytes = read_status.bit_rate_bytes.wrapping_add(bytes_read_count);
+        session_context.read_status.bit_rate_bytes = session_context
+            .read_status
+            .bit_rate_bytes
+            .wrapping_add(bytes_read_count);
 
-        let time_diff = now - read_status.bit_rate_last_update;
+        let time_diff = now - session_context.read_status.bit_rate_last_update;
 
         if time_diff >= BIT_RATE_COMPUTE_INTERVAL_MS {
             let bit_rate = f64::round(
-                (read_status.bit_rate_bytes as f64) * 8.0 / ((time_diff as f64) / 1000.0),
+                (session_context.read_status.bit_rate_bytes as f64) * 8.0
+                    / ((time_diff as f64) / 1000.0),
             );
 
-            read_status.bit_rate_bytes = 0;
-            read_status.bit_rate_last_update = now;
+            session_context.read_status.bit_rate_bytes = 0;
+            session_context.read_status.bit_rate_last_update = now;
 
             logger.log_debug(&format!("Input bit rate is now: {} bps", bit_rate));
         }
@@ -435,30 +432,44 @@ pub async fn read_rtmp_chunk<
 }
 
 /// Gets an input packet from the buffer
-/// in_packets - Input packets buffer
-/// channel_id - Channel ID
+///
+/// # Arguments
+///
+/// * `in_packets` - Input packets buffer
+/// * `channel_id` - Channel ID
+///
+/// # Return value
+///
 /// Returns the index of the slot to use, and true if there were no slots, so the first one was chosen
 pub fn get_input_packet_from_buffer(
     in_packets: &mut [RtmpPacket; IN_PACKETS_BUFFER_SIZE],
     channel_id: u32,
 ) -> (usize, bool) {
-    for i in 0..IN_PACKETS_BUFFER_SIZE {
-        if in_packets[i].header.channel_id == channel_id {
-            if in_packets[i].handled {
-                in_packets[i].reset();
+    for (i, item) in in_packets
+        .iter_mut()
+        .enumerate()
+        .take(IN_PACKETS_BUFFER_SIZE)
+    {
+        if item.header.channel_id == channel_id {
+            if item.handled {
+                item.reset();
             }
             return (i, false);
         }
     }
 
-    for i in 0..IN_PACKETS_BUFFER_SIZE {
-        if in_packets[i].handled {
-            in_packets[i].reset();
+    for (i, item) in in_packets
+        .iter_mut()
+        .enumerate()
+        .take(IN_PACKETS_BUFFER_SIZE)
+    {
+        if item.handled {
+            item.reset();
             return (i, false);
         }
     }
 
     in_packets[0].reset();
 
-    return (0, true);
+    (0, true)
 }

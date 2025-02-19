@@ -1,97 +1,90 @@
 // Packet handling logic
 
-use std::sync::Arc;
-
 use byteorder::{BigEndian, ByteOrder};
 use tokio::{
     io::{AsyncWrite, AsyncWriteExt},
-    sync::{mpsc::Sender, Mutex},
+    sync::Mutex,
 };
 
 use crate::{
-    control::ControlKeyValidationRequest, log::Logger, rtmp::{
+    log::Logger,
+    rtmp::{
         RtmpPacket, RTMP_CHUNK_SIZE, RTMP_MAX_CHUNK_SIZE, RTMP_TYPE_AUDIO, RTMP_TYPE_DATA,
         RTMP_TYPE_FLEX_MESSAGE, RTMP_TYPE_FLEX_STREAM, RTMP_TYPE_INVOKE, RTMP_TYPE_SET_CHUNK_SIZE,
         RTMP_TYPE_VIDEO, RTMP_TYPE_WINDOW_ACKNOWLEDGEMENT_SIZE,
-    }, server::{RtmpServerConfiguration, RtmpServerStatus}
+    },
+    server::RtmpServerContext,
 };
 
 use super::{
     handle_rtmp_packet_audio, handle_rtmp_packet_data, handle_rtmp_packet_invoke,
-    handle_rtmp_packet_video, RtmpSessionMessage, RtmpSessionPublishStreamStatus,
-    RtmpSessionReadStatus, RtmpSessionStatus,
+    handle_rtmp_packet_video, SessionReadThreadContext,
 };
 
-/// Handles RTMP packet
-/// packet - The packet to handle
-/// session_id - Session ID
-/// write_stream - IO stream to write bytes
-/// config - RTMP configuration
-/// server_status - Server status
-/// session_status - Session status
-/// publish_status - Status if the stream being published
-/// session_msg_sender - Message sender for the session
-/// session_msg_receiver - Message receiver for the session
-/// read_status - Status for the read task
-/// logger - Session logger
-/// Return true to continue receiving chunks. Returns false to end the session main loop.
-#[allow(clippy::too_many_arguments)]
+/// Handles parsed RTMP packet
+///
+/// # Arguments
+///
+/// * `logger` - The session logger
+/// * `server_context` - The server context
+/// * `session_context` - The session context
+/// * `write_stream` - The stream to write to the client
+/// * `packet` - The packet
+///
+/// # Return value
+///
+/// Returns true to continue receiving chunks. Returns false to end the session main loop.
 pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static>(
-    packet: &RtmpPacket,
-    session_id: u64,
-    write_stream: &Mutex<TW>,
-    config: &RtmpServerConfiguration,
-    server_status: &Mutex<RtmpServerStatus>,
-    session_status: &Mutex<RtmpSessionStatus>,
-    publish_status: &Arc<Mutex<RtmpSessionPublishStreamStatus>>,
-    session_msg_sender: &Sender<RtmpSessionMessage>,
-    read_status: &mut RtmpSessionReadStatus,
-    control_key_validator_sender: &mut Option<Sender<ControlKeyValidationRequest>>,
     logger: &Logger,
+    server_context: &mut RtmpServerContext,
+    session_context: &mut SessionReadThreadContext,
+    write_stream: &Mutex<TW>,
+    packet: &RtmpPacket,
 ) -> bool {
     match packet.header.packet_type {
         RTMP_TYPE_SET_CHUNK_SIZE => {
             // Packet to set chunk size
-            if config.log_requests && logger.config.trace_enabled {
+            if server_context.config.log_requests && logger.config.trace_enabled {
                 logger.log_trace("Received packet: RTMP_TYPE_SET_CHUNK_SIZE");
             }
 
             if packet.payload.len() < 4 {
-                if config.log_requests && logger.config.debug_enabled {
+                if server_context.config.log_requests && logger.config.debug_enabled {
                     logger.log_debug("Packet error: Payload too short");
                 }
 
                 return false;
             }
 
-            read_status.in_chunk_size = BigEndian::read_u32(&packet.payload[0..4]) as usize;
+            session_context.read_status.in_chunk_size =
+                BigEndian::read_u32(&packet.payload[0..4]) as usize;
 
-            if read_status.in_chunk_size < RTMP_CHUNK_SIZE {
-                if config.log_requests && logger.config.debug_enabled {
+            if session_context.read_status.in_chunk_size < RTMP_CHUNK_SIZE {
+                if server_context.config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Packet error: Chunk size too small. Size: {}. Min: {}",
-                        read_status.in_chunk_size, RTMP_CHUNK_SIZE
+                        session_context.read_status.in_chunk_size, RTMP_CHUNK_SIZE
                     ));
                 }
 
                 return false;
             }
 
-            if read_status.in_chunk_size > RTMP_MAX_CHUNK_SIZE {
-                if config.log_requests && logger.config.debug_enabled {
+            if session_context.read_status.in_chunk_size > RTMP_MAX_CHUNK_SIZE {
+                if server_context.config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Packet error: Chunk size too large. Size: {}. Max: {}",
-                        read_status.in_chunk_size, RTMP_MAX_CHUNK_SIZE
+                        session_context.read_status.in_chunk_size, RTMP_MAX_CHUNK_SIZE
                     ));
                 }
 
                 return false;
             }
 
-            if config.log_requests && logger.config.debug_enabled {
+            if server_context.config.log_requests && logger.config.debug_enabled {
                 logger.log_debug(&format!(
                     "Chunk size updated: {}",
-                    read_status.in_chunk_size
+                    session_context.read_status.in_chunk_size
                 ));
             }
 
@@ -99,135 +92,95 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
         }
         RTMP_TYPE_WINDOW_ACKNOWLEDGEMENT_SIZE => {
             // Packet to set ACK size
-            if config.log_requests && logger.config.trace_enabled {
+            if server_context.config.log_requests && logger.config.trace_enabled {
                 logger.log_trace("Received packet: RTMP_TYPE_WINDOW_ACKNOWLEDGEMENT_SIZE");
             }
 
             if packet.payload.len() < 4 {
-                if config.log_requests && logger.config.debug_enabled {
+                if server_context.config.log_requests && logger.config.debug_enabled {
                     logger.log_debug("Packet error: Payload too short");
                 }
 
                 return false;
             }
 
-            read_status.ack_size = BigEndian::read_u32(&packet.payload[0..4]) as usize;
+            session_context.read_status.ack_size =
+                BigEndian::read_u32(&packet.payload[0..4]) as usize;
 
-            if config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!("ACK size updated: {}", read_status.ack_size));
+            if server_context.config.log_requests && logger.config.debug_enabled {
+                logger.log_debug(&format!(
+                    "ACK size updated: {}",
+                    session_context.read_status.ack_size
+                ));
             }
 
             true
         }
         RTMP_TYPE_AUDIO => {
             // Audio packet
-            if config.log_requests && logger.config.trace_enabled {
+            if server_context.config.log_requests && logger.config.trace_enabled {
                 logger.log_trace("Received packet: RTMP_TYPE_AUDIO");
             }
 
-            handle_rtmp_packet_audio(
-                packet,
-                session_id,
-                config,
-                publish_status,
-                read_status,
-                logger,
-            )
-            .await
+            handle_rtmp_packet_audio(logger, server_context, session_context, packet).await
         }
         RTMP_TYPE_VIDEO => {
             // Video packet
-            if config.log_requests && logger.config.trace_enabled {
+            if server_context.config.log_requests && logger.config.trace_enabled {
                 logger.log_trace("Received packet: RTMP_TYPE_VIDEO");
             }
 
-            handle_rtmp_packet_video(
-                packet,
-                session_id,
-                config,
-                publish_status,
-                read_status,
-                logger,
-            )
-            .await
+            handle_rtmp_packet_video(logger, server_context, session_context, packet).await
         }
         RTMP_TYPE_INVOKE => {
             // Invoke / Command packet
-            if config.log_requests && logger.config.trace_enabled {
+            if server_context.config.log_requests && logger.config.trace_enabled {
                 logger.log_trace("Received packet: RTMP_TYPE_INVOKE");
             }
 
             handle_rtmp_packet_invoke(
-                packet,
-                session_id,
-                write_stream,
-                config,
-                server_status,
-                session_status,
-                publish_status,
-                session_msg_sender,
-                read_status,
-                control_key_validator_sender,
                 logger,
+                server_context,
+                session_context,
+                write_stream,
+                packet,
             )
             .await
         }
         RTMP_TYPE_FLEX_MESSAGE => {
             // Invoke / Command packet (Alt)
-            if config.log_requests && logger.config.trace_enabled {
+            if server_context.config.log_requests && logger.config.trace_enabled {
                 logger.log_trace("Received packet: RTMP_TYPE_FLEX_MESSAGE");
             }
 
             handle_rtmp_packet_invoke(
-                packet,
-                session_id,
-                write_stream,
-                config,
-                server_status,
-                session_status,
-                publish_status,
-                session_msg_sender,
-                read_status,
-                control_key_validator_sender,
                 logger,
+                server_context,
+                session_context,
+                write_stream,
+                packet,
             )
             .await
         }
         RTMP_TYPE_DATA => {
             // Data packet
-            if config.log_requests && logger.config.trace_enabled {
+            if server_context.config.log_requests && logger.config.trace_enabled {
                 logger.log_trace("Received packet: RTMP_TYPE_DATA");
             }
 
-            handle_rtmp_packet_data(
-                packet,
-                session_id,
-                config,
-                server_status,
-                session_status,
-                logger,
-            )
-            .await
+            handle_rtmp_packet_data(logger, server_context, session_context, packet).await
         }
         RTMP_TYPE_FLEX_STREAM => {
             // Data packet (Alt)
-            if config.log_requests && logger.config.trace_enabled {
+            if server_context.config.log_requests && logger.config.trace_enabled {
                 logger.log_trace("Received packet: RTMP_TYPE_FLEX_STREAM");
             }
 
-            handle_rtmp_packet_data(
-                packet,
-                session_id,
-                config,
-                server_status,
-                session_status,
-                logger,
-            )
-            .await
+            handle_rtmp_packet_data(logger, server_context, session_context, packet).await
         }
         _ => {
             // Other type (not supported by this server implementation)
-            if config.log_requests && logger.config.debug_enabled {
+            if server_context.config.log_requests && logger.config.debug_enabled {
                 logger.log_debug(&format!(
                     "Received unknown packet type: {}",
                     packet.header.packet_type

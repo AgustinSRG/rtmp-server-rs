@@ -2,41 +2,42 @@
 
 use tokio::{
     io::{AsyncWrite, AsyncWriteExt},
-    sync::{mpsc::Sender, Mutex},
+    sync::Mutex,
 };
 
 use crate::{
-    control::ControlKeyValidationRequest, log::Logger, server::{RtmpServerConfiguration, RtmpServerStatus}
+    log::Logger,
+    server::{RtmpServerContext, RtmpServerStatus},
 };
 
-use super::{send_status_message, RtmpSessionStatus};
+use super::{send_status_message, SessionReadThreadContext};
 
-/// Deletes a stream from the RTMP session
-/// packet - The packet to handle
-/// session_id - Session ID
-/// write_stream - IO stream to write bytes
-/// config - RTMP configuration
-/// server_status - Server status
-/// session_status - Session status
-/// logger - Session logger
-/// Return true to continue receiving chunks. Returns false to end the session main loop.
-#[allow(clippy::too_many_arguments)]
+/// Deletes RTMP stream
+///
+/// # Arguments
+///
+/// * `logger` - The session logger
+/// * `server_context` - The server context
+/// * `session_context` - The session context
+/// * `write_stream` - The stream to write to the client
+/// * `stream_id` - ID of the RTMP stream to delete
+///
+/// # Return value
+///
+/// Returns true to continue receiving chunks. Returns false to end the session main loop.
 pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static>(
-    stream_id: u32,
-    session_id: u64,
-    write_stream: &Mutex<TW>,
-    config: &RtmpServerConfiguration,
-    server_status: &Mutex<RtmpServerStatus>,
-    session_status: &Mutex<RtmpSessionStatus>,
-    control_key_validator_sender: &mut Option<Sender<ControlKeyValidationRequest>>,
     logger: &Logger,
+    server_context: &mut RtmpServerContext,
+    session_context: &mut SessionReadThreadContext,
+    write_stream: &Mutex<TW>,
+    stream_id: u32,
 ) -> bool {
-    let mut session_status_v = session_status.lock().await;
+    let mut session_status_v = session_context.status.lock().await;
 
     let channel = match &session_status_v.channel {
         Some(c) => c.clone(),
         None => {
-            if config.log_requests && logger.config.debug_enabled {
+            if server_context.config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("Protocol error: Trying to delete a stream before connect");
             }
 
@@ -67,7 +68,7 @@ pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
     drop(session_status_v);
 
     if is_play_stream {
-        if config.log_requests {
+        if server_context.config.log_requests {
             logger.log_info("PLAY STOP");
         }
 
@@ -77,26 +78,24 @@ pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
             "status",
             "NetStream.Play.Stop",
             Some("Stopped playing stream."),
-            config.chunk_size,
+            server_context.config.chunk_size,
         )
         .await
         {
-            if config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!(
-                    "Send error: Could not send status message: {}",
-                    e
-                ));
+            if server_context.config.log_requests && logger.config.debug_enabled {
+                logger.log_debug(&format!("Send error: Could not send status message: {}", e));
             }
         }
 
         if can_clear_player {
-            RtmpServerStatus::remove_player(server_status, &channel, session_id).await;
-            RtmpServerStatus::try_clear_channel(server_status, &channel).await;
+            RtmpServerStatus::remove_player(&server_context.status, &channel, session_context.id)
+                .await;
+            RtmpServerStatus::try_clear_channel(&server_context.status, &channel).await;
         }
     }
 
     if is_publish_stream {
-        if config.log_requests {
+        if server_context.config.log_requests {
             logger.log_info("PUBLISH END");
         }
 
@@ -106,21 +105,26 @@ pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
             "status",
             "NetStream.Unpublish.Success",
             Some(&format!("/{}/{} is now unpublished.", channel, key)),
-            config.chunk_size,
+            server_context.config.chunk_size,
         )
         .await
         {
-            if config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!(
-                    "Send error: Could not send status message: {}",
-                    e
-                ));
+            if server_context.config.log_requests && logger.config.debug_enabled {
+                logger.log_debug(&format!("Send error: Could not send status message: {}", e));
             }
         }
 
         if can_clear_publisher {
-            RtmpServerStatus::remove_publisher(logger, config, server_status, control_key_validator_sender, &channel, session_id).await;
-            RtmpServerStatus::try_clear_channel(server_status, &channel).await;
+            RtmpServerStatus::remove_publisher(
+                logger,
+                &server_context.config,
+                &server_context.status,
+                &mut server_context.control_key_validator_sender,
+                &channel,
+                session_context.id,
+            )
+            .await;
+            RtmpServerStatus::try_clear_channel(&server_context.status, &channel).await;
         }
     }
 

@@ -8,25 +8,18 @@ use tokio::{
     sync::{mpsc::Sender, Mutex},
 };
 
-use crate::{control::ControlKeyValidationRequest, log::Logger};
+use crate::log::Logger;
 
-use super::{
-    handle_connection, IpConnectionCounter, RtmpServerConfiguration, RtmpServerStatus,
-    SessionIdGenerator,
-};
+use super::{handle_connection, RtmpServerContextExtended};
 
 /// Run the TCP server
 pub fn tcp_server(
     logger: Arc<Logger>,
-    config: Arc<RtmpServerConfiguration>,
-    server_status: Arc<Mutex<RtmpServerStatus>>,
-    ip_counter: Arc<Mutex<IpConnectionCounter>>,
-    session_id_generator: Arc<Mutex<SessionIdGenerator>>,
-    control_key_validator_sender: Option<Sender<ControlKeyValidationRequest>>,
+    server_context: RtmpServerContextExtended,
     end_notifier: Sender<()>,
 ) {
     tokio::spawn(async move {
-        let listen_addr = config.get_tcp_listen_addr();
+        let listen_addr = server_context.config.get_tcp_listen_addr();
 
         // Create listener
         let listener = match TcpListener::bind(&listen_addr).await {
@@ -50,14 +43,10 @@ pub fn tcp_server(
                 Ok((connection, addr)) => {
                     // Handle connection
                     handle_connection_tcp(
+                        logger.clone(),
+                        server_context.clone(),
                         connection,
                         addr.ip(),
-                        config.clone(),
-                        server_status.clone(),
-                        ip_counter.clone(),
-                        session_id_generator.clone(),
-                        control_key_validator_sender.clone(),
-                        logger.clone(),
                     );
                 }
                 Err(e) => {
@@ -73,26 +62,23 @@ pub fn tcp_server(
     });
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Handles a TCP connection, spawning a task for it
 fn handle_connection_tcp(
+    logger: Arc<Logger>,
+    server_context: RtmpServerContextExtended,
     mut connection: TcpStream,
     ip: IpAddr,
-    config: Arc<RtmpServerConfiguration>,
-    server_status: Arc<Mutex<RtmpServerStatus>>,
-    ip_counter: Arc<Mutex<IpConnectionCounter>>,
-    session_id_generator: Arc<Mutex<SessionIdGenerator>>,
-    control_key_validator_sender: Option<Sender<ControlKeyValidationRequest>>,
-    logger: Arc<Logger>,
 ) {
     tokio::spawn(async move {
-        let is_exempted = config
+        let is_exempted = server_context
+            .config
             .as_ref()
             .max_concurrent_connections_whitelist
             .contains_ip(&ip);
         let mut should_accept = true;
 
         if !is_exempted {
-            let mut ip_counter_v = ip_counter.as_ref().lock().await;
+            let mut ip_counter_v = server_context.ip_counter.as_ref().lock().await;
             should_accept = (*ip_counter_v).add(&ip);
             drop(ip_counter_v);
         }
@@ -103,14 +89,11 @@ fn handle_connection_tcp(
             let write_stream_mu = Arc::new(Mutex::new(write_stream));
 
             handle_connection(
+                logger,
+                server_context.clone(),
                 &mut read_stream,
                 write_stream_mu.clone(),
                 ip,
-                config.clone(),
-                server_status,
-                session_id_generator,
-                control_key_validator_sender,
-                logger,
             )
             .await;
 
@@ -121,12 +104,12 @@ fn handle_connection_tcp(
 
             // After connection is closed, remove from ip counter
             if !is_exempted {
-                let mut ip_counter_v = ip_counter.as_ref().lock().await;
+                let mut ip_counter_v = server_context.ip_counter.as_ref().lock().await;
                 (*ip_counter_v).remove(&ip);
                 drop(ip_counter_v);
             }
         } else {
-            if config.log_requests {
+            if server_context.config.log_requests {
                 logger.as_ref().log_info(&format!(
                     "Rejected request from {} due to connection limit",
                     ip

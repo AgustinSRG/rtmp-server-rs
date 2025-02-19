@@ -4,10 +4,13 @@ use std::env;
 
 /// Gets boolean env var
 ///
-/// Parameters:
-///  - var_name: The name of the environment variable
-///  - default_val: The default value
+/// # Arguments
 /// 
+/// * `var_name` - The name of the environment variable
+/// * `default_val` - The default value
+/// 
+/// # Return value
+///
 /// Returns true if the value of the variable is 'YES' or 'TRUE' (Case insensitive)
 /// Returns false if the value of the variable is 'NO' or 'FALSE' (Case insensitive)
 /// Otherwise, returns the value of default_val
@@ -30,10 +33,13 @@ pub fn get_env_bool(var_name: &str, default_val: bool) -> bool {
 
 /// Gets string env var
 ///
-/// Parameters:
-///  - var_name: The name of the environment variable
-///  - default_val: The default value
+/// # Arguments
 /// 
+/// * `var_name` - The name of the environment variable
+/// * `default_val` - The default value
+/// 
+/// # Return value
+///
 /// Returns The value of the variable as string or,
 /// if not present, the value of default_val
 pub fn get_env_string(var_name: &str, default_val: &str) -> String {
@@ -47,10 +53,13 @@ pub fn get_env_string(var_name: &str, default_val: &str) -> String {
 
 /// Gets u32 env var
 ///
-/// Parameters:
-///  - var_name: The name of the environment variable
-///  - default_val: The default value
+/// # Arguments
 /// 
+/// * `var_name` - The name of the environment variable
+/// * `default_val` - The default value
+/// 
+/// # Return value
+///
 /// Returns The value of the variable as u32 or,
 /// if not present or invalid, the value of default_val
 pub fn get_env_u32(var_name: &str, default_val: u32) -> u32 {

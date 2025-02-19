@@ -1,11 +1,14 @@
 // RTMP session status model
 
-use std::{collections::VecDeque, net::IpAddr, sync::Arc};
+use std::{collections::VecDeque, sync::Arc};
 
 use chrono::Utc;
 use tokio::sync::Mutex;
 
-use crate::{rtmp::{RtmpPacket, RTMP_CHUNK_SIZE}, server::RtmpChannelStatus};
+use crate::{
+    rtmp::{RtmpPacket, RTMP_CHUNK_SIZE},
+    server::RtmpChannelStatus,
+};
 
 use super::RtmpSessionMessage;
 
@@ -100,7 +103,11 @@ impl RtmpSessionStatus {
 
     /// Updates session status for playing
     /// Return the receive_audio, receive_video properties
-    pub async fn set_player(status: &Mutex<RtmpSessionStatus>, receive_gop: bool, play_stream_id: u32) -> (bool, bool) {
+    pub async fn set_player(
+        status: &Mutex<RtmpSessionStatus>,
+        receive_gop: bool,
+        play_stream_id: u32,
+    ) -> (bool, bool) {
         let mut status_v = status.lock().await;
         status_v.is_player = true;
         status_v.receive_gop = receive_gop;
@@ -117,9 +124,17 @@ impl RtmpSessionStatus {
 
     /// Checks the play status of a session
     /// Return the is_player, play_stream_id, receive_gop, receive_audio, receive_video properties
-    pub async fn check_play_status(status: &Mutex<RtmpSessionStatus>) -> (bool, u32, bool, bool, bool) {
+    pub async fn check_play_status(
+        status: &Mutex<RtmpSessionStatus>,
+    ) -> (bool, u32, bool, bool, bool) {
         let status_v = status.lock().await;
-        (status_v.is_player, status_v.play_stream_id, status_v.receive_gop, status_v.receive_audio, status_v.receive_video)
+        (
+            status_v.is_player,
+            status_v.play_stream_id,
+            status_v.receive_gop,
+            status_v.receive_audio,
+            status_v.receive_video,
+        )
     }
 
     /// Sets the playing status to false
@@ -138,9 +153,6 @@ impl RtmpSessionStatus {
 
 /// Status to maintain only for the read task
 pub struct RtmpSessionReadStatus {
-    /// Client ip
-    pub ip: IpAddr,
-
     /// Size for incoming chunks
     pub in_chunk_size: usize,
 
@@ -165,9 +177,8 @@ pub struct RtmpSessionReadStatus {
 
 impl RtmpSessionReadStatus {
     /// Creates RtmpSessionReadStatus
-    pub fn new(ip: IpAddr) -> RtmpSessionReadStatus {
+    pub fn new() -> RtmpSessionReadStatus {
         RtmpSessionReadStatus {
-            ip,
             in_chunk_size: RTMP_CHUNK_SIZE,
             in_ack_size: 0,
             in_last_ack: 0,
@@ -232,11 +243,13 @@ impl RtmpSessionPublishStreamStatus {
     }
 
     /// Sets the metadata value
-    pub async fn set_metadata(status_mu: &Mutex<RtmpSessionPublishStreamStatus>, metadata: Arc<Vec<u8>>) {
+    pub async fn set_metadata(
+        status_mu: &Mutex<RtmpSessionPublishStreamStatus>,
+        metadata: Arc<Vec<u8>>,
+    ) {
         let mut status = status_mu.lock().await;
         status.metadata = metadata;
     }
-
 
     /// Gets message to wake players
     pub async fn get_play_start_message(
@@ -271,8 +284,6 @@ impl RtmpSessionPublishStreamStatus {
     ) -> RtmpSessionMessage {
         let status = status_mu.lock().await;
 
-        
-
         RtmpSessionMessage::Resume {
             audio_codec: status.audio_codec,
             aac_sequence_header: status.aac_sequence_header.clone(),
@@ -285,7 +296,7 @@ impl RtmpSessionPublishStreamStatus {
     pub async fn push_new_packet(
         status_mu: &Mutex<RtmpSessionPublishStreamStatus>,
         packet: Arc<RtmpPacket>,
-        gop_max_size: usize
+        gop_max_size: usize,
     ) {
         let mut status = status_mu.lock().await;
 

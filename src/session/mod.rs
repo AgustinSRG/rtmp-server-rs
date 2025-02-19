@@ -3,6 +3,7 @@
 mod chunk_read;
 mod cleanup;
 mod commands;
+mod context;
 mod delete_stream;
 mod handle;
 mod handle_audio;
@@ -19,6 +20,7 @@ mod write;
 pub use chunk_read::*;
 pub use cleanup::*;
 pub use commands::*;
+pub use context::*;
 pub use handle::*;
 pub use handle_audio::*;
 pub use handle_data::*;

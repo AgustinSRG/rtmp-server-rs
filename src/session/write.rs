@@ -7,7 +7,12 @@ use tokio::{
 
 use crate::rtmp::rtmp_make_status_message;
 
-/// Write bytes to the session write stream
+/// Writes bytes to the session write stream
+///
+/// # Arguments
+///
+/// * `write_stream` - The stream to write to the client
+/// * `bytes` - The bytes to write
 pub async fn session_write_bytes<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static>(
     write_stream: &Mutex<TW>,
     bytes: &[u8],
@@ -18,7 +23,16 @@ pub async fn session_write_bytes<TW: AsyncWrite + AsyncWriteExt + Send + Sync + 
 }
 
 
-/// Sends status message to client
+/// Sends RTMP status message to the client
+///
+/// # Arguments
+///
+/// * `write_stream` - The stream to write to the client
+/// * `stream_id` - Stream ID subject of the status message
+/// * `level` - Status message level
+/// * `code` - Status code
+/// * `description` - Status description
+/// * `out_chunk_size` - Chunk size, in order to generate the RTMP packet chunks
 pub async fn send_status_message<TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static>(
     write_stream: &Mutex<TW>,
     stream_id: u32,

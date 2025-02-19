@@ -1,65 +1,54 @@
 // Publish command
 
-use std::sync::Arc;
-
 use tokio::{
     io::{AsyncWrite, AsyncWriteExt},
-    sync::{mpsc::Sender, Mutex},
+    sync::Mutex,
 };
 
 use crate::{
     callback::make_start_callback,
-    control::{control_validate_key, ControlKeyValidationRequest},
+    control::control_validate_key,
     log::Logger,
     rtmp::{RtmpCommand, RtmpPacket},
-    server::{RtmpServerConfiguration, RtmpServerStatus},
-    session::RtmpSessionReadStatus,
+    server::{RtmpServerContext, RtmpServerStatus},
+    session::SessionReadThreadContext,
     utils::validate_id_string,
 };
 
-use super::super::{
-    send_status_message, RtmpSessionMessage, RtmpSessionPublishStreamStatus, RtmpSessionStatus,
-};
+use super::super::{send_status_message, RtmpSessionStatus};
 
-/// Handles RTMP command (publish)
-/// packet - The packet to handle
-/// cmd - The command to handle
-/// session_id - Session ID
-/// write_stream - IO stream to write bytes
-/// config - RTMP configuration
-/// server_status - Server status
-/// session_status - Session status
-/// publish_status - Status if the stream being published
-/// session_msg_sender - Message sender for the session
-/// read_status - Status for the read task
-/// control_key_validator_sender - Sender for key validation against the control server
-/// logger - Session logger
-/// Return true to continue receiving chunks. Returns false to end the session main loop.
-#[allow(clippy::too_many_arguments)]
+/// Handles RTMP command: PUBLISH
+///
+/// # Arguments
+///
+/// * `logger` - The session logger
+/// * `server_context` - The server context
+/// * `session_context` - The session context
+/// * `write_stream` - The stream to write to the client
+/// * `packet` - The packet that contained the command
+/// * `cmd` - The command
+///
+/// # Return value
+///
+/// Returns true to continue receiving chunks. Returns false to end the session main loop.
 pub async fn handle_rtmp_command_publish<
     TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static,
 >(
+    logger: &Logger,
+    server_context: &mut RtmpServerContext,
+    session_context: &mut SessionReadThreadContext,
+    write_stream: &Mutex<TW>,
     packet: &RtmpPacket,
     cmd: &RtmpCommand,
-    session_id: u64,
-    write_stream: &Mutex<TW>,
-    config: &RtmpServerConfiguration,
-    server_status: &Mutex<RtmpServerStatus>,
-    session_status: &Mutex<RtmpSessionStatus>,
-    publish_status: &Arc<Mutex<RtmpSessionPublishStreamStatus>>,
-    session_msg_sender: &Sender<RtmpSessionMessage>,
-    read_status: &mut RtmpSessionReadStatus,
-    control_key_validator_sender: &mut Option<Sender<ControlKeyValidationRequest>>,
-    logger: &Logger,
 ) -> bool {
     // Load and validate parameters
 
     let publish_stream_id = packet.header.stream_id;
 
-    let channel = match RtmpSessionStatus::get_channel(session_status).await {
+    let channel = match RtmpSessionStatus::get_channel(&session_context.status).await {
         Some(c) => c,
         None => {
-            if config.log_requests && logger.config.debug_enabled {
+            if server_context.config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("Protocol error: Received publish before connect");
             }
 
@@ -69,15 +58,12 @@ pub async fn handle_rtmp_command_publish<
                 "error",
                 "NetStream.Publish.BadConnection",
                 Some("No channel is selected"),
-                config.chunk_size,
+                server_context.config.chunk_size,
             )
             .await
             {
-                if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Send error: Could not send status message: {}",
-                        e
-                    ));
+                if server_context.config.log_requests && logger.config.debug_enabled {
+                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
                 }
             }
 
@@ -96,7 +82,7 @@ pub async fn handle_rtmp_command_publish<
             }
         }
         None => {
-            if config.log_requests && logger.config.debug_enabled {
+            if server_context.config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("Command error: streamName property not provided");
             }
 
@@ -106,15 +92,12 @@ pub async fn handle_rtmp_command_publish<
                 "error",
                 "NetStream.Publish.BadName",
                 Some("No stream key provided"),
-                config.chunk_size,
+                server_context.config.chunk_size,
             )
             .await
             {
-                if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Send error: Could not send status message: {}",
-                        e
-                    ));
+                if server_context.config.log_requests && logger.config.debug_enabled {
+                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
                 }
             }
 
@@ -122,8 +105,8 @@ pub async fn handle_rtmp_command_publish<
         }
     };
 
-    if !validate_id_string(key, config.id_max_length) {
-        if config.log_requests && logger.config.debug_enabled {
+    if !validate_id_string(key, server_context.config.id_max_length) {
+        if server_context.config.log_requests && logger.config.debug_enabled {
             logger.log_debug(&format!("Command error: Invalid streamName value: {}", key));
         }
 
@@ -133,15 +116,12 @@ pub async fn handle_rtmp_command_publish<
             "error",
             "NetStream.Publish.BadName",
             Some("Invalid stream key provided"),
-            config.chunk_size,
+            server_context.config.chunk_size,
         )
         .await
         {
-            if config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!(
-                    "Send error: Could not send status message: {}",
-                    e
-                ));
+            if server_context.config.log_requests && logger.config.debug_enabled {
+                logger.log_debug(&format!("Send error: Could not send status message: {}", e));
             }
         }
 
@@ -150,8 +130,8 @@ pub async fn handle_rtmp_command_publish<
 
     // Ensure the session is not already publishing
 
-    if RtmpSessionStatus::check_is_publisher(session_status).await {
-        if config.log_requests && logger.config.debug_enabled {
+    if RtmpSessionStatus::check_is_publisher(&session_context.status).await {
+        if server_context.config.log_requests && logger.config.debug_enabled {
             logger.log_debug("Protocol error: Received publish command, but already publishing");
         }
 
@@ -161,15 +141,12 @@ pub async fn handle_rtmp_command_publish<
             "error",
             "NetStream.Publish.BadConnection",
             Some("Connection already publishing"),
-            config.chunk_size,
+            server_context.config.chunk_size,
         )
         .await
         {
-            if config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!(
-                    "Send error: Could not send status message: {}",
-                    e
-                ));
+            if server_context.config.log_requests && logger.config.debug_enabled {
+                logger.log_debug(&format!("Send error: Could not send status message: {}", e));
             }
         }
 
@@ -178,8 +155,8 @@ pub async fn handle_rtmp_command_publish<
 
     // Ensure the channel is free to publish
 
-    if RtmpServerStatus::check_channel_publishing_status(server_status, &channel).await {
-        if config.log_requests && logger.config.debug_enabled {
+    if RtmpServerStatus::check_channel_publishing_status(&server_context.status, &channel).await {
+        if server_context.config.log_requests && logger.config.debug_enabled {
             logger
                 .log_debug("Cannot publish: Another session is already publishing on the channel");
         }
@@ -190,15 +167,12 @@ pub async fn handle_rtmp_command_publish<
             "error",
             "NetStream.Publish.BadName",
             Some("Stream already publishing"),
-            config.chunk_size,
+            server_context.config.chunk_size,
         )
         .await
         {
-            if config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!(
-                    "Send error: Could not send status message: {}",
-                    e
-                ));
+            if server_context.config.log_requests && logger.config.debug_enabled {
+                logger.log_debug(&format!("Send error: Could not send status message: {}", e));
             }
         }
 
@@ -207,23 +181,32 @@ pub async fn handle_rtmp_command_publish<
 
     // Log
 
-    if config.log_requests {
+    if server_context.config.log_requests {
         logger.log_info(&format!("PUBLISH ({}): {}", publish_stream_id, &channel));
     }
 
     // Check validity of the key (callback or coordinator)
 
-    let stream_id_res = match control_key_validator_sender {
+    let stream_id_res = match &server_context.control_key_validator_sender {
         Some(control_key_validator_sender_v) => {
             control_validate_key(
                 control_key_validator_sender_v,
                 &channel,
                 key,
-                &read_status.ip,
+                &session_context.ip,
             )
             .await
         }
-        None => make_start_callback(logger, &config.callback, &channel, key, &read_status.ip).await,
+        None => {
+            make_start_callback(
+                logger,
+                &server_context.config.callback,
+                &channel,
+                key,
+                &session_context.ip,
+            )
+            .await
+        }
     };
 
     let stream_id = match stream_id_res {
@@ -235,15 +218,12 @@ pub async fn handle_rtmp_command_publish<
                 "error",
                 "NetStream.Publish.BadName",
                 Some("Invalid stream key provided"),
-                config.chunk_size,
+                server_context.config.chunk_size,
             )
             .await
             {
-                if config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Send error: Could not send status message: {}",
-                        e
-                    ));
+                if server_context.config.log_requests && logger.config.debug_enabled {
+                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
                 }
             }
 
@@ -254,18 +234,18 @@ pub async fn handle_rtmp_command_publish<
     // Set publisher into the server status
 
     if !RtmpServerStatus::set_publisher(
-        server_status,
+        &server_context.status,
         &channel,
         key,
         &stream_id,
-        session_id,
-        publish_status.clone(),
-        session_msg_sender.clone(),
-        read_status,
+        session_context.id,
+        session_context.publish_status.clone(),
+        session_context.session_msg_sender.clone(),
+        &mut session_context.read_status,
     )
     .await
     {
-        if config.log_requests && logger.config.debug_enabled {
+        if server_context.config.log_requests && logger.config.debug_enabled {
             logger
                 .log_debug("Cannot publish: Another session is already publishing on the channel");
         }
@@ -276,15 +256,12 @@ pub async fn handle_rtmp_command_publish<
             "error",
             "NetStream.Publish.BadName",
             Some("Stream already publishing"),
-            config.chunk_size,
+            server_context.config.chunk_size,
         )
         .await
         {
-            if config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!(
-                    "Send error: Could not send status message: {}",
-                    e
-                ));
+            if server_context.config.log_requests && logger.config.debug_enabled {
+                logger.log_debug(&format!("Send error: Could not send status message: {}", e));
             }
         }
 
@@ -293,7 +270,7 @@ pub async fn handle_rtmp_command_publish<
 
     // Set publishing status to the session status
 
-    RtmpSessionStatus::set_publisher(session_status, publish_stream_id).await;
+    RtmpSessionStatus::set_publisher(&session_context.status, publish_stream_id).await;
 
     // Respond with status message
 
@@ -303,15 +280,12 @@ pub async fn handle_rtmp_command_publish<
         "status",
         "NetStream.Publish.Start",
         Some(&format!("/{}/{} is now published.", channel, key)),
-        config.chunk_size,
+        server_context.config.chunk_size,
     )
     .await
     {
-        if config.log_requests && logger.config.debug_enabled {
-            logger.log_debug(&format!(
-                "Send error: Could not send status message: {}",
-                e
-            ));
+        if server_context.config.log_requests && logger.config.debug_enabled {
+            logger.log_debug(&format!("Send error: Could not send status message: {}", e));
         }
     }
 

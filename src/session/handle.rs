@@ -1,50 +1,44 @@
 // Logic to handle RTMP sessions
 
-use std::{net::IpAddr, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
-    sync::{mpsc::Sender, Mutex},
+    sync::Mutex,
 };
 
 use crate::{
-    control::ControlKeyValidationRequest, log::Logger, rtmp::{generate_s0_s1_s2, RtmpPacket, RTMP_HANDSHAKE_SIZE, RTMP_PING_TIMEOUT, RTMP_VERSION}, server::{RtmpServerConfiguration, RtmpServerStatus}, session::read_rtmp_chunk
+    log::Logger,
+    rtmp::{generate_s0_s1_s2, RtmpPacket, RTMP_HANDSHAKE_SIZE, RTMP_PING_TIMEOUT, RTMP_VERSION},
+    server::RtmpServerContext,
+    session::read_rtmp_chunk,
 };
 
 use super::{
-    session_write_bytes, spawn_task_to_read_session_messages, spawn_task_to_send_pings,
-    RtmpSessionMessage, RtmpSessionPublishStreamStatus, RtmpSessionReadStatus, RtmpSessionStatus,
-    RTMP_SESSION_MESSAGE_BUFFER_SIZE,
+    session_write_bytes, spawn_task_to_read_session_messages, spawn_task_to_send_pings, RtmpSessionMessage, RtmpSessionReadStatus, SessionContext, SessionReadThreadContext, RTMP_SESSION_MESSAGE_BUFFER_SIZE
 };
 
 /// Size if the buffer to store input packets
 pub const IN_PACKETS_BUFFER_SIZE: usize = 4;
 
 /// Handles RTMP session
-/// session_id - Session ID
-/// ip - Client IP address
-/// connection - IO stream to read and write bytes
-/// config - RTMP configuration
-/// server_status - Server status
-/// session_status - Session status
-/// publish_status - Status if the stream being published
-/// control_key_validator_sender - Sender for key validation against the control server
-/// logger - Session logger
-#[allow(clippy::too_many_arguments)]
+///
+/// # Arguments
+///
+/// * `logger` - The session logger
+/// * `server_context` - The server context
+/// * `session_context` - The session context
+/// * `read_stream` - The stream to read from the client
+/// * `write_stream` - The stream to write to the client
 pub async fn handle_rtmp_session<
     TR: AsyncRead + AsyncReadExt + Send + Sync + Unpin,
-    TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin +'static ,
+    TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static,
 >(
-    session_id: u64,
-    ip: IpAddr,
+    logger: Arc<Logger>,
+    mut server_context: RtmpServerContext,
+    session_context: SessionContext,
     mut read_stream: TR,
     write_stream: Arc<Mutex<TW>>,
-    config: Arc<RtmpServerConfiguration>,
-    server_status: Arc<Mutex<RtmpServerStatus>>,
-    session_status: Arc<Mutex<RtmpSessionStatus>>,
-    publish_status: Arc<Mutex<RtmpSessionPublishStreamStatus>>,
-    mut control_key_validator_sender: Option<Sender<ControlKeyValidationRequest>>,
-    logger: Arc<Logger>,
 ) {
     ////////////////////
     //    Handshake   //
@@ -61,7 +55,7 @@ pub async fn handle_rtmp_session<
         Ok(br) => match br {
             Ok(b) => b,
             Err(e) => {
-                if config.log_requests && logger.config.debug_enabled {
+                if server_context.config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "BAD HANDSHAKE: Could not read initial version byte: {}",
                         e
@@ -71,14 +65,14 @@ pub async fn handle_rtmp_session<
             }
         },
         Err(_) => {
-            if config.log_requests && logger.config.debug_enabled {
+            if server_context.config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("BAD HANDSHAKE: Could not read initial version byte: Timed out");
             }
             return;
         }
     };
 
-    if version_byte != RTMP_VERSION && config.log_requests {
+    if version_byte != RTMP_VERSION && server_context.config.log_requests {
         logger.log_error(&format!(
             "BAD HANDSHAKE: Invalid initial version byte. Expected {}, but got {}",
             RTMP_VERSION, version_byte
@@ -97,7 +91,7 @@ pub async fn handle_rtmp_session<
     {
         Ok(r) => {
             if let Err(e) = r {
-                if config.log_requests {
+                if server_context.config.log_requests {
                     logger.log_error(&format!(
                         "BAD HANDSHAKE: Could not read client signature: {}",
                         e
@@ -107,7 +101,7 @@ pub async fn handle_rtmp_session<
             }
         }
         Err(_) => {
-            if config.log_requests && logger.config.debug_enabled {
+            if server_context.config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("BAD HANDSHAKE: Could not read client signature: Timed out");
             }
             return;
@@ -119,7 +113,7 @@ pub async fn handle_rtmp_session<
     let handshake_response = match generate_s0_s1_s2(&client_signature, &logger) {
         Ok(r) => r,
         Err(()) => {
-            if config.log_requests {
+            if server_context.config.log_requests {
                 logger.log_error("BAD HANDSHAKE: Could not generate handshake response [Note: This is probably a server bug]");
             }
             return;
@@ -127,7 +121,7 @@ pub async fn handle_rtmp_session<
     };
 
     if let Err(e) = session_write_bytes(&write_stream, &handshake_response).await {
-        if config.log_requests {
+        if server_context.config.log_requests {
             logger.log_error(&format!(
                 "BAD HANDSHAKE: Could not send handshake response: {}",
                 e
@@ -146,7 +140,7 @@ pub async fn handle_rtmp_session<
     {
         Ok(r) => {
             if let Err(e) = r {
-                if config.log_requests {
+                if server_context.config.log_requests {
                     logger.log_error(&format!(
                         "BAD HANDSHAKE: Could not read client S1 copy: {}",
                         e
@@ -156,14 +150,14 @@ pub async fn handle_rtmp_session<
             }
         }
         Err(_) => {
-            if config.log_requests && logger.config.debug_enabled {
+            if server_context.config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("BAD HANDSHAKE: Could not read client S1 copy: Timed out");
             }
             return;
         }
     };
 
-    if config.log_requests && logger.config.debug_enabled {
+    if server_context.config.log_requests && logger.config.debug_enabled {
         logger.log_debug("Handshake successful. Entering main loop...");
     }
 
@@ -179,14 +173,11 @@ pub async fn handle_rtmp_session<
     // Create a task to read messages
 
     spawn_task_to_read_session_messages(
-        session_id,
-        write_stream.clone(),
-        config.clone(),
-        server_status.clone(),
-        session_status.clone(),
-        msg_receiver,
-        control_key_validator_sender.clone(),
         logger.clone(),
+        server_context.clone(),
+        session_context.clone(),
+        write_stream.clone(),
+        msg_receiver,
     );
 
     // Create task to send ping requests
@@ -194,17 +185,28 @@ pub async fn handle_rtmp_session<
     let (cancel_pings_sender, cancel_pings_receiver) = tokio::sync::mpsc::channel::<()>(1);
 
     spawn_task_to_send_pings(
-        write_stream.clone(),
-        config.clone(),
-        session_status.clone(),
-        cancel_pings_receiver,
         logger.clone(),
+        server_context.clone(),
+        session_context.clone(),
+        write_stream.clone(),
+        cancel_pings_receiver,
     );
 
-    // Create data too keep between chunk reads
+    // Create array of input packets
 
-    let mut read_status = RtmpSessionReadStatus::new(ip);
-    let mut in_packets: [RtmpPacket; IN_PACKETS_BUFFER_SIZE] = std::array::from_fn(|_| RtmpPacket::new_blank());
+    let mut in_packets: [RtmpPacket; IN_PACKETS_BUFFER_SIZE] =
+        std::array::from_fn(|_| RtmpPacket::new_blank());
+
+    // Prepare read thread context
+
+    let mut read_thread_context = SessionReadThreadContext{
+        id: session_context.id,
+        ip: session_context.ip,
+        status: session_context.status,
+        publish_status: session_context.publish_status,
+        session_msg_sender: msg_sender,
+        read_status: RtmpSessionReadStatus::new(),
+    };
 
     // Read chunks
 
@@ -212,18 +214,12 @@ pub async fn handle_rtmp_session<
 
     while continue_loop {
         continue_loop = read_rtmp_chunk(
-            session_id,
+            &logger,
+            &mut server_context,
+            &mut read_thread_context,
             &mut read_stream,
             &write_stream,
-            &config,
-            &server_status,
-            &session_status,
-            &publish_status,
-            &msg_sender,
-            &mut read_status,
             &mut in_packets,
-            &mut control_key_validator_sender,
-            &logger,
         )
         .await;
     }
@@ -231,5 +227,5 @@ pub async fn handle_rtmp_session<
     // End of loop, make sure all the tasks end
 
     _ = cancel_pings_sender.send(()).await;
-    _ = msg_sender.send(RtmpSessionMessage::End).await;
+    _ = read_thread_context.session_msg_sender.send(RtmpSessionMessage::End).await;
 }

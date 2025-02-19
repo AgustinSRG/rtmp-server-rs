@@ -256,16 +256,7 @@ pub fn spawn_task_control_client(
                             "STREAM-KILL" => {
                                 let channel =
                                     msg_parsed.get_parameter("Stream-Channel").unwrap_or("");
-                                let stream_id = match msg_parsed.get_parameter("Stream-Id") {
-                                    Some(s) => {
-                                        if !s.is_empty() {
-                                            Some(s)
-                                        } else {
-                                            None
-                                        }
-                                    }
-                                    None => None,
-                                };
+                                let stream_id = msg_parsed.get_parameter("Stream-Id").filter(|&s| !s.is_empty());
 
                                 RtmpServerStatus::kill_publisher(
                                     &logger,

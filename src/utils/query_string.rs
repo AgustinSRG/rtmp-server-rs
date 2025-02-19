@@ -3,6 +3,15 @@
 use std::collections::HashMap;
 
 /// Parses query string (does not parse parameters)
+/// Used in order to parse RTMP play parameters
+/// 
+/// # Arguments
+/// 
+/// * `query_string` - The query string part of the URI
+/// 
+/// # Return value
+/// 
+/// A map with all the key-value pairs the query string contains
 pub fn parse_query_string_simple(query_string: &str) -> HashMap<String, String> {
     let mut result = HashMap::new();
 

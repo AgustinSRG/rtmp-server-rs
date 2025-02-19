@@ -1,52 +1,44 @@
 // Invoke packet handling logic
 
-use std::sync::Arc;
-
 use tokio::{
     io::{AsyncWrite, AsyncWriteExt},
-    sync::{mpsc::Sender, Mutex},
+    sync::Mutex,
 };
 
 use crate::{
-    control::ControlKeyValidationRequest, log::Logger, rtmp::{RtmpCommand, RtmpPacket, RTMP_TYPE_FLEX_MESSAGE}, server::{RtmpServerConfiguration, RtmpServerStatus}
+    log::Logger,
+    rtmp::{RtmpCommand, RtmpPacket, RTMP_TYPE_FLEX_MESSAGE},
+    server::RtmpServerContext,
 };
 
 use super::{
     handle_rtmp_command_close_stream, handle_rtmp_command_connect,
     handle_rtmp_command_create_stream, handle_rtmp_command_delete_stream,
     handle_rtmp_command_pause, handle_rtmp_command_play, handle_rtmp_command_publish,
-    handle_rtmp_command_receive_audio, handle_rtmp_command_receive_video, RtmpSessionMessage,
-    RtmpSessionPublishStreamStatus, RtmpSessionReadStatus, RtmpSessionStatus,
+    handle_rtmp_command_receive_audio, handle_rtmp_command_receive_video, SessionReadThreadContext,
 };
 
-/// Handles RTMP packet (INVOKE)
-/// packet - The packet to handle
-/// session_id - Session ID
-/// write_stream - IO stream to write bytes
-/// config - RTMP configuration
-/// server_status - Server status
-/// session_status - Session status
-/// publish_status - Status if the stream being published
-/// session_msg_sender - Message sender for the session
-/// read_status - Status for the read task
-/// control_key_validator_sender - Sender for key validation against the control server
-/// logger - Session logger
-/// Return true to continue receiving chunks. Returns false to end the session main loop.
-#[allow(clippy::too_many_arguments)]
+/// Handles INVOKE RTMP packet
+///
+/// # Arguments
+///
+/// * `logger` - The session logger
+/// * `server_context` - The server context
+/// * `session_context` - The session context
+/// * `write_stream` - The stream to write to the client
+/// * `packet` - The packet
+///
+/// # Return value
+///
+/// Returns true to continue receiving chunks. Returns false to end the session main loop.
 pub async fn handle_rtmp_packet_invoke<
     TW: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin + 'static,
 >(
-    packet: &RtmpPacket,
-    session_id: u64,
-    write_stream: &Mutex<TW>,
-    config: &RtmpServerConfiguration,
-    server_status: &Mutex<RtmpServerStatus>,
-    session_status: &Mutex<RtmpSessionStatus>,
-    publish_status: &Arc<Mutex<RtmpSessionPublishStreamStatus>>,
-    session_msg_sender: &Sender<RtmpSessionMessage>,
-    read_status: &mut RtmpSessionReadStatus,
-    control_key_validator_sender: &mut Option<Sender<ControlKeyValidationRequest>>,
     logger: &Logger,
+    server_context: &mut RtmpServerContext,
+    session_context: &mut SessionReadThreadContext,
+    write_stream: &Mutex<TW>,
+    packet: &RtmpPacket,
 ) -> bool {
     let offset: usize = if packet.header.packet_type == RTMP_TYPE_FLEX_MESSAGE {
         1
@@ -55,7 +47,7 @@ pub async fn handle_rtmp_packet_invoke<
     };
 
     if packet.header.length <= offset {
-        if config.log_requests && logger.config.debug_enabled {
+        if server_context.config.log_requests && logger.config.debug_enabled {
             logger.log_debug("Packet error: Packet length too short");
         }
 
@@ -63,7 +55,7 @@ pub async fn handle_rtmp_packet_invoke<
     }
 
     if packet.header.length > packet.payload.len() {
-        if config.log_requests {
+        if server_context.config.log_requests {
             logger.log_error("Packet error: Payload does not match with packet length");
         }
 
@@ -73,7 +65,7 @@ pub async fn handle_rtmp_packet_invoke<
     let cmd = match RtmpCommand::decode(&packet.payload[offset..packet.header.length]) {
         Ok(c) => c,
         Err(_) => {
-            if config.log_requests && logger.config.debug_enabled {
+            if server_context.config.log_requests && logger.config.debug_enabled {
                 logger.log_debug("Packet error: Could not decode RTMP command");
             }
 
@@ -81,111 +73,76 @@ pub async fn handle_rtmp_packet_invoke<
         }
     };
 
-    if config.log_requests && logger.config.trace_enabled {
+    if server_context.config.log_requests && logger.config.trace_enabled {
         logger.log_trace(&format!("COMMAND: {}", cmd.to_debug_string()));
     }
 
     match cmd.cmd.as_str() {
         "connect" => {
-            handle_rtmp_command_connect(&cmd, write_stream, config, session_status, logger).await
+            handle_rtmp_command_connect(logger, server_context, session_context, write_stream, &cmd)
+                .await
         }
         "createStream" => {
-            handle_rtmp_command_create_stream(&cmd, write_stream, config, session_status, logger)
-                .await
+            handle_rtmp_command_create_stream(
+                logger,
+                server_context,
+                session_context,
+                write_stream,
+                &cmd,
+            )
+            .await
         }
         "publish" => {
             handle_rtmp_command_publish(
+                logger,
+                server_context,
+                session_context,
+                write_stream,
                 packet,
                 &cmd,
-                session_id,
-                write_stream,
-                config,
-                server_status,
-                session_status,
-                publish_status,
-                session_msg_sender,
-                read_status,
-                control_key_validator_sender,
-                logger,
             )
             .await
         }
         "play" => {
             handle_rtmp_command_play(
+                logger,
+                server_context,
+                session_context,
+                write_stream,
                 packet,
                 &cmd,
-                session_id,
-                write_stream,
-                config,
-                server_status,
-                session_status,
-                session_msg_sender,
-                read_status,
-                logger,
             )
             .await
         }
-        "pause" => {
-            handle_rtmp_command_pause(
-                &cmd,
-                session_id,
-                config,
-                server_status,
-                session_status,
-                logger,
-            )
-            .await
-        }
+        "pause" => handle_rtmp_command_pause(logger, server_context, session_context, &cmd).await,
         "deleteStream" => {
             handle_rtmp_command_delete_stream(
-                &cmd,
-                session_id,
-                write_stream,
-                config,
-                server_status,
-                session_status,
-                control_key_validator_sender,
                 logger,
+                server_context,
+                session_context,
+                write_stream,
+                &cmd,
             )
             .await
         }
         "closeStream" => {
             handle_rtmp_command_close_stream(
-                packet,
-                session_id,
-                write_stream,
-                config,
-                server_status,
-                session_status,
-                control_key_validator_sender,
                 logger,
+                server_context,
+                session_context,
+                write_stream,
+                packet,
             )
             .await
         }
         "receiveAudio" => {
-            handle_rtmp_command_receive_audio(
-                &cmd,
-                session_id,
-                config,
-                server_status,
-                session_status,
-                logger,
-            )
-            .await
+            handle_rtmp_command_receive_audio(logger, server_context, session_context, &cmd).await
         }
         "receiveVideo" => {
-            handle_rtmp_command_receive_video(
-                &cmd,
-                session_id,
-                config,
-                server_status,
-                session_status,
-                logger,
-            )
-            .await
+            handle_rtmp_command_receive_video(logger, server_context, session_context, &cmd).await
         }
         _ => {
-            if config.log_requests && logger.config.debug_enabled {
+            if server_context.config.log_requests && logger.config.debug_enabled {
                 logger.log_debug(&format!("Unrecognized command: {}", cmd.cmd));
             }
 
