@@ -2,7 +2,7 @@
 use crate::{
     callback::CallbackConfiguration,
     log::Logger,
-    rtmp::{RTMP_CHUNK_SIZE, RTMP_MAX_CHUNK_SIZE},
+    rtmp::{RTMP_CHUNK_SIZE_DEFAULT, RTMP_MAX_CHUNK_SIZE, RTMP_MIN_CHUNK_SIZE},
     utils::{get_env_bool, get_env_string, get_env_u32, IpRangeConfig, DEFAULT_MAX_ID_LENGTH},
 };
 
@@ -120,12 +120,12 @@ impl RtmpServerConfiguration {
                 }
             };
 
-        let chunk_size = get_env_u32("RTMP_CHUNK_SIZE", RTMP_CHUNK_SIZE as u32) as usize;
+        let chunk_size = get_env_u32("RTMP_CHUNK_SIZE", RTMP_CHUNK_SIZE_DEFAULT as u32) as usize;
 
-        if !(RTMP_CHUNK_SIZE..=RTMP_MAX_CHUNK_SIZE).contains(&chunk_size) {
+        if !(RTMP_MIN_CHUNK_SIZE..=RTMP_MAX_CHUNK_SIZE).contains(&chunk_size) {
             logger.log_error(&format!(
                 "RTMP_CHUNK_SIZE has an invalid value: {}. Min: {}. Max: {}",
-                chunk_size, RTMP_CHUNK_SIZE, RTMP_MAX_CHUNK_SIZE
+                chunk_size, RTMP_MIN_CHUNK_SIZE, RTMP_MAX_CHUNK_SIZE
             ));
             return Err(());
         }

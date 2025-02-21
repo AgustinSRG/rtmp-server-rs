@@ -6,9 +6,9 @@ This is a rewrite of [RTMP Server (Go Implementation)](https://github.com/Agusti
 
 This version's main goal is performance and efficiency:
 
- - Lower memory usage
- - Lower CPU usage
- - Greater bit rate
+- Lower memory usage
+- Lower CPU usage
+- Greater bit rate
 
 ## Compilation
 
@@ -46,7 +46,6 @@ services:
       - PLAY_ALLOWED_FROM=*
       - CONCURRENT_LIMIT_WHITELIST=*
       - REDIS_USE=NO
-      - RTMP_CHUNK_SIZE=5000
       - LOG_REQUESTS=YES
       - LOG_DEBUG=NO
       - GOP_CACHE_SIZE_MB=0
@@ -166,18 +165,32 @@ Here is a list of options to customize log messages:
 | LOG_DEBUG     | Log debug messages? Set to `YES` or `NO`. By default is `NO`                                                   |
 | LOG_TRACE     | Log trace messages? Set to `YES` or `NO`. By default, it uses the value of `LOG_DEBUG`                         |
 
+### DOS mitigation options
+
+List of options made to mitigate DOS attacks.
+
+| Variable Name                 | Description                                                                                                                        |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| MAX_IP_CONCURRENT_CONNECTIONS | Max number of concurrent connections to accept from a single IP. By default is 4.                                                  |
+| CONCURRENT_LIMIT_WHITELIST    | List of IP ranges not affected by the max number of concurrent connections limit. Split by commas. Example: `127.0.0.1,10.0.0.0/8` |
+
+### Performance options
+
+Lis of options related to performance.
+
+| Variable Name     | Description                                                                                  |
+| ----------------- | -------------------------------------------------------------------------------------------- |
+| RTMP_CHUNK_SIZE   | RTMP Chunk size in bytes. Default is `4096`                                                   |
+| GOP_CACHE_SIZE_MB | Size limit in megabytes of packet cache. By default is `256`. Set it to `0` to disable cache |
+
 ### More options
 
 Here is a list with more options you can configure:
 
-| Variable Name                 | Description                                                                                                                        |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| RTMP_HOST                     | RTMP host to add in the JWT as `rtmp_host` in order for the callback handler to know the origin host.                              |
-| RTMP_PORT                     | RTMP listening port. It will be added in the JWT as `rtmp_port`. Default is `1935`.                                                |
-| BIND_ADDRESS                  | Bind address for RTMP and RTMPS. By default it binds to all network interfaces.                                                    |
-| RTMP_CHUNK_SIZE               | RTMP Chunk size in bytes. Default is `128`                                                                                         |
-| ID_MAX_LENGTH                 | Max length for `CHANNEL` and `KEY`. By default is 128 characters                                                                   |
-| MAX_IP_CONCURRENT_CONNECTIONS | Max number of concurrent connections to accept from a single IP. By default is 4.                                                  |
-| CONCURRENT_LIMIT_WHITELIST    | List of IP ranges not affected by the max number of concurrent connections limit. Split by commas. Example: `127.0.0.1,10.0.0.0/8` |
-| CUSTOM_JWT_SUBJECT            | Custom subject to use for tokens sent to the callback URL                                                                          |
-| GOP_CACHE_SIZE_MB             | Size limit in megabytes of packet cache. By default is `256`. Set it to `0` to disable cache                                       |
+| Variable Name      | Description                                                                                           |
+| ------------------ | ----------------------------------------------------------------------------------------------------- |
+| RTMP_HOST          | RTMP host to add in the JWT as `rtmp_host` in order for the callback handler to know the origin host. |
+| RTMP_PORT          | RTMP listening port. It will be added in the JWT as `rtmp_port`. Default is `1935`.                   |
+| BIND_ADDRESS       | Bind address for RTMP and RTMPS. By default it binds to all network interfaces.                       |
+| ID_MAX_LENGTH      | Max length for `CHANNEL` and `KEY`. By default is 128 characters                                      |
+| CUSTOM_JWT_SUBJECT | Custom subject to use for tokens sent to the callback URL                                             |

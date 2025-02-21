@@ -6,7 +6,7 @@ use chrono::Utc;
 use tokio::sync::Mutex;
 
 use crate::{
-    rtmp::{RtmpPacket, RTMP_CHUNK_SIZE},
+    rtmp::{RtmpPacket, RTMP_MIN_CHUNK_SIZE},
     server::RtmpChannelStatus,
 };
 
@@ -115,7 +115,7 @@ impl RtmpSessionReadStatus {
     /// Creates RtmpSessionReadStatus
     pub fn new() -> RtmpSessionReadStatus {
         RtmpSessionReadStatus {
-            in_chunk_size: RTMP_CHUNK_SIZE,
+            in_chunk_size: RTMP_MIN_CHUNK_SIZE,
             in_ack_size: 0,
             in_last_ack: 0,
             ack_size: 0,

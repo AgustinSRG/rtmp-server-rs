@@ -81,8 +81,11 @@ pub const RTMP_TYPE_METADATA: u32 = 22;
 pub const STREAM_BEGIN: u16 = 0x00;
 pub const STREAM_EOF: u16 = 0x01;
 
+/// Min chunk size
+pub const RTMP_MIN_CHUNK_SIZE: usize = 128;
+
 /// Default chunk size
-pub const RTMP_CHUNK_SIZE: usize = 128;
+pub const RTMP_CHUNK_SIZE_DEFAULT: usize = 4096;
 
 /// Max chunk size
 pub const RTMP_MAX_CHUNK_SIZE: usize = 65536;

@@ -9,7 +9,7 @@ use tokio::{
 use crate::{
     log::Logger,
     rtmp::{
-        RtmpPacket, RTMP_CHUNK_SIZE, RTMP_MAX_CHUNK_SIZE, RTMP_TYPE_AUDIO, RTMP_TYPE_DATA,
+        RtmpPacket, RTMP_MIN_CHUNK_SIZE, RTMP_MAX_CHUNK_SIZE, RTMP_TYPE_AUDIO, RTMP_TYPE_DATA,
         RTMP_TYPE_FLEX_MESSAGE, RTMP_TYPE_FLEX_STREAM, RTMP_TYPE_INVOKE, RTMP_TYPE_SET_CHUNK_SIZE,
         RTMP_TYPE_VIDEO, RTMP_TYPE_WINDOW_ACKNOWLEDGEMENT_SIZE,
     },
@@ -59,11 +59,11 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
             session_context.read_status.in_chunk_size =
                 BigEndian::read_u32(&packet.payload[0..4]) as usize;
 
-            if session_context.read_status.in_chunk_size < RTMP_CHUNK_SIZE {
+            if session_context.read_status.in_chunk_size < RTMP_MIN_CHUNK_SIZE {
                 if server_context.config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(
                         "Packet error: Chunk size too small. Size: {}. Min: {}",
-                        session_context.read_status.in_chunk_size, RTMP_CHUNK_SIZE
+                        session_context.read_status.in_chunk_size, RTMP_MIN_CHUNK_SIZE
                     ));
                 }
 
