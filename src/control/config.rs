@@ -2,7 +2,10 @@
 
 use url::Url;
 
-use crate::{log::Logger, utils::{get_env_bool, get_env_string}};
+use crate::{
+    log::Logger,
+    utils::{get_env_bool, get_env_string},
+};
 
 /// Configuration of the connection to the control server
 pub struct ControlServerConnectionConfig {

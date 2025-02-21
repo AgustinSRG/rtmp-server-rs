@@ -9,7 +9,10 @@ use std::sync::LazyLock;
 
 use crate::log::Logger;
 
-use super::{GENUINE_FMS, GENUINE_FP, MESSAGE_FORMAT_0, MESSAGE_FORMAT_1, MESSAGE_FORMAT_2, RANDOM_CRUD, RTMP_SIG_SIZE, RTMP_VERSION, SHA256DL, SHA256K};
+use super::{
+    GENUINE_FMS, GENUINE_FP, MESSAGE_FORMAT_0, MESSAGE_FORMAT_1, MESSAGE_FORMAT_2, RANDOM_CRUD,
+    RTMP_SIG_SIZE, RTMP_VERSION, SHA256DL, SHA256K,
+};
 
 // Consts for handshake
 
@@ -76,7 +79,7 @@ pub fn generate_s1(msg_format: u32, logger: &Logger) -> Result<Vec<u8>, ()> {
         handshake_bytes.truncate(RTMP_SIG_SIZE);
     }
 
-    let server_digest_offset = if msg_format ==MESSAGE_FORMAT_1 {
+    let server_digest_offset = if msg_format == MESSAGE_FORMAT_1 {
         get_client_genuine_const_digest_offset(&handshake_bytes[8..12])
     } else {
         get_client_genuine_const_digest_offset(&handshake_bytes[772..776])
@@ -122,7 +125,7 @@ pub fn generate_s1(msg_format: u32, logger: &Logger) -> Result<Vec<u8>, ()> {
         return Err(());
     }
 
-    handshake_bytes[server_digest_offset..server_digest_offset+SHA256DL].copy_from_slice(&h);
+    handshake_bytes[server_digest_offset..server_digest_offset + SHA256DL].copy_from_slice(&h);
 
     Ok(handshake_bytes)
 }
@@ -131,7 +134,11 @@ pub fn generate_s1(msg_format: u32, logger: &Logger) -> Result<Vec<u8>, ()> {
 /// msg_format - Message format
 /// client_signature - Client signature
 /// logger - Logger of the RTMP session
-pub fn generate_s2(msg_format: u32, client_signature: &[u8], logger: &Logger) -> Result<Vec<u8>, ()> {
+pub fn generate_s2(
+    msg_format: u32,
+    client_signature: &[u8],
+    logger: &Logger,
+) -> Result<Vec<u8>, ()> {
     if client_signature.len() < 776 {
         if logger.config.debug_enabled {
             logger.log_debug(&format!(
@@ -154,7 +161,6 @@ pub fn generate_s2(msg_format: u32, client_signature: &[u8], logger: &Logger) ->
         get_server_genuine_const_digest_offset(&client_signature[772..776])
     };
 
-
     if client_signature.len() < challenge_key_offset + SHA256K {
         if logger.config.debug_enabled {
             logger.log_debug(&format!(
@@ -166,7 +172,7 @@ pub fn generate_s2(msg_format: u32, client_signature: &[u8], logger: &Logger) ->
         return Err(());
     }
 
-    let challenge_key = &client_signature[challenge_key_offset..challenge_key_offset+SHA256K];
+    let challenge_key = &client_signature[challenge_key_offset..challenge_key_offset + SHA256K];
 
     let h = calc_hmac(challenge_key, &GENUINE_FMS_PLUS_CRUD);
     let signature = calc_hmac(&random_bytes, &h);

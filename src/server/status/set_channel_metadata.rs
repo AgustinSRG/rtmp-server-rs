@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use crate::{
-    server::RtmpServerContext,
-    session::{RtmpSessionMessage, RtmpSessionPublishStreamStatus},
-};
+use crate::{server::RtmpServerContext, session::RtmpSessionMessage};
 
 /// Sets channel metadata
 ///
@@ -33,14 +30,20 @@ pub async fn set_channel_metadata(
             }
         }
 
-        let publish_status = match &channel_status.publish_status {
+        let publish_status_mu = match &channel_status.publish_status {
             Some(s) => s,
             None => {
                 return;
             }
         };
 
-        RtmpSessionPublishStreamStatus::set_metadata(publish_status, metadata.clone()).await;
+        // Set metadata in the status
+
+        let mut publish_status = publish_status_mu.lock().await;
+
+        publish_status.metadata = metadata.clone();
+
+        drop(publish_status);
 
         // Send metadata to players
 

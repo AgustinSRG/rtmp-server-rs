@@ -20,7 +20,7 @@ use crate::{
 
 use super::{
     do_session_cleanup, send_status_message, session_write_bytes, RtmpSessionMessage,
-    RtmpSessionStatus, SessionContext,
+    SessionContext,
 };
 
 /// Handles session message
@@ -56,16 +56,16 @@ pub async fn handle_session_message<
             }
 
             // Get play status
-            let (is_player, play_stream_id, receive_gop, receive_audio, receive_video) =
-                RtmpSessionStatus::check_play_status(&session_context.status).await;
+            let play_status = session_context.play_status().await;
 
-            if !is_player {
+            if !play_status.is_player {
                 return true;
             }
 
             // Send stream status
 
-            let stream_status_bytes = rtmp_make_stream_status_message(STREAM_BEGIN, play_stream_id);
+            let stream_status_bytes =
+                rtmp_make_stream_status_message(STREAM_BEGIN, play_status.play_stream_id);
 
             if let Err(e) = session_write_bytes(write_stream, &stream_status_bytes).await {
                 if server_config.log_requests && logger.config.debug_enabled {
@@ -82,7 +82,7 @@ pub async fn handle_session_message<
 
             if let Err(e) = send_status_message(
                 write_stream,
-                play_stream_id,
+                play_status.play_stream_id,
                 "status",
                 "NetStream.Play.Reset",
                 Some("Playing and resetting stream."),
@@ -97,7 +97,7 @@ pub async fn handle_session_message<
 
             if let Err(e) = send_status_message(
                 write_stream,
-                play_stream_id,
+                play_status.play_stream_id,
                 "status",
                 "NetStream.Play.Start",
                 Some("Started playing stream."),
@@ -129,7 +129,7 @@ pub async fn handle_session_message<
 
             if !metadata.is_empty() {
                 let metadata_bytes = rtmp_make_metadata_message(
-                    play_stream_id,
+                    play_status.play_stream_id,
                     &metadata,
                     0,
                     server_config.chunk_size,
@@ -154,7 +154,7 @@ pub async fn handle_session_message<
 
             if audio_codec == 10 || audio_codec == 13 {
                 let audio_codec_header = rtmp_make_audio_codec_header_message(
-                    play_stream_id,
+                    play_status.play_stream_id,
                     &aac_sequence_header,
                     0,
                     server_config.chunk_size,
@@ -177,7 +177,7 @@ pub async fn handle_session_message<
 
             if video_codec == 7 || video_codec == 12 {
                 let video_codec_header = rtmp_make_video_codec_header_message(
-                    play_stream_id,
+                    play_status.play_stream_id,
                     &avc_sequence_header,
                     0,
                     server_config.chunk_size,
@@ -198,18 +198,20 @@ pub async fn handle_session_message<
 
             // Send GOP cache
 
-            if receive_gop {
+            if play_status.receive_gop {
                 for packet in gop_cache {
-                    if packet.header.packet_type == RTMP_TYPE_AUDIO && !receive_audio {
+                    if packet.header.packet_type == RTMP_TYPE_AUDIO && !play_status.receive_audio {
                         continue;
                     }
 
-                    if packet.header.packet_type == RTMP_TYPE_VIDEO && !receive_video {
+                    if packet.header.packet_type == RTMP_TYPE_VIDEO && !play_status.receive_video {
                         continue;
                     }
 
-                    let packet_bytes =
-                        packet.create_chunks_for_stream(play_stream_id, server_config.chunk_size);
+                    let packet_bytes = packet.create_chunks_for_stream(
+                        play_status.play_stream_id,
+                        server_config.chunk_size,
+                    );
 
                     if let Err(e) = session_write_bytes(write_stream, &packet_bytes).await {
                         if server_config.log_requests && logger.config.debug_enabled {
@@ -242,15 +244,14 @@ pub async fn handle_session_message<
             }
 
             // Get play status
-            let (is_player, play_stream_id) =
-                RtmpSessionStatus::get_play_stream_id(&session_context.status).await;
+            let (is_player, play_stream_id) = session_context.play_stream_id().await;
 
             if !is_player {
                 return true;
             }
 
             // Set playing status to false
-            RtmpSessionStatus::stop_playing(&session_context.status).await;
+            session_context.stop_playing().await;
 
             // Send status message
 
@@ -279,8 +280,7 @@ pub async fn handle_session_message<
             }
 
             // Get play status
-            let (is_player, play_stream_id) =
-                RtmpSessionStatus::get_play_stream_id(&session_context.status).await;
+            let (is_player, play_stream_id) = session_context.play_stream_id().await;
 
             if !is_player {
                 return true;
@@ -310,8 +310,7 @@ pub async fn handle_session_message<
             }
 
             // Get play status
-            let (is_player, play_stream_id) =
-                RtmpSessionStatus::get_play_stream_id(&session_context.status).await;
+            let (is_player, play_stream_id) = session_context.play_stream_id().await;
 
             if !is_player {
                 return true;
@@ -333,8 +332,7 @@ pub async fn handle_session_message<
             }
 
             // Get play status
-            let (is_player, play_stream_id) =
-                RtmpSessionStatus::get_play_stream_id(&session_context.status).await;
+            let (is_player, play_stream_id) = session_context.play_stream_id().await;
 
             if !is_player {
                 return true;
@@ -380,8 +378,7 @@ pub async fn handle_session_message<
             }
 
             // Get play status
-            let (is_player, play_stream_id) =
-                RtmpSessionStatus::get_play_stream_id(&session_context.status).await;
+            let (is_player, play_stream_id) = session_context.play_stream_id().await;
 
             if !is_player {
                 return true;
@@ -432,8 +429,7 @@ pub async fn handle_session_message<
             }
 
             // Get play status
-            let (is_player, play_stream_id) =
-                RtmpSessionStatus::get_play_stream_id(&session_context.status).await;
+            let (is_player, play_stream_id) = session_context.play_stream_id().await;
 
             if !is_player {
                 return true;
@@ -525,8 +521,7 @@ pub async fn handle_session_message<
             }
 
             // Get play status
-            let (is_player, play_stream_id) =
-                RtmpSessionStatus::get_play_stream_id(&session_context.status).await;
+            let (is_player, play_stream_id) = session_context.play_stream_id().await;
 
             if !is_player {
                 return true;
@@ -571,7 +566,7 @@ pub async fn handle_session_message<
                 logger.log_debug("RtmpSessionMessage::Kill");
             }
 
-            RtmpSessionStatus::set_killed(&session_context.status).await;
+            session_context.set_killed().await;
         }
         RtmpSessionMessage::End => {
             if server_config.log_requests && logger.config.debug_enabled {

@@ -15,7 +15,7 @@ use crate::{
     utils::validate_id_string,
 };
 
-use super::super::{send_status_message, RtmpSessionStatus};
+use super::super::send_status_message;
 
 /// Handles RTMP command: PUBLISH
 ///
@@ -45,7 +45,7 @@ pub async fn handle_rtmp_command_publish<
 
     let publish_stream_id = packet.header.stream_id;
 
-    let channel = match RtmpSessionStatus::get_channel(&session_context.status).await {
+    let channel = match session_context.channel().await {
         Some(c) => c,
         None => {
             if server_context.config.log_requests && logger.config.debug_enabled {
@@ -130,7 +130,7 @@ pub async fn handle_rtmp_command_publish<
 
     // Ensure the session is not already publishing
 
-    if RtmpSessionStatus::check_is_publisher(&session_context.status).await {
+    if session_context.is_publisher().await {
         if server_context.config.log_requests && logger.config.debug_enabled {
             logger.log_debug("Protocol error: Received publish command, but already publishing");
         }
@@ -259,7 +259,7 @@ pub async fn handle_rtmp_command_publish<
 
     // Set publishing status to the session status
 
-    RtmpSessionStatus::set_publisher(&session_context.status, publish_stream_id).await;
+    session_context.set_publisher(publish_stream_id).await;
 
     // Respond with status message
 

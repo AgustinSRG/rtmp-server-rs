@@ -50,13 +50,13 @@ pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
         None => "".to_string(),
     };
 
-    let can_clear_player = session_status_v.is_player;
+    let can_clear_player = session_status_v.play_status.is_player;
     let can_clear_publisher = session_status_v.is_publisher;
 
-    let is_play_stream = stream_id == session_status_v.play_stream_id;
+    let is_play_stream = stream_id == session_status_v.play_status.play_stream_id;
 
     if is_play_stream {
-        session_status_v.play_stream_id = 0;
+        session_status_v.play_status.play_stream_id = 0;
     }
 
     let is_publish_stream = stream_id == session_status_v.publish_stream_id;

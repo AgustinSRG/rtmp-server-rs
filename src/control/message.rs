@@ -78,7 +78,9 @@ impl ControlServerMessage {
     /// Gets the value of a parameter of the message
     pub fn get_parameter(&self, param_name: &str) -> Option<&str> {
         if let Some(parameters) = &self.parameters {
-            parameters.get(&param_name.to_lowercase()).map(|x| x.as_str())
+            parameters
+                .get(&param_name.to_lowercase())
+                .map(|x| x.as_str())
         } else {
             None
         }

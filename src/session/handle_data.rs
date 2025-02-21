@@ -8,7 +8,7 @@ use crate::{
     server::{set_channel_metadata, RtmpServerContext},
 };
 
-use super::{RtmpSessionStatus, SessionReadThreadContext};
+use super::SessionReadThreadContext;
 
 /// Handles DATA RTMP packet
 ///
@@ -70,7 +70,7 @@ pub async fn handle_rtmp_packet_data(
             let metadata = Arc::new(rtmp_build_metadata(&data));
             let metadata_size = metadata.len();
 
-            let channel_opt = RtmpSessionStatus::get_channel(&session_context.status).await;
+            let channel_opt = session_context.channel().await;
 
             if let Some(channel) = channel_opt {
                 set_channel_metadata(server_context, &channel, session_context.id, metadata).await;

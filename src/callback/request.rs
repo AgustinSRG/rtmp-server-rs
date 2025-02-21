@@ -25,7 +25,10 @@ pub async fn make_start_callback(
     let callback_url = &config.callback_url;
 
     if logger.config.debug_enabled {
-        logger.log_debug(&format!("POST {} | | Event: START | Channel: {}", callback_url, channel));
+        logger.log_debug(&format!(
+            "POST {} | | Event: START | Channel: {}",
+            callback_url, channel
+        ));
     }
 
     // Generate token
@@ -54,7 +57,10 @@ pub async fn make_start_callback(
         Ok(r) => {
             if r.status() != StatusCode::OK {
                 if logger.config.debug_enabled {
-                    logger.log_debug(&format!("Callback resulted in status code: {}", r.status().as_u16()));
+                    logger.log_debug(&format!(
+                        "Callback resulted in status code: {}",
+                        r.status().as_u16()
+                    ));
                 }
 
                 return None;
@@ -65,9 +71,7 @@ pub async fn make_start_callback(
                     Ok(stream_id) => Some(stream_id.to_string()),
                     Err(_) => Some("".to_string()),
                 },
-                None => {
-                    Some("".to_string())
-                },
+                None => Some("".to_string()),
             }
         }
         Err(e) => {
@@ -79,7 +83,6 @@ pub async fn make_start_callback(
         }
     }
 }
-
 
 /// Makes stop event callback
 /// logger - The logger
@@ -98,7 +101,10 @@ pub async fn make_stop_callback(
     let callback_url = &config.callback_url;
 
     if logger.config.debug_enabled {
-        logger.log_debug(&format!("POST {} | | Event: STOP | Channel: {} | Stream ID: {}", callback_url, channel, stream_id));
+        logger.log_debug(&format!(
+            "POST {} | | Event: STOP | Channel: {} | Stream ID: {}",
+            callback_url, channel, stream_id
+        ));
     }
 
     // Generate token
@@ -127,13 +133,16 @@ pub async fn make_stop_callback(
         Ok(r) => {
             if r.status() != StatusCode::OK {
                 if logger.config.debug_enabled {
-                    logger.log_debug(&format!("Callback resulted in status code: {}", r.status().as_u16()));
+                    logger.log_debug(&format!(
+                        "Callback resulted in status code: {}",
+                        r.status().as_u16()
+                    ));
                 }
 
                 return false;
             }
 
-           true
+            true
         }
         Err(e) => {
             if logger.config.debug_enabled {

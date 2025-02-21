@@ -19,7 +19,7 @@ use crate::{
 };
 
 use super::{
-    handle_rtmp_packet, session_write_bytes, RtmpSessionPublishStreamStatus, RtmpSessionStatus,
+    handle_rtmp_packet, session_write_bytes,
     SessionReadThreadContext, IN_PACKETS_BUFFER_SIZE,
 };
 
@@ -50,7 +50,7 @@ pub async fn read_rtmp_chunk<
 ) -> bool {
     // Check if the session was killed before reading any chunk
 
-    if RtmpSessionStatus::is_killed(&session_context.status).await {
+    if session_context.is_killed().await {
         if server_context.config.log_requests && logger.config.debug_enabled {
             logger.log_debug("Session killed");
         }
@@ -301,8 +301,7 @@ pub async fn read_rtmp_chunk<
             packet.clock = packet.clock.wrapping_add(extended_timestamp);
         }
 
-        RtmpSessionPublishStreamStatus::set_clock(&session_context.publish_status, packet.clock)
-            .await;
+        session_context.set_clock(packet.clock).await;
     }
 
     // Packet payload

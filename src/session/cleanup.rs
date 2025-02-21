@@ -28,7 +28,7 @@ pub async fn do_session_cleanup(
         }
     };
 
-    let must_clear_player = session_status_v.is_player;
+    let must_clear_player = session_status_v.play_status.is_player;
     let must_clear_publisher = session_status_v.is_publisher;
 
     drop(session_status_v);

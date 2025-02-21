@@ -7,8 +7,6 @@ use crate::{
     session::SessionReadThreadContext,
 };
 
-use super::super::RtmpSessionStatus;
-
 /// Handles RTMP command: PAUSE
 ///
 /// # Arguments
@@ -27,7 +25,7 @@ pub async fn handle_rtmp_command_pause(
     session_context: &mut SessionReadThreadContext,
     cmd: &RtmpCommand,
 ) -> bool {
-    if !RtmpSessionStatus::check_is_player(&session_context.status).await {
+    if !session_context.is_player().await {
         if server_context.config.log_requests && logger.config.debug_enabled {
             logger.log_debug("Pause command ignored since it was not playing");
         }
@@ -35,7 +33,7 @@ pub async fn handle_rtmp_command_pause(
         return true;
     }
 
-    let channel = match RtmpSessionStatus::get_channel(&session_context.status).await {
+    let channel = match session_context.channel().await {
         Some(c) => c,
         None => {
             if server_context.config.log_requests && logger.config.debug_enabled {

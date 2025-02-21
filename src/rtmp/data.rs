@@ -104,7 +104,7 @@ impl RtmpData {
         let arg_list_res = RTMP_DATA_CODES.get(tag);
 
         if let Some(arg_list) = arg_list_res {
-            let mut i: usize =  0;
+            let mut i: usize = 0;
 
             while i < arg_list.len() && !cursor.ended() {
                 let val = AMF0Value::read(&mut cursor, data)?;
@@ -114,7 +114,6 @@ impl RtmpData {
                 i += 1;
             }
         }
-
 
         Ok(d)
     }

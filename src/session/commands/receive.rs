@@ -35,7 +35,7 @@ pub async fn handle_rtmp_command_receive_audio(
     }
 
     let mut session_status_v = session_context.status.lock().await;
-    session_status_v.receive_audio = receive_audio;
+    session_status_v.play_status.receive_audio = receive_audio;
 
     let channel_opt = session_status_v.channel.clone();
 
@@ -77,7 +77,7 @@ pub async fn handle_rtmp_command_receive_video(
     }
 
     let mut session_status_v = session_context.status.lock().await;
-    session_status_v.receive_video = receive_video;
+    session_status_v.play_status.receive_video = receive_video;
 
     let channel_opt = session_status_v.channel.clone();
 

@@ -2,7 +2,10 @@
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
 
-use super::{RTMP_CHUNK_TYPE_0, RTMP_CHUNK_TYPE_1, RTMP_CHUNK_TYPE_2, RTMP_CHUNK_TYPE_3, RTMP_PACKET_BASE_SIZE};
+use super::{
+    RTMP_CHUNK_TYPE_0, RTMP_CHUNK_TYPE_1, RTMP_CHUNK_TYPE_2, RTMP_CHUNK_TYPE_3,
+    RTMP_PACKET_BASE_SIZE,
+};
 
 /// Header of an RTMP packet
 #[derive(Clone)]
@@ -143,7 +146,7 @@ impl RtmpPacket {
     pub fn create_chunks_for_stream(&self, stream_id: u32, out_chunk_size: usize) -> Vec<u8> {
         let chunk_basic_header =
             Self::serialize_basic_header(self.header.format, self.header.channel_id);
-            
+
         let chunk_basic_header_3 =
             Self::serialize_basic_header(RTMP_CHUNK_TYPE_3, self.header.channel_id);
 

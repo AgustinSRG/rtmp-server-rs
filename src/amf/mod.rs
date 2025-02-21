@@ -54,8 +54,8 @@ mod tests {
     }
 
     fn matches_items(a1: &[AMF0Value], a2: &[AMF0Value]) -> bool {
-        if a1.len() != a2.len()  {
-            return false
+        if a1.len() != a2.len() {
+            return false;
         }
 
         for i in 0..a1.len() {
@@ -122,7 +122,7 @@ mod tests {
                 } else {
                     false
                 }
-            },
+            }
             AMF0Value::Date { timestamp } => {
                 if let AMF0Value::Date {
                     timestamp: timestamp2,
@@ -174,12 +174,16 @@ mod tests {
                 if amf_equals(v, &v2) {
                     true
                 } else {
-                    panic!("No match: \n{}\n{}", v.to_debug_string(""), v2.to_debug_string(""));
+                    panic!(
+                        "No match: \n{}\n{}",
+                        v.to_debug_string(""),
+                        v2.to_debug_string("")
+                    );
                 }
-            },
+            }
             Err(_) => {
                 panic!("Error decoding value: \n{}", v.to_debug_string(""));
-            },
+            }
         }
     }
 
@@ -197,20 +201,34 @@ mod tests {
         assert!(test_encode_decode(&AMF0Value::Bool { value: true }));
         assert!(test_encode_decode(&AMF0Value::Bool { value: false }));
 
-        assert!(test_encode_decode(&AMF0Value::String { value: "".to_string() }));
-        assert!(test_encode_decode(&AMF0Value::String { value: "test".to_string() }));
+        assert!(test_encode_decode(&AMF0Value::String {
+            value: "".to_string()
+        }));
+        assert!(test_encode_decode(&AMF0Value::String {
+            value: "test".to_string()
+        }));
 
-        assert!(test_encode_decode(&AMF0Value::LongString { value: "".to_string() }));
-        assert!(test_encode_decode(&AMF0Value::LongString { value: "test".to_string() }));
+        assert!(test_encode_decode(&AMF0Value::LongString {
+            value: "".to_string()
+        }));
+        assert!(test_encode_decode(&AMF0Value::LongString {
+            value: "test".to_string()
+        }));
 
-        assert!(test_encode_decode(&AMF0Value::XmlDocument { content: "".to_string() }));
-        assert!(test_encode_decode(&AMF0Value::XmlDocument { content: "test".to_string() }));
+        assert!(test_encode_decode(&AMF0Value::XmlDocument {
+            content: "".to_string()
+        }));
+        assert!(test_encode_decode(&AMF0Value::XmlDocument {
+            content: "test".to_string()
+        }));
 
         assert!(test_encode_decode(&AMF0Value::Ref { addr: 0 }));
         assert!(test_encode_decode(&AMF0Value::Ref { addr: 100 }));
         assert!(test_encode_decode(&AMF0Value::Ref { addr: u16::MAX }));
 
-        assert!(test_encode_decode(&AMF0Value::Date { timestamp: Utc::now().timestamp() as f64 }));
+        assert!(test_encode_decode(&AMF0Value::Date {
+            timestamp: Utc::now().timestamp() as f64
+        }));
 
         // Test objects
 
@@ -218,15 +236,33 @@ mod tests {
 
         props.insert("test_prop_1".to_string(), AMF0Value::Null);
         props.insert("test_prop_2".to_string(), AMF0Value::Number { value: 1.5 });
-        props.insert("test_prop_2".to_string(), AMF0Value::String { value: "test_str".to_string() });
+        props.insert(
+            "test_prop_2".to_string(),
+            AMF0Value::String {
+                value: "test_str".to_string(),
+            },
+        );
 
-        assert!(test_encode_decode(&AMF0Value::Object { properties: props.clone() }));
-        assert!(test_encode_decode(&AMF0Value::Array { items: props.clone() }));
-        assert!(test_encode_decode(&AMF0Value::TypedObject { type_name: "test.type.object".to_string(), properties: props}));
+        assert!(test_encode_decode(&AMF0Value::Object {
+            properties: props.clone()
+        }));
+        assert!(test_encode_decode(&AMF0Value::Array {
+            items: props.clone()
+        }));
+        assert!(test_encode_decode(&AMF0Value::TypedObject {
+            type_name: "test.type.object".to_string(),
+            properties: props
+        }));
 
         // Test strict array
 
-        let items: Vec<AMF0Value> = vec![AMF0Value::Null, AMF0Value::Number { value: 1.5 }, AMF0Value::String { value: "test_str".to_string() }];
+        let items: Vec<AMF0Value> = vec![
+            AMF0Value::Null,
+            AMF0Value::Number { value: 1.5 },
+            AMF0Value::String {
+                value: "test_str".to_string(),
+            },
+        ];
 
         assert!(test_encode_decode(&AMF0Value::StrictArray { items: items }));
     }

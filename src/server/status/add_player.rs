@@ -4,7 +4,7 @@ use tokio::sync::Mutex;
 
 use crate::{
     server::{RtmpChannelStatus, RtmpPlayerStatus, RtmpServerContext},
-    session::{RtmpSessionPublishStreamStatus, SessionReadThreadContext},
+    session::SessionReadThreadContext,
     utils::string_compare_constant_time,
 };
 
@@ -21,17 +21,17 @@ pub struct AddPlayerOptions {
 }
 
 /// Adds a player to a channel
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `server_context` - The server context
 /// * `session_context` - The session context
 /// * `channel` - Channel ID
 /// * `key` - Channel key
 /// * `player_options` - The player options
-/// 
+///
 /// # Return value
-/// 
+///
 /// Returns true if success, false if cannot add the player (invalid key)
 pub async fn add_player(
     server_context: &RtmpServerContext,
@@ -76,7 +76,7 @@ pub async fn add_player(
                 }
             }
 
-            let publish_status = match &channel_status.publish_status {
+            let publish_status_mu = match &channel_status.publish_status {
                 Some(s) => s,
                 None => {
                     return true;
@@ -85,11 +85,15 @@ pub async fn add_player(
 
             // Send the start message to the new player
 
-            let player_start_msg = RtmpSessionPublishStreamStatus::get_play_start_message(
-                publish_status,
-                player_options.gop_clear,
-            )
-            .await;
+            let mut publish_status = publish_status_mu.lock().await;
+
+            let player_start_msg = publish_status.get_play_start_message();
+
+            if player_options.gop_clear {
+                publish_status.clear_gop();
+            }
+
+            drop(publish_status);
 
             _ = session_context
                 .session_msg_sender

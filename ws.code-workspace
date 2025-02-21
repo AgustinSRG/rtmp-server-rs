@@ -19,11 +19,16 @@
 			"hmac",
 			"HMAC",
 			"ipnet",
+			"jsonwebtoken",
 			"recv",
 			"redis",
+			"rediss",
+			"rngs",
 			"rtmp",
 			"RTMP",
-			"RTMPS"
+			"RTMPS",
+			"Seedable",
+			"tungstenite"
 		],
 	}
 }

@@ -1,6 +1,9 @@
 // Callback feature configuration
 
-use crate::{log::Logger, utils::{get_env_string, get_env_u32}};
+use crate::{
+    log::Logger,
+    utils::{get_env_string, get_env_u32},
+};
 
 /// Callback configuration
 #[derive(Clone)]

@@ -1,14 +1,14 @@
 // RTMP protocol utilities
 
-mod constants;
 mod command;
+mod constants;
 mod data;
 mod handshake;
 mod messages;
 mod packet;
 
-pub use constants::*;
 pub use command::*;
+pub use constants::*;
 pub use data::*;
 pub use handshake::*;
 pub use messages::*;

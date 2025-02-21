@@ -12,10 +12,14 @@ use crate::{
 
 use super::RtmpSessionMessage;
 
-/// RTMP session status
-pub struct RtmpSessionStatus {
-    /// True if the session was killed
-    pub killed: bool,
+/// Status of the session playing a stream
+#[derive(Clone)]
+pub struct RtmpSessionPlayStatus {
+    /// True if the session is player for the channel
+    pub is_player: bool,
+
+    /// ID of the RTMP stream used for playing
+    pub play_stream_id: u32,
 
     /// True to receive audio
     pub receive_audio: bool,
@@ -25,21 +29,37 @@ pub struct RtmpSessionStatus {
 
     /// Receive GOP cache?
     pub receive_gop: bool,
+}
+
+impl RtmpSessionPlayStatus {
+    /// Creates new instance of RtmpSessionPlayStatus
+    pub fn new() -> RtmpSessionPlayStatus {
+        RtmpSessionPlayStatus {
+            is_player: false,
+            play_stream_id: 0,
+            receive_audio: true,
+            receive_video: true,
+            receive_gop: true,
+        }
+    }
+}
+
+/// RTMP session status
+pub struct RtmpSessionStatus {
+    /// Connect timestamp (Unix milliseconds)
+    pub connect_time: i64,
+
+    /// True if the session was killed
+    pub killed: bool,
 
     /// Channel
     pub channel: Option<String>,
 
-    /// Connect timestamp (Unix milliseconds)
-    pub connect_time: i64,
-
     /// Key
     pub key: Option<String>,
 
-    /// True if the session is player for the channel
-    pub is_player: bool,
-
-    /// ID of the RTMP stream used for playing
-    pub play_stream_id: u32,
+    /// The player status
+    pub play_status: RtmpSessionPlayStatus,
 
     /// True if the session is a publisher for a channel
     pub is_publisher: bool,
@@ -56,98 +76,14 @@ impl RtmpSessionStatus {
     pub fn new() -> RtmpSessionStatus {
         RtmpSessionStatus {
             killed: false,
-            receive_audio: true,
-            receive_video: true,
-            receive_gop: true,
             channel: None,
             connect_time: 0,
             key: None,
+            play_status: RtmpSessionPlayStatus::new(),
             is_publisher: false,
             publish_stream_id: 0,
-            is_player: false,
-            play_stream_id: 0,
             streams: 0,
         }
-    }
-
-    /// Checks if the session is a publisher
-    pub async fn check_is_publisher(status: &Mutex<RtmpSessionStatus>) -> bool {
-        let status_v = status.lock().await;
-        status_v.is_publisher
-    }
-
-    /// Checks if the session is a player
-    pub async fn check_is_player(status: &Mutex<RtmpSessionStatus>) -> bool {
-        let status_v = status.lock().await;
-        status_v.is_player
-    }
-
-    /// Checks if the session is killed
-    pub async fn is_killed(status: &Mutex<RtmpSessionStatus>) -> bool {
-        let status_v = status.lock().await;
-        status_v.killed
-    }
-
-    /// Sets the session as killed
-    pub async fn set_killed(status: &Mutex<RtmpSessionStatus>) {
-        let mut status_v = status.lock().await;
-        status_v.killed = true;
-    }
-
-    /// Updates session status for publishing
-    pub async fn set_publisher(status: &Mutex<RtmpSessionStatus>, publish_stream_id: u32) {
-        let mut status_v = status.lock().await;
-        status_v.is_publisher = true;
-        status_v.publish_stream_id = publish_stream_id;
-    }
-
-    /// Updates session status for playing
-    /// Return the receive_audio, receive_video properties
-    pub async fn set_player(
-        status: &Mutex<RtmpSessionStatus>,
-        receive_gop: bool,
-        play_stream_id: u32,
-    ) -> (bool, bool) {
-        let mut status_v = status.lock().await;
-        status_v.is_player = true;
-        status_v.receive_gop = receive_gop;
-        status_v.publish_stream_id = play_stream_id;
-
-        (status_v.receive_audio, status_v.receive_video)
-    }
-
-    /// Gets the current channel of the session
-    pub async fn get_channel(status: &Mutex<RtmpSessionStatus>) -> Option<String> {
-        let status_v = status.lock().await;
-        status_v.channel.clone()
-    }
-
-    /// Checks the play status of a session
-    /// Return the is_player, play_stream_id, receive_gop, receive_audio, receive_video properties
-    pub async fn check_play_status(
-        status: &Mutex<RtmpSessionStatus>,
-    ) -> (bool, u32, bool, bool, bool) {
-        let status_v = status.lock().await;
-        (
-            status_v.is_player,
-            status_v.play_stream_id,
-            status_v.receive_gop,
-            status_v.receive_audio,
-            status_v.receive_video,
-        )
-    }
-
-    /// Sets the playing status to false
-    pub async fn stop_playing(status: &Mutex<RtmpSessionStatus>) {
-        let mut status_v = status.lock().await;
-        status_v.is_player = false;
-    }
-
-    /// Checks the play status of a session
-    /// Return the is_player, play_stream_id properties
-    pub async fn get_play_stream_id(status: &Mutex<RtmpSessionStatus>) -> (bool, u32) {
-        let status_v = status.lock().await;
-        (status_v.is_player, status_v.play_stream_id)
     }
 }
 
@@ -236,79 +172,36 @@ impl RtmpSessionPublishStreamStatus {
         }
     }
 
-    /// Sets the clock value
-    pub async fn set_clock(status_mu: &Mutex<RtmpSessionPublishStreamStatus>, clock_val: i64) {
-        let mut status = status_mu.lock().await;
-        status.clock = clock_val;
-    }
-
-    /// Sets the metadata value
-    pub async fn set_metadata(
-        status_mu: &Mutex<RtmpSessionPublishStreamStatus>,
-        metadata: Arc<Vec<u8>>,
-    ) {
-        let mut status = status_mu.lock().await;
-        status.metadata = metadata;
-    }
-
     /// Gets message to wake players
-    pub async fn get_play_start_message(
-        status_mu: &Mutex<RtmpSessionPublishStreamStatus>,
-        clear_gop: bool,
-    ) -> RtmpSessionMessage {
-        let mut status = status_mu.lock().await;
+    pub fn get_play_start_message(&self) -> RtmpSessionMessage {
+        let copy_of_gop_cache: Vec<Arc<RtmpPacket>> = self.gop_cache.iter().cloned().collect();
 
-        let copy_of_gop_cache: Vec<Arc<RtmpPacket>> = status.gop_cache.iter().cloned().collect();
-
-        let msg = RtmpSessionMessage::PlayStart {
-            metadata: status.metadata.clone(),
-            audio_codec: status.audio_codec,
-            aac_sequence_header: status.aac_sequence_header.clone(),
-            video_codec: status.video_codec,
-            avc_sequence_header: status.avc_sequence_header.clone(),
+        RtmpSessionMessage::PlayStart {
+            metadata: self.metadata.clone(),
+            audio_codec: self.audio_codec,
+            aac_sequence_header: self.aac_sequence_header.clone(),
+            video_codec: self.video_codec,
+            avc_sequence_header: self.avc_sequence_header.clone(),
             gop_cache: copy_of_gop_cache,
-        };
-
-        if clear_gop && !status.gop_cache_cleared {
-            status.gop_cache.clear();
-            status.gop_cache_cleared = true;
-            status.gop_cache_size = 0;
         }
-
-        msg
     }
 
-    /// Gets message to wake players
-    pub async fn get_player_resume_message(
-        status_mu: &Mutex<RtmpSessionPublishStreamStatus>,
-    ) -> RtmpSessionMessage {
-        let status = status_mu.lock().await;
+    /// Clears the GOP cache
+    pub fn clear_gop(&mut self) {
+        if !self.gop_cache_cleared {
+            self.gop_cache.clear();
+            self.gop_cache_cleared = true;
+            self.gop_cache_size = 0;
+        }
+    }
 
+    /// Gets message to resume players
+    pub fn get_player_resume_message(&self) -> RtmpSessionMessage {
         RtmpSessionMessage::Resume {
-            audio_codec: status.audio_codec,
-            aac_sequence_header: status.aac_sequence_header.clone(),
-            video_codec: status.video_codec,
-            avc_sequence_header: status.avc_sequence_header.clone(),
-        }
-    }
-
-    /// Pushes a new packet to the gop cache
-    pub async fn push_new_packet(
-        status_mu: &Mutex<RtmpSessionPublishStreamStatus>,
-        packet: Arc<RtmpPacket>,
-        gop_max_size: usize,
-    ) {
-        let mut status = status_mu.lock().await;
-
-        let packet_size = packet.size();
-
-        status.gop_cache_size = status.gop_cache_size.wrapping_add(packet_size);
-        status.gop_cache.push_back(packet);
-
-        while !status.gop_cache.is_empty() && status.gop_cache_size > gop_max_size {
-            if let Some(removed) = status.gop_cache.pop_front() {
-                status.gop_cache_size = status.gop_cache_size.wrapping_sub(removed.size());
-            }
+            audio_codec: self.audio_codec,
+            aac_sequence_header: self.aac_sequence_header.clone(),
+            video_codec: self.video_codec,
+            avc_sequence_header: self.avc_sequence_header.clone(),
         }
     }
 }

@@ -1,9 +1,9 @@
 // Redis feature
 
 mod client;
-mod config;
 mod command;
+mod config;
 
 pub use client::*;
-pub use config::*;
 pub use command::*;
+pub use config::*;

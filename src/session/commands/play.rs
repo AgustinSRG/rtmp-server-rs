@@ -13,8 +13,6 @@ use crate::{
     utils::{parse_query_string_simple, validate_id_string},
 };
 
-use super::super::RtmpSessionStatus;
-
 /// Handles RTMP command: PLAY
 ///
 /// # Arguments
@@ -43,7 +41,7 @@ pub async fn handle_rtmp_command_play<
 
     let play_stream_id = packet.header.stream_id;
 
-    let channel = match RtmpSessionStatus::get_channel(&session_context.status).await {
+    let channel = match session_context.channel().await {
         Some(c) => c,
         None => {
             if server_context.config.log_requests && logger.config.debug_enabled {
@@ -137,7 +135,7 @@ pub async fn handle_rtmp_command_play<
 
     // Ensure it is not playing
 
-    if RtmpSessionStatus::check_is_player(&session_context.status).await {
+    if session_context.is_player().await {
         if server_context.config.log_requests && logger.config.debug_enabled {
             logger.log_debug("Protocol error: Received play command, but already playing");
         }
@@ -197,8 +195,9 @@ pub async fn handle_rtmp_command_play<
 
     // Update session status
 
-    let (receive_audio, receive_video) =
-        RtmpSessionStatus::set_player(&session_context.status, gop_receive, play_stream_id).await;
+    let (receive_audio, receive_video) = session_context
+        .set_player(gop_receive, play_stream_id)
+        .await;
 
     // Update server status
 

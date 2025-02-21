@@ -12,9 +12,9 @@ use crate::{
 use super::{RedisConfiguration, RedisRtmpCommand};
 
 /// Spawns a task for the Redis client
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `logger` - The logger
 /// * `config` - The Redis client configuration
 /// * `server_context` - The RTMP server context

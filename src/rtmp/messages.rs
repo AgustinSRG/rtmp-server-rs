@@ -149,11 +149,26 @@ pub fn rtmp_make_status_message(
 
     let mut info: HashMap<String, AMF0Value> = HashMap::new();
 
-    info.insert("level".to_string(), AMF0Value::String { value: level.to_string() });
-    info.insert("code".to_string(), AMF0Value::String { value: code.to_string() });
+    info.insert(
+        "level".to_string(),
+        AMF0Value::String {
+            value: level.to_string(),
+        },
+    );
+    info.insert(
+        "code".to_string(),
+        AMF0Value::String {
+            value: code.to_string(),
+        },
+    );
 
     if let Some(d) = description {
-        info.insert("description".to_string(), AMF0Value::String { value: d.to_string() });
+        info.insert(
+            "description".to_string(),
+            AMF0Value::String {
+                value: d.to_string(),
+            },
+        );
     }
 
     cmd.set_argument("info".to_string(), AMF0Value::Object { properties: info });

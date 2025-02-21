@@ -2,7 +2,10 @@ use std::{collections::HashMap, sync::Arc};
 
 use tokio::sync::{mpsc::Sender, Mutex};
 
-use crate::{rtmp::{RtmpPacket, RTMP_TYPE_AUDIO, RTMP_TYPE_VIDEO}, session::{RtmpSessionMessage, RtmpSessionPublishStreamStatus}};
+use crate::{
+    rtmp::{RtmpPacket, RTMP_TYPE_AUDIO, RTMP_TYPE_VIDEO},
+    session::{RtmpSessionMessage, RtmpSessionPublishStreamStatus},
+};
 
 /// Status of an RTMP player
 pub struct RtmpPlayerStatus {
@@ -67,9 +70,9 @@ impl RtmpChannelStatus {
     }
 
     /// Sends a packet to players and stored it in the GOP cache if applicable
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `publisher_id` - ID of the publisher sending the packet
     /// * `packet` - Packet to send
     /// * `skip_cache` - True if the packet should not be added to the GOP cache
@@ -91,7 +94,7 @@ impl RtmpChannelStatus {
             }
         }
 
-        let publish_status = match &self.publish_status {
+        let publish_status_mu = match &self.publish_status {
             Some(s) => s,
             None => {
                 return;
@@ -99,12 +102,24 @@ impl RtmpChannelStatus {
         };
 
         if !skip_cache {
-            RtmpSessionPublishStreamStatus::push_new_packet(
-                publish_status,
-                packet.clone(),
-                gop_cache_size,
-            )
-            .await;
+            let mut publish_status = publish_status_mu.lock().await;
+
+            // Push packet to the GOP cache
+            let packet_size = packet.size();
+            publish_status.gop_cache_size = publish_status.gop_cache_size.wrapping_add(packet_size);
+            publish_status.gop_cache.push_back(packet.clone());
+
+            // Remove packets to not exceed the max size of the GOP cache
+            while !publish_status.gop_cache.is_empty()
+                && publish_status.gop_cache_size > gop_cache_size
+            {
+                if let Some(removed) = publish_status.gop_cache.pop_front() {
+                    publish_status.gop_cache_size =
+                        publish_status.gop_cache_size.wrapping_sub(removed.size());
+                }
+            }
+
+            drop(publish_status);
         }
 
         // Send packet to players

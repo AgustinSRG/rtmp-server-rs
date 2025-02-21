@@ -1,7 +1,4 @@
-use crate::{
-    server::RtmpServerContext,
-    session::{RtmpSessionMessage, RtmpSessionPublishStreamStatus},
-};
+use crate::{server::RtmpServerContext, session::RtmpSessionMessage};
 
 /// Resumes a player
 ///
@@ -30,10 +27,12 @@ pub async fn player_resume(server_context: &RtmpServerContext, channel: &str, pl
             player_status.paused = false;
 
             if publishing {
-                if let Some(publish_status) = &publish_status {
-                    let player_resume_message =
-                        RtmpSessionPublishStreamStatus::get_player_resume_message(publish_status)
-                            .await;
+                if let Some(publish_status_mu) = &publish_status {
+                    let publish_status = publish_status_mu.lock().await;
+
+                    let player_resume_message = publish_status.get_player_resume_message();
+
+                    drop(publish_status);
 
                     _ = player_status.message_sender.send(player_resume_message);
                 } else {

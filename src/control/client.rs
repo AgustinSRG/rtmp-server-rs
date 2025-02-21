@@ -20,11 +20,10 @@ use super::{
 /// Timeout for read operations
 const READ_TIMEOUT_SECONDS: u64 = 60;
 
-
 /// Spawns task to communicate with the control server
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `logger` - The logger
 /// * `config` - The control client configuration
 /// * `status` - The control client status

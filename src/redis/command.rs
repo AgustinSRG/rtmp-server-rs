@@ -1,15 +1,9 @@
 // Redis command
 
-
 /// RTMP command received via REdis
 pub enum RedisRtmpCommand {
-    KillSession{
-        channel:String,
-    },
-    CloseStream {
-        channel:String,
-        stream_id: String,
-    },
+    KillSession { channel: String },
+    CloseStream { channel: String, stream_id: String },
     Unknown,
 }
 
@@ -32,16 +26,21 @@ impl RedisRtmpCommand {
                     return RedisRtmpCommand::Unknown;
                 }
 
-                RedisRtmpCommand::KillSession { channel: args[0].to_string() }
+                RedisRtmpCommand::KillSession {
+                    channel: args[0].to_string(),
+                }
             }
             "close-stream" => {
                 if args.len() < 2 {
                     return RedisRtmpCommand::Unknown;
                 }
 
-                RedisRtmpCommand::CloseStream { channel: args[0].to_string(), stream_id: args[1].to_string() }
+                RedisRtmpCommand::CloseStream {
+                    channel: args[0].to_string(),
+                    stream_id: args[1].to_string(),
+                }
             }
-            _ => RedisRtmpCommand::Unknown
+            _ => RedisRtmpCommand::Unknown,
         }
     }
 }

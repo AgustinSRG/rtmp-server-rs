@@ -12,14 +12,12 @@ pub struct Logger {
 impl Logger {
     // Creates new logger
     pub fn new(config: LogConfig) -> Logger {
-        Logger{
-            config,
-        }
+        Logger { config }
     }
 
     /// Makes child logger
     pub fn make_child_logger(&self, prefix: &str) -> Logger {
-        Logger{
+        Logger {
             config: self.config.child_config(prefix),
         }
     }

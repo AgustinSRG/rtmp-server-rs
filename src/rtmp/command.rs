@@ -223,7 +223,7 @@ static RTMP_COMMAND_CODES: LazyLock<HashMap<String, Vec<String>>> = LazyLock::ne
 impl RtmpCommand {
     /// Creates RtmpCommand
     pub fn new(cmd: String) -> RtmpCommand {
-        RtmpCommand{
+        RtmpCommand {
             cmd,
             arguments: HashMap::new(),
         }
@@ -244,7 +244,11 @@ impl RtmpCommand {
         let mut s = format!("{} {}\n", self.cmd, "{");
 
         for (arg_name, arg_val) in &self.arguments {
-            s.push_str(&format!("    '{}' = {}\n", arg_name, arg_val.to_debug_string("    ")));
+            s.push_str(&format!(
+                "    '{}' = {}\n",
+                arg_name,
+                arg_val.to_debug_string("    ")
+            ));
         }
 
         s.push('}');
@@ -254,7 +258,7 @@ impl RtmpCommand {
 
     /// Encodes command
     pub fn encode(&self) -> Vec<u8> {
-        let x = AMF0Value::String{
+        let x = AMF0Value::String {
             value: self.cmd.clone(),
         };
 
@@ -269,10 +273,10 @@ impl RtmpCommand {
                 match val_res {
                     Some(val) => {
                         buf.extend(val.encode());
-                    },
+                    }
                     None => {
                         buf.extend(AMF0Value::Undefined.encode());
-                    },
+                    }
                 }
             }
         }
@@ -292,7 +296,7 @@ impl RtmpCommand {
         let arg_list_res = RTMP_COMMAND_CODES.get(cmd);
 
         if let Some(arg_list) = arg_list_res {
-            let mut i: usize =  0;
+            let mut i: usize = 0;
 
             while i < arg_list.len() && !cursor.ended() {
                 let val = AMF0Value::read(&mut cursor, data)?;
@@ -302,7 +306,6 @@ impl RtmpCommand {
                 i += 1;
             }
         }
-
 
         Ok(c)
     }
