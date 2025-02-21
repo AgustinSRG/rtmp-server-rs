@@ -178,10 +178,11 @@ List of options made to mitigate DOS attacks.
 
 Lis of options related to performance.
 
-| Variable Name     | Description                                                                                  |
-| ----------------- | -------------------------------------------------------------------------------------------- |
-| RTMP_CHUNK_SIZE   | RTMP Chunk size in bytes. Default is `4096`                                                   |
-| GOP_CACHE_SIZE_MB | Size limit in megabytes of packet cache. By default is `256`. Set it to `0` to disable cache |
+| Variable Name     | Description                                                                                     |
+| ----------------- | ----------------------------------------------------------------------------------------------- |
+| RTMP_CHUNK_SIZE   | RTMP Chunk size in bytes. Default is `4096`                                                     |
+| GOP_CACHE_SIZE_MB | Size limit in megabytes of packet cache. By default is `256`. Set it to `0` to disable cache    |
+| MSG_BUFFER_SIZE   | Size of the message buffer. Default: `8`. Lower it to reduce memory usage at a cost of bit rate |
 
 ### More options
 

@@ -15,7 +15,8 @@ use crate::{
 };
 
 use super::{
-    session_write_bytes, spawn_task_to_read_session_messages, spawn_task_to_send_pings, RtmpSessionMessage, RtmpSessionReadStatus, SessionContext, SessionReadThreadContext, RTMP_SESSION_MESSAGE_BUFFER_SIZE
+    session_write_bytes, spawn_task_to_read_session_messages, spawn_task_to_send_pings,
+    RtmpSessionMessage, RtmpSessionReadStatus, SessionContext, SessionReadThreadContext,
 };
 
 /// Size if the buffer to store input packets
@@ -168,7 +169,7 @@ pub async fn handle_rtmp_session<
     // Create channel for session messages
 
     let (msg_sender, msg_receiver) =
-        tokio::sync::mpsc::channel::<RtmpSessionMessage>(RTMP_SESSION_MESSAGE_BUFFER_SIZE);
+        tokio::sync::mpsc::channel::<RtmpSessionMessage>(server_context.config.msg_buffer_size);
 
     // Create a task to read messages
 
@@ -199,7 +200,7 @@ pub async fn handle_rtmp_session<
 
     // Prepare read thread context
 
-    let mut read_thread_context = SessionReadThreadContext{
+    let mut read_thread_context = SessionReadThreadContext {
         id: session_context.id,
         ip: session_context.ip,
         status: session_context.status,
@@ -227,5 +228,8 @@ pub async fn handle_rtmp_session<
     // End of loop, make sure all the tasks end
 
     _ = cancel_pings_sender.send(()).await;
-    _ = read_thread_context.session_msg_sender.send(RtmpSessionMessage::End).await;
+    _ = read_thread_context
+        .session_msg_sender
+        .send(RtmpSessionMessage::End)
+        .await;
 }

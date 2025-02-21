@@ -6,6 +6,16 @@ use crate::{
     utils::{get_env_bool, get_env_string, get_env_u32, IpRangeConfig, DEFAULT_MAX_ID_LENGTH},
 };
 
+const RTMP_PORT_DEFAULT: u32 = 1935;
+const TLS_PORT_DEFAULT: u32 = 443;
+
+const MAX_PORT: u32 = 65535;
+
+const GOP_CACHE_SIZE_MB_DEFAULT: u32 = 256;
+const MSG_BUFFER_SIZE_DEFAULT: u32 = 8;
+
+const SSL_CHECK_RELOAD_SECONDS_DEFAULT: u32 = 60;
+
 /// RTMP server configuration
 #[derive(Clone)]
 pub struct TlsServerConfiguration {
@@ -26,10 +36,15 @@ pub struct TlsServerConfiguration {
 }
 
 impl TlsServerConfiguration {
+    /// Loads configuration for environment variables
+    ///
+    /// # Arguments
+    ///
+    /// * `logger` - The logger
     pub fn load_from_env(logger: &Logger) -> Result<TlsServerConfiguration, ()> {
-        let port = get_env_u32("SSL_PORT", 443);
+        let port = get_env_u32("SSL_PORT", TLS_PORT_DEFAULT);
 
-        if port == 0 || port > 65535 {
+        if port == 0 || port > MAX_PORT {
             logger.log_error(&format!("SSL_PORT has an invalid value: {}", port));
             return Err(());
         }
@@ -39,7 +54,8 @@ impl TlsServerConfiguration {
         let certificate = get_env_string("SSL_CERT", "");
         let key = get_env_string("SSL_KEY", "");
 
-        let check_reload_seconds = get_env_u32("SSL_CHECK_RELOAD_SECONDS", 60);
+        let check_reload_seconds =
+            get_env_u32("SSL_CHECK_RELOAD_SECONDS", SSL_CHECK_RELOAD_SECONDS_DEFAULT);
 
         Ok(TlsServerConfiguration {
             port,
@@ -85,6 +101,9 @@ pub struct RtmpServerConfiguration {
     /// Size limit in megabytes of packet cache (bytes).
     pub gop_cache_size: usize,
 
+    /// Size of the message buffer for sessions
+    pub msg_buffer_size: usize,
+
     /// Max number of concurrent connections per IP address
     pub max_concurrent_connections_per_ip: u32,
 
@@ -99,10 +118,15 @@ pub struct RtmpServerConfiguration {
 }
 
 impl RtmpServerConfiguration {
+    /// Loads configuration for environment variables
+    ///
+    /// # Arguments
+    ///
+    /// * `logger` - The logger
     pub fn load_from_env(logger: &Logger) -> Result<RtmpServerConfiguration, ()> {
-        let port = get_env_u32("RTMP_PORT", 1935);
+        let port = get_env_u32("RTMP_PORT", RTMP_PORT_DEFAULT);
 
-        if port == 0 || port > 65535 {
+        if port == 0 || port > MAX_PORT {
             logger.log_error(&format!("RTMP_PORT has an invalid value: {}", port));
             return Err(());
         }
@@ -130,8 +154,10 @@ impl RtmpServerConfiguration {
             return Err(());
         }
 
-        let gop_cache_size = (get_env_u32("GOP_CACHE_SIZE_MB", 256) as usize) * 1024 * 1024;
+        let gop_cache_size =
+            (get_env_u32("GOP_CACHE_SIZE_MB", GOP_CACHE_SIZE_MB_DEFAULT) as usize) * 1024 * 1024;
         let max_concurrent_connections_per_ip = get_env_u32("MAX_IP_CONCURRENT_CONNECTIONS", 4);
+        let msg_buffer_size = get_env_u32("MSG_BUFFER_SIZE", MSG_BUFFER_SIZE_DEFAULT) as usize;
 
         let max_concurrent_connections_whitelist =
             match IpRangeConfig::new_from_string(&get_env_string("CONCURRENT_LIMIT_WHITELIST", ""))
@@ -170,6 +196,7 @@ impl RtmpServerConfiguration {
             play_whitelist,
             chunk_size,
             gop_cache_size,
+            msg_buffer_size,
             max_concurrent_connections_per_ip,
             max_concurrent_connections_whitelist,
             callback,
