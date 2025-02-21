@@ -10,7 +10,7 @@ use crate::{
     control::control_validate_key,
     log::Logger,
     rtmp::{RtmpCommand, RtmpPacket},
-    server::{RtmpServerContext, RtmpServerStatus},
+    server::{check_channel_publishing_status, set_publisher, RtmpServerContext},
     session::SessionReadThreadContext,
     utils::validate_id_string,
 };
@@ -155,7 +155,7 @@ pub async fn handle_rtmp_command_publish<
 
     // Ensure the channel is free to publish
 
-    if RtmpServerStatus::check_channel_publishing_status(&server_context.status, &channel).await {
+    if check_channel_publishing_status(server_context, &channel).await {
         if server_context.config.log_requests && logger.config.debug_enabled {
             logger
                 .log_debug("Cannot publish: Another session is already publishing on the channel");
@@ -233,18 +233,7 @@ pub async fn handle_rtmp_command_publish<
 
     // Set publisher into the server status
 
-    if !RtmpServerStatus::set_publisher(
-        &server_context.status,
-        &channel,
-        key,
-        &stream_id,
-        session_context.id,
-        session_context.publish_status.clone(),
-        session_context.session_msg_sender.clone(),
-        &mut session_context.read_status,
-    )
-    .await
-    {
+    if !set_publisher(server_context, session_context, &channel, key, &stream_id).await {
         if server_context.config.log_requests && logger.config.debug_enabled {
             logger
                 .log_debug("Cannot publish: Another session is already publishing on the channel");

@@ -1,24 +1,27 @@
 // Redis client
 
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use redis::{PushKind, Value};
-use tokio::sync::{mpsc::Sender, Mutex};
 
 use crate::{
-    control::ControlKeyValidationRequest,
     log::Logger,
-    server::{RtmpServerConfiguration, RtmpServerStatus},
+    server::{kill_publisher, RtmpServerContext},
 };
 
 use super::{RedisConfiguration, RedisRtmpCommand};
 
+/// Spawns a task for the Redis client
+/// 
+/// # Arguments
+/// 
+/// * `logger` - The logger
+/// * `config` - The Redis client configuration
+/// * `server_context` - The RTMP server context
 pub fn spawn_task_redis_client(
     logger: Logger,
     config: RedisConfiguration,
-    server_config: Arc<RtmpServerConfiguration>,
-    server_status: Arc<Mutex<RtmpServerStatus>>,
-    mut control_key_validator_sender: Option<Sender<ControlKeyValidationRequest>>,
+    server_context: RtmpServerContext,
 ) {
     tokio::spawn(async move {
         loop {
@@ -85,22 +88,13 @@ pub fn spawn_task_redis_client(
 
                                 match cmd {
                                     RedisRtmpCommand::KillSession { channel } => {
-                                        RtmpServerStatus::kill_publisher(
-                                            &logger,
-                                            &server_config,
-                                            &server_status,
-                                            &mut control_key_validator_sender,
-                                            &channel,
-                                            None,
-                                        )
-                                        .await;
+                                        kill_publisher(&logger, &server_context, &channel, None)
+                                            .await;
                                     }
                                     RedisRtmpCommand::CloseStream { channel, stream_id } => {
-                                        RtmpServerStatus::kill_publisher(
+                                        kill_publisher(
                                             &logger,
-                                            &server_config,
-                                            &server_status,
-                                            &mut control_key_validator_sender,
+                                            &server_context,
                                             &channel,
                                             Some(&stream_id),
                                         )

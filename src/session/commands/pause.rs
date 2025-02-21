@@ -3,7 +3,7 @@
 use crate::{
     log::Logger,
     rtmp::RtmpCommand,
-    server::{RtmpServerContext, RtmpServerStatus},
+    server::{player_pause, player_resume, RtmpServerContext},
     session::SessionReadThreadContext,
 };
 
@@ -58,9 +58,9 @@ pub async fn handle_rtmp_command_pause(
     };
 
     if is_pause {
-        RtmpServerStatus::player_pause(&server_context.status, &channel, session_context.id).await;
+        player_pause(server_context, &channel, session_context.id).await;
     } else {
-        RtmpServerStatus::player_resume(&server_context.status, &channel, session_context.id).await;
+        player_resume(server_context, &channel, session_context.id).await;
     }
 
     true

@@ -2,7 +2,7 @@
 
 use crate::{
     log::Logger,
-    server::{RtmpServerContext, RtmpServerStatus},
+    server::{remove_player, remove_publisher, try_clear_channel, RtmpServerContext},
 };
 
 use super::SessionContext;
@@ -34,22 +34,14 @@ pub async fn do_session_cleanup(
     drop(session_status_v);
 
     if must_clear_player {
-        RtmpServerStatus::remove_player(&server_context.status, &channel, session_context.id).await;
+        remove_player(server_context, &channel, session_context.id).await;
     }
 
     if must_clear_publisher {
-        RtmpServerStatus::remove_publisher(
-            logger,
-            &server_context.config,
-            &server_context.status,
-            &mut server_context.control_key_validator_sender,
-            &channel,
-            session_context.id,
-        )
-        .await
+        remove_publisher(logger, server_context, &channel, session_context.id).await
     }
 
     if must_clear_player || must_clear_publisher {
-        RtmpServerStatus::try_clear_channel(&server_context.status, &channel).await;
+        try_clear_channel(server_context, &channel).await;
     }
 }

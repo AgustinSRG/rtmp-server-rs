@@ -91,9 +91,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             Arc::new(logger.make_child_logger("[CONTROL/CLIENT] ")),
             control_config.clone(),
             control_client_status.clone(),
-            server_config.clone(),
-            server_status.clone(),
-            control_key_validator_sender.clone(),
+            RtmpServerContext{
+                config: server_config.clone(),
+                status: server_status.clone(),
+                control_key_validator_sender: control_key_validator_sender.clone(),
+            }
         );
 
         // Spawn task to handle key validations
@@ -126,9 +128,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         spawn_task_redis_client(
             logger.make_child_logger("[REDIS] "),
             redis_config,
-            server_config.clone(),
-            server_status.clone(),
-            control_key_validator_sender.clone(),
+            RtmpServerContext{
+                config: server_config.clone(),
+                status: server_status.clone(),
+                control_key_validator_sender: control_key_validator_sender.clone(),
+            }
         );
     }
 

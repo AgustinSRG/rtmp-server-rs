@@ -3,31 +3,37 @@
 use std::{sync::Arc, time::Duration};
 
 use futures_util::StreamExt;
-use tokio::sync::{mpsc::Sender, Mutex};
+use tokio::sync::Mutex;
 use tokio_tungstenite::connect_async;
 use tungstenite::{client::IntoClientRequest, http::HeaderValue};
 
 use crate::{
     log::Logger,
-    server::{RtmpServerConfiguration, RtmpServerStatus},
+    server::{kill_publisher, remove_all_publishers, RtmpServerContext},
 };
 
 use super::{
     make_control_auth_token, spawn_task_control_client_heartbeat, ControlClientStatus,
-    ControlKeyValidationRequest, ControlKeyValidationResponse, ControlServerConnectionConfig,
-    ControlServerMessage,
+    ControlKeyValidationResponse, ControlServerConnectionConfig, ControlServerMessage,
 };
 
 /// Timeout for read operations
 const READ_TIMEOUT_SECONDS: u64 = 60;
 
+
+/// Spawns task to communicate with the control server
+/// 
+/// # Arguments
+/// 
+/// * `logger` - The logger
+/// * `config` - The control client configuration
+/// * `status` - The control client status
+/// * `server_context` - The RTMP server context
 pub fn spawn_task_control_client(
     logger: Arc<Logger>,
     config: Arc<ControlServerConnectionConfig>,
     status: Arc<Mutex<ControlClientStatus>>,
-    server_config: Arc<RtmpServerConfiguration>,
-    server_status: Arc<Mutex<RtmpServerStatus>>,
-    mut control_key_validator_sender: Option<Sender<ControlKeyValidationRequest>>,
+    server_context: RtmpServerContext,
 ) {
     tokio::spawn(async move {
         let external_ip_header: HeaderValue = match config.external_ip.parse::<HeaderValue>() {
@@ -256,17 +262,11 @@ pub fn spawn_task_control_client(
                             "STREAM-KILL" => {
                                 let channel =
                                     msg_parsed.get_parameter("Stream-Channel").unwrap_or("");
-                                let stream_id = msg_parsed.get_parameter("Stream-Id").filter(|&s| !s.is_empty());
+                                let stream_id = msg_parsed
+                                    .get_parameter("Stream-Id")
+                                    .filter(|&s| !s.is_empty());
 
-                                RtmpServerStatus::kill_publisher(
-                                    &logger,
-                                    &server_config,
-                                    &server_status,
-                                    &mut control_key_validator_sender,
-                                    channel,
-                                    stream_id,
-                                )
-                                .await;
+                                kill_publisher(&logger, &server_context, channel, stream_id).await;
                             }
                             "HEARTBEAT" => {}
                             _ => {
@@ -301,7 +301,7 @@ pub fn spawn_task_control_client(
 
             // Kill all publishers
 
-            RtmpServerStatus::remove_all_publishers(&server_status).await;
+            remove_all_publishers(&server_context).await;
         }
     });
 }

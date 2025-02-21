@@ -5,7 +5,7 @@ use std::sync::Arc;
 use crate::{
     log::Logger,
     rtmp::{RtmpPacket, RTMP_CHANNEL_VIDEO, RTMP_CHUNK_TYPE_0, RTMP_TYPE_VIDEO},
-    server::{RtmpServerContext, RtmpServerStatus},
+    server::RtmpServerContext,
 };
 
 use super::SessionReadThreadContext;
@@ -28,7 +28,7 @@ pub async fn handle_rtmp_packet_video(
     session_context: &mut SessionReadThreadContext,
     packet: &RtmpPacket,
 ) -> bool {
-    let channel_status = match &session_context.read_status.channel_status {
+    let channel_status_mu = match &session_context.read_status.channel_status {
         Some(s) => s,
         None => {
             if server_context.config.log_requests && logger.config.debug_enabled {
@@ -90,14 +90,18 @@ pub async fn handle_rtmp_packet_video(
 
     // Send packet to the channel
 
-    RtmpServerStatus::send_packet_to_channel(
-        channel_status,
-        session_context.id,
-        Arc::new(copied_packet),
-        is_header,
-        &server_context.config,
-    )
-    .await;
+    let channel_status = channel_status_mu.lock().await;
+
+    channel_status
+        .send_packet(
+            session_context.id,
+            Arc::new(copied_packet),
+            is_header,
+            server_context.config.gop_cache_size,
+        )
+        .await;
+
+    drop(channel_status);
 
     // Done
 

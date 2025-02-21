@@ -7,7 +7,7 @@ use tokio::{
 
 use crate::{
     log::Logger,
-    server::{RtmpServerContext, RtmpServerStatus},
+    server::{remove_player, remove_publisher, try_clear_channel, RtmpServerContext},
 };
 
 use super::{send_status_message, SessionReadThreadContext};
@@ -88,9 +88,8 @@ pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
         }
 
         if can_clear_player {
-            RtmpServerStatus::remove_player(&server_context.status, &channel, session_context.id)
-                .await;
-            RtmpServerStatus::try_clear_channel(&server_context.status, &channel).await;
+            remove_player(server_context, &channel, session_context.id).await;
+            try_clear_channel(server_context, &channel).await;
         }
     }
 
@@ -115,16 +114,8 @@ pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
         }
 
         if can_clear_publisher {
-            RtmpServerStatus::remove_publisher(
-                logger,
-                &server_context.config,
-                &server_context.status,
-                &mut server_context.control_key_validator_sender,
-                &channel,
-                session_context.id,
-            )
-            .await;
-            RtmpServerStatus::try_clear_channel(&server_context.status, &channel).await;
+            remove_publisher(logger, server_context, &channel, session_context.id).await;
+            try_clear_channel(server_context, &channel).await;
         }
     }
 

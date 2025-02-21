@@ -5,7 +5,7 @@ use std::sync::Arc;
 use crate::{
     log::Logger,
     rtmp::{rtmp_build_metadata, RtmpData, RtmpPacket, RTMP_TYPE_FLEX_STREAM},
-    server::{RtmpServerContext, RtmpServerStatus},
+    server::{set_channel_metadata, RtmpServerContext},
 };
 
 use super::{RtmpSessionStatus, SessionReadThreadContext};
@@ -73,13 +73,7 @@ pub async fn handle_rtmp_packet_data(
             let channel_opt = RtmpSessionStatus::get_channel(&session_context.status).await;
 
             if let Some(channel) = channel_opt {
-                RtmpServerStatus::set_channel_metadata(
-                    &server_context.status,
-                    &channel,
-                    session_context.id,
-                    metadata,
-                )
-                .await;
+                set_channel_metadata(server_context, &channel, session_context.id, metadata).await;
 
                 if server_context.config.log_requests && logger.config.debug_enabled {
                     logger.log_debug(&format!(

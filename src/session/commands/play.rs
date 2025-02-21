@@ -8,7 +8,7 @@ use tokio::{
 use crate::{
     log::Logger,
     rtmp::{RtmpCommand, RtmpPacket},
-    server::{RtmpServerContext, RtmpServerStatus},
+    server::{add_player, AddPlayerOptions, RtmpServerContext},
     session::{send_status_message, SessionReadThreadContext},
     utils::{parse_query_string_simple, validate_id_string},
 };
@@ -202,15 +202,16 @@ pub async fn handle_rtmp_command_play<
 
     // Update server status
 
-    if !RtmpServerStatus::add_player(
-        &server_context.status,
+    if !add_player(
+        server_context,
+        session_context,
         &channel,
         key,
-        session_context.id,
-        session_context.session_msg_sender.clone(),
-        gop_clear,
-        receive_audio,
-        receive_video,
+        AddPlayerOptions {
+            gop_clear,
+            receive_audio,
+            receive_video,
+        },
     )
     .await
     {
