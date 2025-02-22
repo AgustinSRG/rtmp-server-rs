@@ -1,0 +1,5 @@
+/target
+/rtmp-server.exe
+/rtmp-server
+.env
+/benchmark
