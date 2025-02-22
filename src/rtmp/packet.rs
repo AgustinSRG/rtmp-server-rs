@@ -29,6 +29,20 @@ pub struct RtmpPacketHeader {
     pub length: usize,
 }
 
+impl RtmpPacketHeader {
+    /// Resets the header
+    pub fn reset(&mut self) {
+        *self = RtmpPacketHeader {
+            timestamp: 0,
+            format: 0,
+            channel_id: 0,
+            packet_type: 0,
+            stream_id: 0,
+            length: 0,
+        };
+    }
+}
+
 /// RTMP packet
 #[derive(Clone)]
 pub struct RtmpPacket {
@@ -43,6 +57,9 @@ pub struct RtmpPacket {
 
     /// True if the packet was handled
     pub handled: bool,
+
+    // True if used
+    pub used: bool,
 
     /// Packet payload
     pub payload: Vec<u8>,
@@ -62,7 +79,8 @@ impl RtmpPacket {
             },
             clock: 0,
             bytes: 0,
-            handled: true,
+            handled: false,
+            used: false,
             payload: Vec::new(),
         }
     }
@@ -72,6 +90,16 @@ impl RtmpPacket {
         self.handled = false;
         self.payload.truncate(0);
         self.bytes = 0;
+    }
+
+    /// Fully resets the packet
+    pub fn reset_full(&mut self) {
+        self.header.reset();
+        self.clock = 0;
+        self.bytes = 0;
+        self.handled = false;
+        self.used = false;
+        self.payload = Vec::new();
     }
 
     /// Gets packet total size

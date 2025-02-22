@@ -176,7 +176,7 @@ pub async fn read_rtmp_chunk<
 
     let channel_id = match basic_bytes {
         2 => 64 + (header[1] as u32),
-        3 => ((64 + (header[1] as u32)) + (header[2] as u32)) << 8,
+        3 => (64 + (header[1] as u32) + (header[2] as u32)) << 8,
         _ => (header[0] & 0x3f) as u32,
     };
 
@@ -187,7 +187,7 @@ pub async fn read_rtmp_chunk<
     let packet = in_packets.get_mut(packet_buf_index).unwrap();
 
     if packet_buf_dropped && server_context.config.log_requests && logger.config.debug_enabled {
-        logger.log_debug("An unhandled packet was dropped from the buffer");
+        logger.log_debug(&format!("Reusing a packet slot from the buffer: {}", packet_buf_index));
     }
 
     packet.header.channel_id = channel_id;
@@ -462,13 +462,25 @@ pub fn get_input_packet_from_buffer(
         .enumerate()
         .take(IN_PACKETS_BUFFER_SIZE)
     {
-        if item.handled {
-            item.reset();
+        if !item.used {
+            item.used = true;
             return (i, false);
         }
     }
 
-    in_packets[0].reset();
+    for (i, item) in in_packets
+        .iter_mut()
+        .enumerate()
+        .take(IN_PACKETS_BUFFER_SIZE)
+    {
+        if item.handled {
+            item.reset_full();
+            item.used = true;
+            return (i, true);
+        }
+    }
+
+    in_packets[0].reset_full();
 
     (0, true)
 }
