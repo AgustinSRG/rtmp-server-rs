@@ -124,6 +124,8 @@ async function periodicallyWriteStats() {
 
         outputFileStream.write(`${count},${JSON.stringify(date)},${Status.bitrate},${Status.cpu},${Status.mem}\n`);
 
+        count++;
+
         await wait(1000);
     }
 }
