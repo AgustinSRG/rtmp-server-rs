@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.exclude": {
+			"node_modules/**": true,
+		},
+		"cSpell.words": [
+			"rtmp",
+			"RTMP"
+		],
+	}
+}

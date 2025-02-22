@@ -1,0 +1,16 @@
+{
+  "name": "benchmark",
+  "private": true,
+  "version": "1.0.0",
+  "description": "RTMP benchmark",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "AgustinSRG",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "16.4.7",
+    "pidusage": "4.0.0"
+  }
+}

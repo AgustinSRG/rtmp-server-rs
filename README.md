@@ -167,7 +167,7 @@ Here is a list of options to customize log messages:
 
 ### DOS mitigation options
 
-List of options made to mitigate DOS attacks.
+List of options made to mitigate DOS (Denial of Service) attacks.
 
 | Variable Name                 | Description                                                                                                                        |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
@@ -195,3 +195,11 @@ Here is a list with more options you can configure:
 | BIND_ADDRESS       | Bind address for RTMP and RTMPS. By default it binds to all network interfaces.                       |
 | ID_MAX_LENGTH      | Max length for `CHANNEL` and `KEY`. By default is 128 characters                                      |
 | CUSTOM_JWT_SUBJECT | Custom subject to use for tokens sent to the callback URL                                             |
+
+## Benchmark
+
+This repository also contains a [benchmark script](./benchmark) you can use to compare performances between versions.
+
+## License
+
+This project is under the [MIT license](./LICENSE).

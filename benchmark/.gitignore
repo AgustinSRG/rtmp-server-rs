@@ -1,0 +1,15 @@
+# Ignore node modules
+
+node_modules
+
+# Ignore .env
+
+.env
+
+# Ignore results
+
+*.csv
+
+# Ignore videos
+
+*.mp4
