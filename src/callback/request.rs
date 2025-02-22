@@ -24,6 +24,10 @@ pub async fn make_start_callback(
 ) -> Option<String> {
     let callback_url = &config.callback_url;
 
+    if callback_url.is_empty() {
+        return Some(key.to_string());
+    }
+
     if logger.config.debug_enabled {
         logger.log_debug(&format!(
             "POST {} | | Event: START | Channel: {}",
@@ -99,6 +103,10 @@ pub async fn make_stop_callback(
     stream_id: &str,
 ) -> bool {
     let callback_url = &config.callback_url;
+
+    if callback_url.is_empty() {
+        return true;
+    }
 
     if logger.config.debug_enabled {
         logger.log_debug(&format!(
