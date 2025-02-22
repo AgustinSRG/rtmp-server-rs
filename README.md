@@ -1,5 +1,8 @@
 # RTMP Server (Rust Implementation)
 
+[![Rust](https://github.com/AgustinSRG/rtmp-server-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/AgustinSRG/rtmp-server-rs/actions/workflows/rust.yml)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat)](./LICENSE)
+
 This is a RTMP (Real Time Messaging Protocol) server for live streaming broadcasting, implemented in [Rust](https://www.rust-lang.org/).
 
 This is a rewrite of [RTMP Server (Go Implementation)](https://github.com/AgustinSRG/rtmp-server).
