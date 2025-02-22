@@ -5,11 +5,15 @@
 # Builder
 FROM rust:alpine AS builder
 
+    ## Install OpenSSL
+    RUN apk add libressl-dev musl-dev
+
     ## Copy files
     ADD . /root
 
     ## Compile
     WORKDIR /root
+    ENV OPENSSL_NO_VENDOR=true
     RUN cargo build --release
 
 # Runner
