@@ -180,8 +180,8 @@ pub async fn handle_rtmp_packet<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
         }
         _ => {
             // Other type (not supported by this server implementation)
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!(
+            if server_context.config.log_requests && logger.config.trace_enabled {
+                logger.log_trace(&format!(
                     "Received unknown packet type: {}",
                     packet.header.packet_type
                 ));
