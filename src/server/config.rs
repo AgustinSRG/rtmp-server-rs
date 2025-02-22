@@ -49,7 +49,7 @@ impl TlsServerConfiguration {
             return Err(());
         }
 
-        let bind_address = get_env_string("SSL_BIND_ADDRESS", &get_env_string("BIND_ADDRESS", ""));
+        let bind_address = get_env_string("SSL_BIND_ADDRESS", &get_env_string("BIND_ADDRESS", "0.0.0.0"));
 
         let certificate = get_env_string("SSL_CERT", "");
         let key = get_env_string("SSL_KEY", "");
@@ -131,7 +131,7 @@ impl RtmpServerConfiguration {
             return Err(());
         }
 
-        let bind_address = get_env_string("BIND_ADDRESS", "");
+        let bind_address = get_env_string("BIND_ADDRESS", "0.0.0.0");
 
         let id_max_length = get_env_u32("ID_MAX_LENGTH", DEFAULT_MAX_ID_LENGTH as u32);
 
