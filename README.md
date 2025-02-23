@@ -199,6 +199,28 @@ Here is a list with more options you can configure:
 | ID_MAX_LENGTH      | Max length for `CHANNEL` and `KEY`. By default is 128 characters                                      |
 | CUSTOM_JWT_SUBJECT | Custom subject to use for tokens sent to the callback URL                                             |
 
+## Testing
+
+In order to run the unit tests, type:
+
+```sh
+cargo test
+```
+
+If you wish to test the server against a well-known client, you can use [FFmpeg](https://www.ffmpeg.org/) as the client.
+
+In order to publish, run a command like this (replace the video file and the RTMP URL):
+
+```sh
+ffmpeg -re -stream_loop -1 -i video.mp4 -c:v copy -c:a copy -f flv rtmp://127.0.0.1/channel/key
+```
+
+In order to play, run a command like this:
+
+```sh
+ffplay rtmp://127.0.0.1/channel/key
+```
+
 ## Benchmark
 
 This repository also contains a [benchmark script](./benchmark) you can use to compare performances between versions.
