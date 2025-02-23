@@ -9,14 +9,15 @@ use tokio::{
 
 use crate::{
     log::Logger,
-    rtmp::{generate_s0_s1_s2, RtmpPacket, RTMP_HANDSHAKE_SIZE, RTMP_PING_TIMEOUT, RTMP_VERSION},
+    rtmp::{generate_s0_s1_s2, RTMP_HANDSHAKE_SIZE, RTMP_PING_TIMEOUT, RTMP_VERSION},
     server::RtmpServerContext,
     session::read_rtmp_chunk,
 };
 
 use super::{
     session_write_bytes, spawn_task_to_read_session_messages, spawn_task_to_send_pings,
-    RtmpSessionMessage, RtmpSessionReadStatus, SessionContext, SessionReadThreadContext,
+    RtmpPacketWrapper, RtmpSessionMessage, RtmpSessionReadStatus, SessionContext,
+    SessionReadThreadContext,
 };
 
 /// Size if the buffer to store input packets
@@ -195,8 +196,8 @@ pub async fn handle_rtmp_session<
 
     // Create array of input packets
 
-    let mut in_packets: [RtmpPacket; IN_PACKETS_BUFFER_SIZE] =
-        std::array::from_fn(|_| RtmpPacket::new_blank());
+    let mut in_packets: [RtmpPacketWrapper; IN_PACKETS_BUFFER_SIZE] =
+        std::array::from_fn(|_| RtmpPacketWrapper::new());
 
     // Prepare read thread context
 

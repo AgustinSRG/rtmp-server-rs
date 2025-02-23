@@ -49,18 +49,6 @@ pub struct RtmpPacket {
     /// Packet header
     pub header: RtmpPacketHeader,
 
-    /// Clock value (Used for extended timestamp)
-    pub clock: i64,
-
-    /// Current packet size
-    pub bytes: usize,
-
-    /// True if the packet was handled
-    pub handled: bool,
-
-    // True if used
-    pub used: bool,
-
     /// Packet payload
     pub payload: Vec<u8>,
 }
@@ -77,28 +65,18 @@ impl RtmpPacket {
                 stream_id: 0,
                 length: 0,
             },
-            clock: 0,
-            bytes: 0,
-            handled: false,
-            used: false,
             payload: Vec::new(),
         }
     }
 
     /// Resets the payload and sets handled to false
-    pub fn reset(&mut self) {
-        self.handled = false;
+    pub fn reset_payload(&mut self) {
         self.payload.truncate(0);
-        self.bytes = 0;
     }
 
     /// Fully resets the packet
-    pub fn reset_full(&mut self) {
+    pub fn reset(&mut self) {
         self.header.reset();
-        self.clock = 0;
-        self.bytes = 0;
-        self.handled = false;
-        self.used = false;
         self.payload = Vec::new();
     }
 

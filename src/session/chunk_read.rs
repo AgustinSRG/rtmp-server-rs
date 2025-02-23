@@ -12,15 +12,14 @@ use tokio::{
 use crate::{
     log::Logger,
     rtmp::{
-        get_rtmp_header_size, rtmp_make_ack, RtmpPacket, RTMP_CHUNK_TYPE_0, RTMP_CHUNK_TYPE_1,
+        get_rtmp_header_size, rtmp_make_ack, RTMP_CHUNK_TYPE_0, RTMP_CHUNK_TYPE_1,
         RTMP_CHUNK_TYPE_2, RTMP_PING_TIMEOUT, RTMP_TYPE_METADATA,
     },
     server::RtmpServerContext,
 };
 
 use super::{
-    handle_rtmp_packet, session_write_bytes,
-    SessionReadThreadContext, IN_PACKETS_BUFFER_SIZE,
+    handle_rtmp_packet, session_write_bytes, RtmpPacketWrapper, SessionReadThreadContext, IN_PACKETS_BUFFER_SIZE
 };
 
 /// Interval to compute bit rate (milliseconds)
@@ -46,7 +45,7 @@ pub async fn read_rtmp_chunk<
     session_context: &mut SessionReadThreadContext,
     read_stream: &mut TR,
     write_stream: &Mutex<TW>,
-    in_packets: &mut [RtmpPacket; IN_PACKETS_BUFFER_SIZE],
+    in_packets: &mut [RtmpPacketWrapper; IN_PACKETS_BUFFER_SIZE],
 ) -> bool {
     // Check if the session was killed before reading any chunk
 
@@ -184,19 +183,20 @@ pub async fn read_rtmp_chunk<
 
     let (packet_buf_index, packet_buf_dropped) =
         get_input_packet_from_buffer(in_packets, channel_id);
-    let packet = in_packets.get_mut(packet_buf_index).unwrap();
+
+    let packet_wrapper = in_packets.get_mut(packet_buf_index).unwrap();
 
     if packet_buf_dropped && server_context.config.log_requests && logger.config.debug_enabled {
         logger.log_debug(&format!("Reusing a packet slot from the buffer: {}", packet_buf_index));
     }
 
-    packet.header.channel_id = channel_id;
-    packet.header.format = format;
+    packet_wrapper.packet.header.channel_id = channel_id;
+    packet_wrapper.packet.header.format = format;
 
     let mut offset: usize = basic_bytes;
 
     // Timestamp / delta
-    if packet.header.format <= RTMP_CHUNK_TYPE_2 {
+    if packet_wrapper.packet.header.format <= RTMP_CHUNK_TYPE_2 {
         if header.len() < offset + 3 {
             if server_context.config.log_requests {
                 logger.log_error("Header parsing error: Could not parse timestamp/delta");
@@ -206,7 +206,7 @@ pub async fn read_rtmp_chunk<
 
         let ts_bytes = &header[offset..offset + 3];
 
-        packet.header.timestamp = ((ts_bytes[2] as u32)
+        packet_wrapper.packet.header.timestamp = ((ts_bytes[2] as u32)
             | ((ts_bytes[1] as u32) << 8)
             | ((ts_bytes[0] as u32) << 16)) as i64;
 
@@ -214,7 +214,7 @@ pub async fn read_rtmp_chunk<
     }
 
     // Message length + type
-    if packet.header.format <= RTMP_CHUNK_TYPE_1 {
+    if packet_wrapper.packet.header.format <= RTMP_CHUNK_TYPE_1 {
         if header.len() < offset + 4 {
             if server_context.config.log_requests {
                 logger.log_error("Header parsing error: Could not parse message length + type");
@@ -224,16 +224,16 @@ pub async fn read_rtmp_chunk<
 
         let ts_bytes = &header[offset..offset + 3];
 
-        packet.header.length = ((ts_bytes[2] as u32)
+        packet_wrapper.packet.header.length = ((ts_bytes[2] as u32)
             | ((ts_bytes[1] as u32) << 8)
             | ((ts_bytes[0] as u32) << 16)) as usize;
-        packet.header.packet_type = header[offset + 3] as u32;
+            packet_wrapper.packet.header.packet_type = header[offset + 3] as u32;
 
         offset += 4;
     }
 
     // Stream id
-    if packet.header.format == RTMP_CHUNK_TYPE_0 {
+    if packet_wrapper.packet.header.format == RTMP_CHUNK_TYPE_0 {
         if header.len() < offset + 4 {
             if server_context.config.log_requests {
                 logger.log_error("Header parsing error: Could not parse stream id");
@@ -241,22 +241,22 @@ pub async fn read_rtmp_chunk<
             return false;
         }
 
-        packet.header.stream_id = LittleEndian::read_u32(&header[offset..offset + 4]);
+        packet_wrapper.packet.header.stream_id = LittleEndian::read_u32(&header[offset..offset + 4]);
     }
 
     // Stop packet
-    if packet.header.packet_type > RTMP_TYPE_METADATA {
+    if packet_wrapper.packet.header.packet_type > RTMP_TYPE_METADATA {
         if server_context.config.log_requests && logger.config.debug_enabled {
             logger.log_debug(&format!(
                 "Received stop packet: {}",
-                packet.header.packet_type
+                packet_wrapper.packet.header.packet_type
             ));
         }
         return false;
     }
 
     // Extended timestamp
-    let extended_timestamp: i64 = if packet.header.timestamp == 0xffffff {
+    let extended_timestamp: i64 = if packet_wrapper.packet.header.timestamp == 0xffffff {
         let mut ts_bytes: Vec<u8> = vec![0; 4];
 
         // Read extended timestamp
@@ -291,35 +291,35 @@ pub async fn read_rtmp_chunk<
 
         BigEndian::read_u32(&ts_bytes) as i64
     } else {
-        packet.header.timestamp
+        packet_wrapper.packet.header.timestamp
     };
 
-    if packet.bytes == 0 {
-        if packet.header.format == RTMP_CHUNK_TYPE_0 {
-            packet.clock = extended_timestamp;
+    if packet_wrapper.bytes == 0 {
+        if packet_wrapper.packet.header.format == RTMP_CHUNK_TYPE_0 {
+            packet_wrapper.clock = extended_timestamp;
         } else {
-            packet.clock = packet.clock.wrapping_add(extended_timestamp);
+            packet_wrapper.clock = packet_wrapper.clock.wrapping_add(extended_timestamp);
         }
 
-        session_context.set_clock(packet.clock).await;
+        session_context.set_clock(packet_wrapper.clock).await;
     }
 
     // Packet payload
 
     let size_to_read: usize = cmp::min(
         session_context.read_status.in_chunk_size
-            - (packet.bytes % session_context.read_status.in_chunk_size),
-        packet.header.length - packet.bytes,
+            - (packet_wrapper.bytes % session_context.read_status.in_chunk_size),
+            packet_wrapper.packet.header.length - packet_wrapper.bytes,
     );
 
     if size_to_read > 0 {
-        let new_payload_size = packet.bytes + size_to_read;
-        packet.payload.resize(packet.bytes + size_to_read, 0);
+        let new_payload_size = packet_wrapper.bytes + size_to_read;
+        packet_wrapper.packet.payload.resize(packet_wrapper.bytes + size_to_read, 0);
 
         // Read payload bytes
         match tokio::time::timeout(
             Duration::from_secs(RTMP_PING_TIMEOUT),
-            read_stream.read_exact(&mut packet.payload[packet.bytes..new_payload_size]),
+            read_stream.read_exact(&mut packet_wrapper.packet.payload[packet_wrapper.bytes..new_payload_size]),
         )
         .await
         {
@@ -343,20 +343,20 @@ pub async fn read_rtmp_chunk<
         };
 
         bytes_read_count += size_to_read;
-        packet.bytes = new_payload_size;
+        packet_wrapper.bytes = new_payload_size;
     }
 
     // If packet is ready, handle
-    if packet.bytes >= packet.header.length {
-        packet.handled = true;
+    if packet_wrapper.bytes >= packet_wrapper.packet.header.length {
+        packet_wrapper.handled = true;
 
-        if packet.clock <= 0xffffffff
+        if packet_wrapper.clock <= 0xffffffff
             && !handle_rtmp_packet(
                 logger,
                 server_context,
                 session_context,
                 write_stream,
-                packet,
+                &packet_wrapper.packet,
             )
             .await
         {
@@ -441,7 +441,7 @@ pub async fn read_rtmp_chunk<
 ///
 /// Returns the index of the slot to use, and true if there were no slots, so the first one was chosen
 pub fn get_input_packet_from_buffer(
-    in_packets: &mut [RtmpPacket; IN_PACKETS_BUFFER_SIZE],
+    in_packets: &mut [RtmpPacketWrapper; IN_PACKETS_BUFFER_SIZE],
     channel_id: u32,
 ) -> (usize, bool) {
     for (i, item) in in_packets
@@ -449,7 +449,7 @@ pub fn get_input_packet_from_buffer(
         .enumerate()
         .take(IN_PACKETS_BUFFER_SIZE)
     {
-        if item.header.channel_id == channel_id {
+        if item.packet.header.channel_id == channel_id {
             if item.handled {
                 item.reset();
             }
