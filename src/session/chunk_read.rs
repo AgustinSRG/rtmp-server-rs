@@ -10,14 +10,18 @@ use tokio::{
 };
 
 use crate::{
-    log::Logger, log_error, rtmp::{
+    log::Logger,
+    log_error,
+    rtmp::{
         get_rtmp_header_size, rtmp_make_ack, RTMP_CHUNK_TYPE_0, RTMP_CHUNK_TYPE_1,
         RTMP_CHUNK_TYPE_2, RTMP_PING_TIMEOUT, RTMP_TYPE_METADATA,
-    }, server::RtmpServerContext
+    },
+    server::RtmpServerContext,
 };
 
 use super::{
-    handle_rtmp_packet, session_write_bytes, RtmpPacketWrapper, SessionReadThreadContext, IN_PACKETS_BUFFER_SIZE
+    handle_rtmp_packet, session_write_bytes, RtmpPacketWrapper, SessionReadThreadContext,
+    IN_PACKETS_BUFFER_SIZE,
 };
 
 /// Interval to compute bit rate (milliseconds)
@@ -185,7 +189,10 @@ pub async fn read_rtmp_chunk<
     let packet_wrapper = in_packets.get_mut(packet_buf_index).unwrap();
 
     if packet_buf_dropped && server_context.config.log_requests && logger.config.debug_enabled {
-        logger.log_debug(&format!("Reusing a packet slot from the buffer: {}", packet_buf_index));
+        logger.log_debug(&format!(
+            "Reusing a packet slot from the buffer: {}",
+            packet_buf_index
+        ));
     }
 
     packet_wrapper.packet.header.channel_id = channel_id;
@@ -197,7 +204,10 @@ pub async fn read_rtmp_chunk<
     if packet_wrapper.packet.header.format <= RTMP_CHUNK_TYPE_2 {
         if header.len() < offset + 3 {
             if server_context.config.log_requests {
-                log_error!(logger, "Header parsing error: Could not parse timestamp/delta");
+                log_error!(
+                    logger,
+                    "Header parsing error: Could not parse timestamp/delta"
+                );
             }
             return false;
         }
@@ -215,7 +225,10 @@ pub async fn read_rtmp_chunk<
     if packet_wrapper.packet.header.format <= RTMP_CHUNK_TYPE_1 {
         if header.len() < offset + 4 {
             if server_context.config.log_requests {
-                log_error!(logger, "Header parsing error: Could not parse message length + type");
+                log_error!(
+                    logger,
+                    "Header parsing error: Could not parse message length + type"
+                );
             }
             return false;
         }
@@ -225,7 +238,7 @@ pub async fn read_rtmp_chunk<
         packet_wrapper.packet.header.length = ((ts_bytes[2] as u32)
             | ((ts_bytes[1] as u32) << 8)
             | ((ts_bytes[0] as u32) << 16)) as usize;
-            packet_wrapper.packet.header.packet_type = header[offset + 3] as u32;
+        packet_wrapper.packet.header.packet_type = header[offset + 3] as u32;
 
         offset += 4;
     }
@@ -239,7 +252,8 @@ pub async fn read_rtmp_chunk<
             return false;
         }
 
-        packet_wrapper.packet.header.stream_id = LittleEndian::read_u32(&header[offset..offset + 4]);
+        packet_wrapper.packet.header.stream_id =
+            LittleEndian::read_u32(&header[offset..offset + 4]);
     }
 
     // Stop packet
@@ -307,17 +321,22 @@ pub async fn read_rtmp_chunk<
     let size_to_read: usize = cmp::min(
         session_context.read_status.in_chunk_size
             - (packet_wrapper.bytes % session_context.read_status.in_chunk_size),
-            packet_wrapper.packet.header.length - packet_wrapper.bytes,
+        packet_wrapper.packet.header.length - packet_wrapper.bytes,
     );
 
     if size_to_read > 0 {
         let new_payload_size = packet_wrapper.bytes + size_to_read;
-        packet_wrapper.packet.payload.resize(packet_wrapper.bytes + size_to_read, 0);
+        packet_wrapper
+            .packet
+            .payload
+            .resize(packet_wrapper.bytes + size_to_read, 0);
 
         // Read payload bytes
         match tokio::time::timeout(
             Duration::from_secs(RTMP_PING_TIMEOUT),
-            read_stream.read_exact(&mut packet_wrapper.packet.payload[packet_wrapper.bytes..new_payload_size]),
+            read_stream.read_exact(
+                &mut packet_wrapper.packet.payload[packet_wrapper.bytes..new_payload_size],
+            ),
         )
         .await
         {

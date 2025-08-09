@@ -18,14 +18,10 @@ pub enum RtmpSessionMessage {
     },
 
     /// Message to send the metadata of the stream to play
-    PlayMetadata {
-        metadata: Arc<Vec<u8>>,
-    },
+    PlayMetadata { metadata: Arc<Vec<u8>> },
 
     /// Message to send a packet of the stream to play
-    PlayPacket {
-        packet: Arc<RtmpPacket>,
-    },
+    PlayPacket { packet: Arc<RtmpPacket> },
 
     /// Message to pause the stream being played
     Pause,

@@ -22,13 +22,13 @@ pub struct IpRangeConfig {
 
 impl IpRangeConfig {
     /// Creates IP range config from string
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `config_str` - String configuration from environment
-    /// 
+    ///
     /// # Return value
-    /// 
+    ///
     /// A result for the config. In case of error, a sub-string
     /// of the invalid range is provided to indicate the user
     pub fn new_from_string(config_str: &str) -> Result<IpRangeConfig, String> {
@@ -175,13 +175,13 @@ impl IpRangeConfig {
     }
 
     /// Checks if the configured range contains an IP address
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `ip` - The IP address to check
-    /// 
+    ///
     /// # Return value
-    /// 
+    ///
     /// Returns true if the IP is contained in the range, false otherwise
     pub fn contains_ip(&self, ip: &IpAddr) -> bool {
         if self.all {
@@ -191,12 +191,12 @@ impl IpRangeConfig {
         match ip {
             IpAddr::V4(ipv4_addr) => {
                 if self.check_ip_v4(ipv4_addr) {
-                    return true
+                    return true;
                 }
             }
             IpAddr::V6(ipv6_addr) => {
                 if self.check_ip_v6(ipv6_addr) {
-                    return true
+                    return true;
                 }
             }
         }

@@ -5,7 +5,9 @@ use std::time::Duration;
 use redis::{PushKind, Value};
 
 use crate::{
-    log::Logger, log_error, log_info, server::{kill_publisher, RtmpServerContext}
+    log::Logger,
+    log_error, log_info,
+    server::{kill_publisher, RtmpServerContext},
 };
 
 use super::{RedisConfiguration, RedisRtmpCommand};
@@ -56,10 +58,10 @@ pub fn spawn_task_redis_client(
 
             // Subscribe
             if let Err(e) = connection.subscribe(&config.channel).await {
-                log_error!(logger, format!(
-                    "Could not subscribe to {}: {}",
-                    &config.channel, e
-                ));
+                log_error!(
+                    logger,
+                    format!("Could not subscribe to {}: {}", &config.channel, e)
+                );
 
                 // Wait
                 tokio::time::sleep(Duration::from_secs(10)).await;

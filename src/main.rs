@@ -47,7 +47,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-    log_info!(logger, format!("RTMP Server (Rust Implementation) ({VERSION})"));
+    log_info!(
+        logger,
+        format!("RTMP Server (Rust Implementation) ({VERSION})")
+    );
 
     // Load configuration
 
@@ -91,11 +94,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             Arc::new(logger.make_child_logger("[CONTROL/CLIENT] ")),
             control_config.clone(),
             control_client_status.clone(),
-            RtmpServerContext{
+            RtmpServerContext {
                 config: server_config.clone(),
                 status: server_status.clone(),
                 control_key_validator_sender: control_key_validator_sender.clone(),
-            }
+            },
         );
 
         // Spawn task to handle key validations
@@ -128,27 +131,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         spawn_task_redis_client(
             logger.make_child_logger("[REDIS] "),
             redis_config,
-            RtmpServerContext{
+            RtmpServerContext {
                 config: server_config.clone(),
                 status: server_status.clone(),
                 control_key_validator_sender: control_key_validator_sender.clone(),
-            }
+            },
         );
     }
 
     // Run server
 
-    let server_context = RtmpServerContext{
+    let server_context = RtmpServerContext {
         config: server_config.clone(),
         status: server_status.clone(),
         control_key_validator_sender,
     };
 
-    run_server(
-        logger,
-        server_context,
-    )
-    .await;
+    run_server(logger, server_context).await;
 
     // End of main
 

@@ -1,9 +1,9 @@
 use crate::{server::RtmpServerContext, session::RtmpSessionMessage};
 
 /// Removes all the publishers and kills them
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `server_context` - Server context
 pub async fn remove_all_publishers(server_context: &RtmpServerContext) {
     let mut status = server_context.status.lock().await;

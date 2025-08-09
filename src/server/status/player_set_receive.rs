@@ -1,9 +1,9 @@
 use crate::server::RtmpServerContext;
 
 /// Sets receive audio option for a player
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `logger` - The logger
 /// * `server_context` - The server context
 /// * `channel` - The channel ID
@@ -30,9 +30,9 @@ pub async fn player_set_receive_audio(
 }
 
 /// Sets receive video option for a player
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `logger` - The logger
 /// * `server_context` - The server context
 /// * `channel` - The channel ID

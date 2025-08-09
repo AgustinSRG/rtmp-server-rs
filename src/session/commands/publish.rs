@@ -6,7 +6,14 @@ use tokio::{
 };
 
 use crate::{
-    callback::make_start_callback, control::control_validate_key, log::Logger, log_info, rtmp::{RtmpCommand, RtmpPacket}, server::{check_channel_publishing_status, set_publisher, RtmpServerContext}, session::SessionReadThreadContext, utils::validate_id_string
+    callback::make_start_callback,
+    control::control_validate_key,
+    log::Logger,
+    log_info,
+    rtmp::{RtmpCommand, RtmpPacket},
+    server::{check_channel_publishing_status, set_publisher, RtmpServerContext},
+    session::SessionReadThreadContext,
+    utils::validate_id_string,
 };
 
 use super::super::send_status_message;
@@ -175,7 +182,10 @@ pub async fn handle_rtmp_command_publish<
 
     // Log
 
-    log_info!(logger, format!("PUBLISH ({}): {}", publish_stream_id, &channel));
+    log_info!(
+        logger,
+        format!("PUBLISH ({}): {}", publish_stream_id, &channel)
+    );
 
     // Check validity of the key (callback or coordinator)
 

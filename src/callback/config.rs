@@ -1,7 +1,9 @@
 // Callback feature configuration
 
 use crate::{
-    log::Logger, log_warning, utils::{get_env_string, get_env_u32}
+    log::Logger,
+    log_warning,
+    utils::{get_env_string, get_env_u32},
 };
 
 /// Callback configuration

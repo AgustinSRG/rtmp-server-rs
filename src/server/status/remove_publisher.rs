@@ -1,10 +1,12 @@
-use crate::{callback::make_stop_callback, control::ControlKeyValidationRequest, log::Logger, server::RtmpServerContext, session::RtmpSessionMessage};
-
+use crate::{
+    callback::make_stop_callback, control::ControlKeyValidationRequest, log::Logger,
+    server::RtmpServerContext, session::RtmpSessionMessage,
+};
 
 /// Removes a publisher from a channel
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `logger` - The logger
 /// * `server_context` - The server context
 /// * `channel` - The channel ID

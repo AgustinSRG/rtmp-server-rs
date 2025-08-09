@@ -1,7 +1,9 @@
 // Redis feature configuration
 
 use crate::{
-    log::Logger, log_error, utils::{get_env_bool, get_env_string, get_env_u32}
+    log::Logger,
+    log_error,
+    utils::{get_env_bool, get_env_string, get_env_u32},
 };
 
 /// Redis configuration

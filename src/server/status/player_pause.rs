@@ -1,9 +1,9 @@
 use crate::{server::RtmpServerContext, session::RtmpSessionMessage};
 
 /// Pauses a player
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `server_context` - The server context
 /// * `channel` - The channel ID
 /// * `player_id` - ID of the player

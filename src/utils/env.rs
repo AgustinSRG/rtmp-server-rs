@@ -5,10 +5,10 @@ use std::env;
 /// Gets boolean env var
 ///
 /// # Arguments
-/// 
+///
 /// * `var_name` - The name of the environment variable
 /// * `default_val` - The default value
-/// 
+///
 /// # Return value
 ///
 /// Returns true if the value of the variable is 'YES' or 'TRUE' (Case insensitive)
@@ -34,10 +34,10 @@ pub fn get_env_bool(var_name: &str, default_val: bool) -> bool {
 /// Gets string env var
 ///
 /// # Arguments
-/// 
+///
 /// * `var_name` - The name of the environment variable
 /// * `default_val` - The default value
-/// 
+///
 /// # Return value
 ///
 /// Returns The value of the variable as string or,
@@ -54,10 +54,10 @@ pub fn get_env_string(var_name: &str, default_val: &str) -> String {
 /// Gets u32 env var
 ///
 /// # Arguments
-/// 
+///
 /// * `var_name` - The name of the environment variable
 /// * `default_val` - The default value
-/// 
+///
 /// # Return value
 ///
 /// Returns The value of the variable as u32 or,

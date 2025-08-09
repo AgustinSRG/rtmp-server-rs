@@ -6,7 +6,10 @@ use tokio::{
 };
 
 use crate::{
-    log::Logger, log_error, rtmp::{RtmpCommand, RtmpPacket, RTMP_TYPE_FLEX_MESSAGE}, server::RtmpServerContext
+    log::Logger,
+    log_error,
+    rtmp::{RtmpCommand, RtmpPacket, RTMP_TYPE_FLEX_MESSAGE},
+    server::RtmpServerContext,
 };
 
 use super::{
@@ -53,7 +56,10 @@ pub async fn handle_rtmp_packet_invoke<
     }
 
     if packet.header.length > packet.payload.len() {
-        log_error!(logger, "Packet error: Payload does not match with packet length");
+        log_error!(
+            logger,
+            "Packet error: Payload does not match with packet length"
+        );
 
         return false;
     }

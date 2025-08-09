@@ -23,7 +23,7 @@ pub struct RtmpPacketWrapper {
 impl RtmpPacketWrapper {
     /// Creates new RtmpPacketWrapper
     pub fn new() -> RtmpPacketWrapper {
-        RtmpPacketWrapper{
+        RtmpPacketWrapper {
             packet: RtmpPacket::new_blank(),
             clock: 0,
             bytes: 0,
@@ -33,7 +33,7 @@ impl RtmpPacketWrapper {
     }
 
     /// Resets the packet wrapper
-    pub fn reset(&mut self){
+    pub fn reset(&mut self) {
         self.handled = false;
         self.packet.reset_payload();
         self.bytes = 0;
@@ -49,4 +49,3 @@ impl RtmpPacketWrapper {
         self.packet.reset();
     }
 }
-

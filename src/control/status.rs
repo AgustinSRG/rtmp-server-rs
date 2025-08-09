@@ -3,7 +3,10 @@
 use std::{collections::HashMap, sync::Arc};
 
 use futures_util::{stream::SplitSink, SinkExt};
-use tokio::{net::TcpStream, sync::{mpsc::Sender, Mutex}};
+use tokio::{
+    net::TcpStream,
+    sync::{mpsc::Sender, Mutex},
+};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use tungstenite::{Message, Utf8Bytes};
 
@@ -11,7 +14,8 @@ use crate::{log::Logger, log_error};
 
 use super::{ControlKeyValidationResponse, ControlServerMessage};
 
-type ControlClientMessageSender = Arc<Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>>;
+type ControlClientMessageSender =
+    Arc<Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>>;
 
 /// Status of the control client
 pub struct ControlClientStatus {
@@ -102,13 +106,18 @@ impl ControlClientStatus {
     }
 
     /// Adds a key validation request, returning its ID
-    pub async fn add_request(status: &Mutex<ControlClientStatus>, response_sender: Sender<ControlKeyValidationResponse>) -> Option<u64> {
+    pub async fn add_request(
+        status: &Mutex<ControlClientStatus>,
+        response_sender: Sender<ControlKeyValidationResponse>,
+    ) -> Option<u64> {
         let mut status_v = status.lock().await;
 
         if !status_v.connected {
             drop(status_v);
 
-            _ = response_sender.send(ControlKeyValidationResponse::Rejected).await;
+            _ = response_sender
+                .send(ControlKeyValidationResponse::Rejected)
+                .await;
 
             return None;
         }
@@ -123,11 +132,14 @@ impl ControlClientStatus {
     }
 
     /// Completes pending key validation request
-    pub async fn complete_request(status: &Mutex<ControlClientStatus>, id: u64, response: ControlKeyValidationResponse) {
+    pub async fn complete_request(
+        status: &Mutex<ControlClientStatus>,
+        id: u64,
+        response: ControlKeyValidationResponse,
+    ) {
         let mut status_v = status.lock().await;
 
         if let Some(rs) = status_v.pending_requests.get_mut(&id) {
-
             let response_sender = rs.clone();
             status_v.pending_requests.remove(&id);
             drop(status_v);
@@ -136,13 +148,14 @@ impl ControlClientStatus {
         }
     }
 
-
     /// Clears and rejects all pending requests
     pub async fn clear_pending_requests(status: &Mutex<ControlClientStatus>) {
         let mut status_v = status.lock().await;
 
         for response_sender in status_v.pending_requests.values() {
-            _ = response_sender.send(ControlKeyValidationResponse::Rejected).await;
+            _ = response_sender
+                .send(ControlKeyValidationResponse::Rejected)
+                .await;
         }
 
         status_v.pending_requests.clear();

@@ -2,14 +2,14 @@
 
 /// Compares 2 strings, constant time
 /// Ensures timing attacks are not viable
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `a` - First string
 /// * `b` - Second string
-/// 
+///
 /// # Return value
-/// 
+///
 /// Returns true if the 2 strings are equal, false otherwise
 pub fn string_compare_constant_time(a: &str, b: &str) -> bool {
     if a.len() != b.len() {

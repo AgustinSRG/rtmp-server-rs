@@ -3,7 +3,10 @@
 use std::sync::Arc;
 
 use crate::{
-    log::Logger, log_error, rtmp::{rtmp_build_metadata, RtmpData, RtmpPacket, RTMP_TYPE_FLEX_STREAM}, server::{set_channel_metadata, RtmpServerContext}
+    log::Logger,
+    log_error,
+    rtmp::{rtmp_build_metadata, RtmpData, RtmpPacket, RTMP_TYPE_FLEX_STREAM},
+    server::{set_channel_metadata, RtmpServerContext},
 };
 
 use super::SessionReadThreadContext;
@@ -41,7 +44,10 @@ pub async fn handle_rtmp_packet_data(
     }
 
     if packet.header.length > packet.payload.len() {
-        log_error!(logger, "Packet error: Payload does not match with packet length");
+        log_error!(
+            logger,
+            "Packet error: Payload does not match with packet length"
+        );
 
         return false;
     }

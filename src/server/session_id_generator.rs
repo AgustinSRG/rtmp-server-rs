@@ -9,9 +9,7 @@ pub struct SessionIdGenerator {
 impl SessionIdGenerator {
     /// Creates new SessionIdGenerator
     pub fn new() -> SessionIdGenerator {
-        SessionIdGenerator{
-            next_id: 1,
-        }
+        SessionIdGenerator { next_id: 1 }
     }
 
     /// Generates a new unique ID

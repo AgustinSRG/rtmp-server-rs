@@ -42,8 +42,7 @@ pub async fn handle_rtmp_command_receive_audio(
     drop(session_status_v);
 
     if let Some(channel) = channel_opt {
-        player_set_receive_audio(server_context, &channel, session_context.id, receive_audio)
-            .await;
+        player_set_receive_audio(server_context, &channel, session_context.id, receive_audio).await;
     }
 
     true
@@ -84,8 +83,7 @@ pub async fn handle_rtmp_command_receive_video(
     drop(session_status_v);
 
     if let Some(channel) = channel_opt {
-        player_set_receive_video(server_context, &channel, session_context.id, receive_video)
-            .await;
+        player_set_receive_video(server_context, &channel, session_context.id, receive_video).await;
     }
 
     true

@@ -18,10 +18,9 @@ pub async fn session_write_bytes<TW: AsyncWrite + AsyncWriteExt + Send + Sync + 
     bytes: &[u8],
 ) -> Result<(), Error> {
     let mut write_stream_v = write_stream.lock().await;
-    
+
     (*write_stream_v).write_all(bytes).await
 }
-
 
 /// Sends RTMP status message to the client
 ///

@@ -4,14 +4,14 @@
 pub const DEFAULT_MAX_ID_LENGTH: usize = 128;
 
 /// Validates ID as string
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `id` - ID to validate
 /// * `max_len` - Max allowed length for identifiers
-/// 
+///
 /// # Return value
-/// 
+///
 /// Returns true if the ID is valid, false otherwise
 pub fn validate_id_string(id: &str, max_len: usize) -> bool {
     if id.is_empty() || id.len() > max_len {
@@ -44,9 +44,15 @@ mod tests {
         let max_len = 32;
 
         assert!(!validate_id_string("", max_len));
-        assert!(!validate_id_string("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", max_len));
+        assert!(!validate_id_string(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            max_len
+        ));
         assert!(validate_id_string("a", max_len));
-        assert!(validate_id_string("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", max_len));
+        assert!(validate_id_string(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            max_len
+        ));
         assert!(validate_id_string("abc-DEF-1234567890_", max_len));
     }
 }

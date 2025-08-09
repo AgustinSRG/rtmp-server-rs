@@ -2,9 +2,9 @@ use crate::server::RtmpServerContext;
 
 /// Tries to clear an unused channel
 /// Call after every removal of a player or a publisher
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `server_context` - The server context
 /// * `channel` - The channel ID
 pub async fn try_clear_channel(server_context: &RtmpServerContext, channel: &str) {

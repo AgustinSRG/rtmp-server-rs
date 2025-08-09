@@ -6,7 +6,12 @@ use tokio::{
 };
 
 use crate::{
-    log::Logger, log_info, rtmp::{RtmpCommand, RtmpPacket}, server::{add_player, AddPlayerOptions, RtmpServerContext}, session::{send_status_message, SessionReadThreadContext}, utils::{parse_query_string_simple, validate_id_string}
+    log::Logger,
+    log_info,
+    rtmp::{RtmpCommand, RtmpPacket},
+    server::{add_player, AddPlayerOptions, RtmpServerContext},
+    session::{send_status_message, SessionReadThreadContext},
+    utils::{parse_query_string_simple, validate_id_string},
 };
 
 /// Handles RTMP command: PLAY

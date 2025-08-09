@@ -8,7 +8,9 @@ use tokio_tungstenite::connect_async;
 use tungstenite::{client::IntoClientRequest, http::HeaderValue};
 
 use crate::{
-    log::Logger, log_error, log_info, log_warning, server::{kill_publisher, remove_all_publishers, RtmpServerContext}
+    log::Logger,
+    log_error, log_info, log_warning,
+    server::{kill_publisher, remove_all_publishers, RtmpServerContext},
 };
 
 use super::{
@@ -46,7 +48,10 @@ pub fn spawn_task_control_client(
         let external_port_header: HeaderValue = match config.external_port.parse::<HeaderValue>() {
             Ok(v) => v,
             Err(e) => {
-                log_error!(logger, &format!("Error creating external port header: {}", e));
+                log_error!(
+                    logger,
+                    &format!("Error creating external port header: {}", e)
+                );
 
                 return;
             }
@@ -199,11 +204,14 @@ pub fn spawn_task_control_client(
 
                         match msg_parsed.msg_type.as_str() {
                             "ERROR" => {
-                                log_error!(logger, format!(
-                                    "Remote error. Code={} / Details: {}",
-                                    msg_parsed.get_parameter("Error-Code").unwrap_or(""),
-                                    msg_parsed.get_parameter("Error-Message").unwrap_or("")
-                                ));
+                                log_error!(
+                                    logger,
+                                    format!(
+                                        "Remote error. Code={} / Details: {}",
+                                        msg_parsed.get_parameter("Error-Code").unwrap_or(""),
+                                        msg_parsed.get_parameter("Error-Message").unwrap_or("")
+                                    )
+                                );
                             }
                             "PUBLISH-ACCEPT" => {
                                 let request_id = match msg_parsed.get_parameter("Request-Id") {
