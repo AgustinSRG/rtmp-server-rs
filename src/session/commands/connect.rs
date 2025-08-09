@@ -8,6 +8,7 @@ use tokio::{
 
 use crate::{
     log::Logger,
+    log_debug,
     rtmp::{
         rtmp_make_chunk_size_set_message, rtmp_make_connect_response,
         rtmp_make_peer_bandwidth_set_message, rtmp_make_window_ack, RtmpCommand,
@@ -50,9 +51,10 @@ pub async fn handle_rtmp_command_connect<
                 let app_str = app.get_string();
 
                 if !validate_id_string(app_str, server_context.config.id_max_length) {
-                    if server_context.config.log_requests && logger.config.debug_enabled {
-                        logger.log_debug(&format!("Command error: Invalid app value: {}", app_str));
-                    }
+                    log_debug!(
+                        logger,
+                        format!("Command error: Invalid app value: {}", app_str)
+                    );
 
                     return false;
                 }
@@ -60,17 +62,13 @@ pub async fn handle_rtmp_command_connect<
                 app_str
             }
             None => {
-                if server_context.config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug("Command error: app property not provided");
-                }
+                log_debug!(logger, "Command error: app property not provided");
 
                 return false;
             }
         },
         None => {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Command error: cmdObj argument not provided");
-            }
+            log_debug!(logger, "Command error: cmdObj argument not provided");
 
             return false;
         }
@@ -104,9 +102,11 @@ pub async fn handle_rtmp_command_connect<
     if session_status_v.channel.is_some() {
         // Already connected. This command is invalid
         drop(session_status_v);
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug("Protocol error: Connect received, but already connected");
-        }
+
+        log_debug!(
+            logger,
+            "Protocol error: Connect received, but already connected"
+        );
 
         return false;
     }
@@ -120,9 +120,10 @@ pub async fn handle_rtmp_command_connect<
 
     let window_ack_bytes = rtmp_make_window_ack(RTMP_WINDOW_ACK);
     if let Err(e) = session_write_bytes(write_stream, &window_ack_bytes).await {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug(&format!("Send error: Could not send window ACK: {}", e));
-        }
+        log_debug!(
+            logger,
+            format!("Send error: Could not send window ACK: {}", e)
+        );
         return false;
     }
 
@@ -130,9 +131,10 @@ pub async fn handle_rtmp_command_connect<
 
     let peer_bandwidth_bytes = rtmp_make_peer_bandwidth_set_message(RTMP_PEER_BANDWIDTH);
     if let Err(e) = session_write_bytes(write_stream, &peer_bandwidth_bytes).await {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug(&format!("Send error: Could not set peer bandwidth: {}", e));
-        }
+        log_debug!(
+            logger,
+            format!("Send error: Could not set peer bandwidth: {}", e)
+        );
         return false;
     }
 
@@ -141,9 +143,10 @@ pub async fn handle_rtmp_command_connect<
     let chunk_size_bytes =
         rtmp_make_chunk_size_set_message(server_context.config.chunk_size as u32);
     if let Err(e) = session_write_bytes(write_stream, &chunk_size_bytes).await {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug(&format!("Send error: Could not set chunk size: {}", e));
-        }
+        log_debug!(
+            logger,
+            format!("Send error: Could not set chunk size: {}", e)
+        );
         return false;
     }
 
@@ -152,12 +155,11 @@ pub async fn handle_rtmp_command_connect<
     let connect_response_bytes =
         rtmp_make_connect_response(trans_id, object_encoding, server_context.config.chunk_size);
     if let Err(e) = session_write_bytes(write_stream, &connect_response_bytes).await {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug(&format!(
-                "Send error: Could not send connect response: {}",
-                e
-            ));
-        }
+        log_debug!(
+            logger,
+            format!("Send error: Could not send connect response: {}", e)
+        );
+
         return false;
     }
 

@@ -9,6 +9,7 @@ use tokio::{
 
 use crate::{
     log::Logger,
+    log_debug,
     rtmp::{rtmp_make_ping_request, RTMP_PING_TIME},
     server::RtmpServerContext,
     session::session_write_bytes,
@@ -60,22 +61,16 @@ pub fn spawn_task_to_send_pings<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
 
             let ping_bytes = rtmp_make_ping_request(connect_time, server_context.config.chunk_size);
 
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Sending ping request to client");
-            }
+            log_debug!(logger, "Sending ping request to client");
 
             // Send packet
 
             match session_write_bytes(&write_stream, &ping_bytes).await {
                 Ok(_) => {
-                    if server_context.config.log_requests && logger.config.debug_enabled {
-                        logger.log_debug("Sent ping request to client");
-                    }
+                    log_debug!(logger, "Sent ping request to client");
                 }
                 Err(e) => {
-                    if server_context.config.log_requests && logger.config.debug_enabled {
-                        logger.log_debug(&format!("Could not send ping request: {}", e));
-                    }
+                    log_debug!(logger, format!("Could not send ping request: {}", e));
 
                     finished = true;
                 }

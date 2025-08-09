@@ -7,7 +7,7 @@ use rand::{rngs::StdRng, RngCore, SeedableRng};
 
 use std::sync::LazyLock;
 
-use crate::log::Logger;
+use crate::{log::Logger, log_debug};
 
 use super::{
     GENUINE_FMS, GENUINE_FP, MESSAGE_FORMAT_0, MESSAGE_FORMAT_1, MESSAGE_FORMAT_2, RANDOM_CRUD,
@@ -36,13 +36,13 @@ pub fn generate_s0_s1_s2(client_signature: &[u8], logger: &Logger) -> Result<Vec
     let mut all_bytes: Vec<u8> = Vec::new();
 
     if msg_format == MESSAGE_FORMAT_0 {
-        logger.log_debug("Using basic handshake");
+        log_debug!(logger, "Using basic handshake");
 
         all_bytes.push(RTMP_VERSION);
         all_bytes.extend(client_signature);
         all_bytes.extend(client_signature);
     } else {
-        logger.log_debug("Using S1S2 handshake");
+        log_debug!(logger, "Using S1S2 handshake");
 
         let s1 = generate_s1(msg_format, logger)?;
         let s2 = generate_s2(msg_format, client_signature, logger)?;
@@ -84,13 +84,15 @@ pub fn generate_s1(msg_format: u32, logger: &Logger) -> Result<Vec<u8>, ()> {
     let mut msg: Vec<u8> = vec![0; server_digest_offset];
 
     if handshake_bytes.len() < server_digest_offset + SHA256DL {
-        if logger.config.debug_enabled {
-            logger.log_debug(&format!(
+        log_debug!(
+            logger,
+            format!(
                 "Handshake bytes too small. Expected at least {}, but found {}",
                 server_digest_offset + SHA256DL,
                 handshake_bytes.len()
-            ));
-        }
+            )
+        );
+
         return Err(());
     }
 
@@ -111,13 +113,15 @@ pub fn generate_s1(msg_format: u32, logger: &Logger) -> Result<Vec<u8>, ()> {
     let h = calc_hmac(&msg, GENUINE_FMS.as_bytes());
 
     if h.len() != SHA256DL {
-        if logger.config.debug_enabled {
-            logger.log_debug(&format!(
+        log_debug!(
+            logger,
+            format!(
                 "HMAC size invalid. Expected {}, but found {}",
                 SHA256DL,
                 h.len()
-            ));
-        }
+            )
+        );
+
         return Err(());
     }
 
@@ -136,12 +140,13 @@ pub fn generate_s2(
     logger: &Logger,
 ) -> Result<Vec<u8>, ()> {
     if client_signature.len() < 776 {
-        if logger.config.debug_enabled {
-            logger.log_debug(&format!(
+        log_debug!(
+            logger,
+            format!(
                 "Client signature is too small. Expected at least 776, but found {}",
                 client_signature.len()
-            ));
-        }
+            )
+        );
         return Err(());
     }
 
@@ -158,13 +163,14 @@ pub fn generate_s2(
     };
 
     if client_signature.len() < challenge_key_offset + SHA256K {
-        if logger.config.debug_enabled {
-            logger.log_debug(&format!(
+        log_debug!(
+            logger,
+            format!(
                 "Client signature is too small. Expected at least {}, but found {}",
                 challenge_key_offset + SHA256K,
                 client_signature.len()
-            ));
-        }
+            )
+        );
         return Err(());
     }
 
@@ -217,12 +223,13 @@ fn compare_signatures(sig1: &[u8], sig2: &[u8]) -> bool {
 /// Detects message format from client signature
 fn detect_client_message_format(client_signature: &[u8], logger: &Logger) -> Result<u32, ()> {
     if client_signature.len() < 776 {
-        if logger.config.debug_enabled {
-            logger.log_debug(&format!(
+        log_debug!(
+            logger,
+            format!(
                 "Client signature is too small. Expected at least 776, but found {}",
                 client_signature.len()
-            ));
-        }
+            )
+        );
         return Err(());
     }
 
@@ -232,13 +239,15 @@ fn detect_client_message_format(client_signature: &[u8], logger: &Logger) -> Res
         let mut msg = vec![0; sdl];
 
         if client_signature.len() < sdl + SHA256DL {
-            if logger.config.debug_enabled {
-                logger.log_debug(&format!(
+            log_debug!(
+                logger,
+                format!(
                     "Client signature is too small. Expected at least {}, but found {}",
                     sdl + SHA256DL,
                     client_signature.len()
-                ));
-            }
+                )
+            );
+
             return Err(());
         }
 
@@ -267,13 +276,14 @@ fn detect_client_message_format(client_signature: &[u8], logger: &Logger) -> Res
         let mut msg2 = vec![0; sdl_2];
 
         if client_signature.len() < sdl_2 + SHA256DL {
-            if logger.config.debug_enabled {
-                logger.log_debug(&format!(
+            log_debug!(
+                logger,
+                format!(
                     "Client signature is too small. Expected at least {}, but found {}",
                     sdl_2 + SHA256DL,
                     client_signature.len()
-                ));
-            }
+                )
+            );
 
             return Err(());
         }

@@ -47,22 +47,4 @@ impl Logger {
             println!("{}{}{}", time_format, self.config.prefix, line);
         }
     }
-
-    /// Logs debug message
-    pub fn log_debug(&self, line: &str) {
-        if !self.config.debug_enabled {
-            return;
-        }
-
-        self.log(&format!("[DEBUG] {}", line));
-    }
-
-    /// Logs trace message
-    pub fn log_trace(&self, line: &str) {
-        if !self.config.trace_enabled {
-            return;
-        }
-
-        self.log(&format!("[TRACE] {}", line));
-    }
 }

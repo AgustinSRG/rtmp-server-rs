@@ -7,7 +7,7 @@ use tokio::sync::{
     Mutex,
 };
 
-use crate::{log::Logger, log_error};
+use crate::{log::Logger, log_debug, log_error};
 
 use super::{ControlClientStatus, ControlServerMessage};
 
@@ -121,12 +121,13 @@ pub fn spawn_task_handle_control_key_validations(
                     client_ip,
                     response_sender,
                 } => {
-                    if logger.config.debug_enabled {
-                        logger.log_debug(&format!(
+                    log_debug!(
+                        logger,
+                        format!(
                             "Handling validation request for channel: {} and key: {}",
                             &channel, &key
-                        ));
-                    }
+                        )
+                    );
 
                     // Add request
 
@@ -135,9 +136,7 @@ pub fn spawn_task_handle_control_key_validations(
                     {
                         Some(id) => id,
                         None => {
-                            if logger.config.debug_enabled {
-                                logger.log_debug("Not connected to the control server, so the key validation request was rejected.");
-                            }
+                            log_debug!(logger, "Not connected to the control server, so the key validation request was rejected.");
 
                             return;
                         }

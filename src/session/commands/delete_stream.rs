@@ -7,6 +7,7 @@ use tokio::{
 
 use crate::{
     log::Logger,
+    log_debug,
     rtmp::RtmpCommand,
     server::RtmpServerContext,
     session::{delete_stream::rtmp_delete_stream, SessionReadThreadContext},
@@ -37,16 +38,14 @@ pub async fn handle_rtmp_command_delete_stream<
     let stream_id = match cmd.get_argument("streamId") {
         Some(i) => i.get_integer() as u32,
         None => {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Command error: streamId property not provided");
-            }
+            log_debug!(logger, "Command error: streamId property not provided");
 
             return true;
         }
     };
 
-    if stream_id == 0 && server_context.config.log_requests && logger.config.debug_enabled {
-        logger.log_debug("Command error: streamId cannot be 0");
+    if stream_id == 0 {
+        log_debug!(logger, "Command error: streamId cannot be 0");
     }
 
     rtmp_delete_stream(

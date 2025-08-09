@@ -10,7 +10,7 @@ use tokio::{
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use tungstenite::{Message, Utf8Bytes};
 
-use crate::{log::Logger, log_error};
+use crate::{log::Logger, log_error, log_trace};
 
 use super::{ControlKeyValidationResponse, ControlServerMessage};
 
@@ -86,14 +86,10 @@ impl ControlClientStatus {
 
         let msg_serialized = message.serialize();
 
-        if logger.config.trace_enabled {
-            logger.log_trace(&format!("SENT MESSAGE: {}", &msg_serialized));
-        }
+        log_trace!(logger, format!("SENT MESSAGE: {}", msg_serialized));
 
         match msg_sender_v
-            .send(tungstenite::Message::Text(Utf8Bytes::from(
-                message.serialize(),
-            )))
+            .send(tungstenite::Message::Text(Utf8Bytes::from(msg_serialized)))
             .await
         {
             Ok(_) => true,

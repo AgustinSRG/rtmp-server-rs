@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::{
     log::Logger,
-    log_error,
+    log_debug, log_error, log_trace,
     rtmp::{rtmp_build_metadata, RtmpData, RtmpPacket, RTMP_TYPE_FLEX_STREAM},
     server::{set_channel_metadata, RtmpServerContext},
 };
@@ -36,9 +36,7 @@ pub async fn handle_rtmp_packet_data(
     };
 
     if packet.header.length <= offset {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug("Packet error: Packet length too short");
-        }
+        log_debug!(logger, "Packet error: Packet length too short");
 
         return false;
     }
@@ -55,17 +53,13 @@ pub async fn handle_rtmp_packet_data(
     let data = match RtmpData::decode(&packet.payload[offset..packet.header.length]) {
         Ok(c) => c,
         Err(_) => {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Packet error: Could not decode RTMP data");
-            }
+            log_debug!(logger, "Packet error: Could not decode RTMP data");
 
             return false;
         }
     };
 
-    if server_context.config.log_requests && logger.config.trace_enabled {
-        logger.log_trace(&format!("DATA RECEIVED: {}", data.to_debug_string()));
-    }
+    log_trace!(logger, format!("DATA RECEIVED: {}", data.to_debug_string()));
 
     match data.tag.as_str() {
         "@setDataFrame" => {
@@ -77,20 +71,19 @@ pub async fn handle_rtmp_packet_data(
             if let Some(channel) = channel_opt {
                 set_channel_metadata(server_context, &channel, session_context.id, metadata).await;
 
-                if server_context.config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
+                log_debug!(
+                    logger,
+                    format!(
                         "Set channel metadata: {} -> {} bytes",
                         channel, metadata_size
-                    ));
-                }
+                    )
+                );
             }
 
             true
         }
         _ => {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!("Unrecognized data: {}", data.tag));
-            }
+            log_debug!(logger, format!("Unrecognized data: {}", data.tag));
 
             true
         }

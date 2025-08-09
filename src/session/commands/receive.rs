@@ -2,6 +2,7 @@
 
 use crate::{
     log::Logger,
+    log_debug,
     rtmp::RtmpCommand,
     server::{player_set_receive_audio, player_set_receive_video, RtmpServerContext},
     session::SessionReadThreadContext,
@@ -30,9 +31,10 @@ pub async fn handle_rtmp_command_receive_audio(
         None => false,
     };
 
-    if server_context.config.log_requests && logger.config.debug_enabled {
-        logger.log_debug(&format!("Receive audio setting change: {}", receive_audio));
-    }
+    log_debug!(
+        logger,
+        format!("Receive audio setting change: {}", receive_audio)
+    );
 
     let mut session_status_v = session_context.status.lock().await;
     session_status_v.play_status.receive_audio = receive_audio;
@@ -71,9 +73,10 @@ pub async fn handle_rtmp_command_receive_video(
         None => false,
     };
 
-    if server_context.config.log_requests && logger.config.debug_enabled {
-        logger.log_debug(&format!("Receive video setting change: {}", receive_video));
-    }
+    log_debug!(
+        logger,
+        format!("Receive video setting change: {}", receive_video)
+    );
 
     let mut session_status_v = session_context.status.lock().await;
     session_status_v.play_status.receive_video = receive_video;

@@ -4,7 +4,7 @@ use std::net::IpAddr;
 
 use reqwest::StatusCode;
 
-use crate::log::Logger;
+use crate::{log::Logger, log_debug};
 
 use super::{make_callback_jwt, CallbackConfiguration, CallbackEvent};
 
@@ -28,12 +28,13 @@ pub async fn make_start_callback(
         return Some(key.to_string());
     }
 
-    if logger.config.debug_enabled {
-        logger.log_debug(&format!(
+    log_debug!(
+        logger,
+        format!(
             "POST {} | | Event: START | Channel: {}",
             callback_url, channel
-        ));
-    }
+        )
+    );
 
     // Generate token
 
@@ -60,12 +61,10 @@ pub async fn make_start_callback(
     match response {
         Ok(r) => {
             if r.status() != StatusCode::OK {
-                if logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Callback resulted in status code: {}",
-                        r.status().as_u16()
-                    ));
-                }
+                log_debug!(
+                    logger,
+                    format!("Callback resulted in status code: {}", r.status().as_u16())
+                );
 
                 return None;
             }
@@ -79,9 +78,7 @@ pub async fn make_start_callback(
             }
         }
         Err(e) => {
-            if logger.config.debug_enabled {
-                logger.log_debug(&format!("Callback resulted in error: {}", e));
-            }
+            log_debug!(logger, format!("Callback resulted in error: {}", e));
 
             None
         }
@@ -108,12 +105,13 @@ pub async fn make_stop_callback(
         return true;
     }
 
-    if logger.config.debug_enabled {
-        logger.log_debug(&format!(
+    log_debug!(
+        logger,
+        format!(
             "POST {} | | Event: STOP | Channel: {} | Stream ID: {}",
             callback_url, channel, stream_id
-        ));
-    }
+        )
+    );
 
     // Generate token
 
@@ -140,12 +138,10 @@ pub async fn make_stop_callback(
     match response {
         Ok(r) => {
             if r.status() != StatusCode::OK {
-                if logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Callback resulted in status code: {}",
-                        r.status().as_u16()
-                    ));
-                }
+                log_debug!(
+                    logger,
+                    format!("Callback resulted in status code: {}", r.status().as_u16())
+                );
 
                 return false;
             }
@@ -153,9 +149,7 @@ pub async fn make_stop_callback(
             true
         }
         Err(e) => {
-            if logger.config.debug_enabled {
-                logger.log_debug(&format!("Callback resulted in error: {}", e));
-            }
+            log_debug!(logger, format!("Callback resulted in error: {}", e));
 
             false
         }

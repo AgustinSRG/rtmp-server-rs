@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::{
     log::Logger,
+    log_debug, log_trace,
     rtmp::{RtmpPacket, RTMP_CHANNEL_VIDEO, RTMP_CHUNK_TYPE_0, RTMP_TYPE_VIDEO},
     server::RtmpServerContext,
 };
@@ -31,18 +32,14 @@ pub async fn handle_rtmp_packet_video(
     let channel_status_mu = match &session_context.read_status.channel_status {
         Some(s) => s,
         None => {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Audio packet ignored since it was not publishing");
-            }
+            log_debug!(logger, "Audio packet ignored since it was not publishing");
 
             return true;
         }
     };
 
     if packet.header.length <= 3 {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug("Packet error: Packet length too short");
-        }
+        log_debug!(logger, "Packet error: Packet length too short");
 
         return false;
     }
@@ -73,9 +70,10 @@ pub async fn handle_rtmp_packet_video(
 
     // Log
 
-    if server_context.config.log_requests && logger.config.trace_enabled {
-        logger.log_trace(&format!("VIDEO PACKET: {} bytes", packet.payload.len()));
-    }
+    log_trace!(
+        logger,
+        format!("VIDEO PACKET: {} bytes", packet.payload.len())
+    );
 
     // Prepare packet copy to store
 

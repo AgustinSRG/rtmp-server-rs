@@ -11,7 +11,7 @@ use tokio::{
 
 use crate::{
     log::Logger,
-    log_error,
+    log_debug, log_error,
     rtmp::{
         get_rtmp_header_size, rtmp_make_ack, RTMP_CHUNK_TYPE_0, RTMP_CHUNK_TYPE_1,
         RTMP_CHUNK_TYPE_2, RTMP_PING_TIMEOUT, RTMP_TYPE_METADATA,
@@ -52,9 +52,8 @@ pub async fn read_rtmp_chunk<
     // Check if the session was killed before reading any chunk
 
     if session_context.is_killed().await {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug("Session killed");
-        }
+        log_debug!(logger, "Session killed");
+
         return false;
     }
 
@@ -71,19 +70,20 @@ pub async fn read_rtmp_chunk<
         Ok(br) => match br {
             Ok(b) => b,
             Err(e) => {
-                if server_context.config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "Chunk read error. Could not read start byte: {}",
-                        e
-                    ));
-                }
+                log_debug!(
+                    logger,
+                    format!("Chunk read error. Could not read start byte: {}", e)
+                );
+
                 return false;
             }
         },
         Err(_) => {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Chunk read error. Could not read start byte: Timed out");
-            }
+            log_debug!(
+                logger,
+                "Chunk read error. Could not read start byte: Timed out"
+            );
+
             return false;
         }
     };
@@ -117,22 +117,23 @@ pub async fn read_rtmp_chunk<
                 Ok(br) => match br {
                     Ok(b) => b,
                     Err(e) => {
-                        if server_context.config.log_requests && logger.config.debug_enabled {
-                            logger.log_debug(&format!(
-                                "Chunk read error. Could not read basic byte [{}]: {}",
-                                i, e,
-                            ));
-                        }
+                        log_debug!(
+                            logger,
+                            format!("Chunk read error. Could not read basic byte [{}]: {}", i, e,)
+                        );
+
                         return false;
                     }
                 },
                 Err(_) => {
-                    if server_context.config.log_requests && logger.config.debug_enabled {
-                        logger.log_debug(&format!(
+                    log_debug!(
+                        logger,
+                        format!(
                             "Chunk read error. Could not read basic byte [{}]: Timed out",
                             i
-                        ));
-                    }
+                        )
+                    );
+
                     return false;
                 }
             };
@@ -153,17 +154,17 @@ pub async fn read_rtmp_chunk<
         {
             Ok(r) => {
                 if let Err(e) = r {
-                    if server_context.config.log_requests && logger.config.debug_enabled {
-                        logger
-                            .log_debug(&format!("Chunk read error. Could not read header: {}", e));
-                    }
+                    log_debug!(
+                        logger,
+                        format!("Chunk read error. Could not read header: {}", e)
+                    );
+
                     return false;
                 }
             }
             Err(_) => {
-                if server_context.config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug("Chunk read error. Could not read header: Timed out");
-                }
+                log_debug!(logger, "Chunk read error. Could not read header: Timed out");
+
                 return false;
             }
         };
@@ -188,11 +189,14 @@ pub async fn read_rtmp_chunk<
 
     let packet_wrapper = in_packets.get_mut(packet_buf_index).unwrap();
 
-    if packet_buf_dropped && server_context.config.log_requests && logger.config.debug_enabled {
-        logger.log_debug(&format!(
-            "Reusing a packet slot from the buffer: {}",
-            packet_buf_index
-        ));
+    if packet_buf_dropped {
+        log_debug!(
+            logger,
+            format!(
+                "Reusing a packet slot from the buffer: {}",
+                packet_buf_index
+            )
+        );
     }
 
     packet_wrapper.packet.header.channel_id = channel_id;
@@ -258,12 +262,14 @@ pub async fn read_rtmp_chunk<
 
     // Stop packet
     if packet_wrapper.packet.header.packet_type > RTMP_TYPE_METADATA {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug(&format!(
+        log_debug!(
+            logger,
+            format!(
                 "Received stop packet: {}",
                 packet_wrapper.packet.header.packet_type
-            ));
-        }
+            )
+        );
+
         return false;
     }
 
@@ -280,21 +286,20 @@ pub async fn read_rtmp_chunk<
         {
             Ok(r) => {
                 if let Err(e) = r {
-                    if server_context.config.log_requests && logger.config.debug_enabled {
-                        logger.log_debug(&format!(
-                            "Chunk read error. Could not read extended timestamp: {}",
-                            e
-                        ));
-                    }
+                    log_debug!(
+                        logger,
+                        format!("Chunk read error. Could not read extended timestamp: {}", e)
+                    );
+
                     return false;
                 }
             }
             Err(_) => {
-                if server_context.config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(
-                        "Chunk read error. Could not read extended timestamp: Timed out",
-                    );
-                }
+                log_debug!(
+                    logger,
+                    "Chunk read error. Could not read extended timestamp: Timed out"
+                );
+
                 return false;
             }
         };
@@ -342,19 +347,20 @@ pub async fn read_rtmp_chunk<
         {
             Ok(r) => {
                 if let Err(e) = r {
-                    if server_context.config.log_requests && logger.config.debug_enabled {
-                        logger.log_debug(&format!(
-                            "Chunk read error. Could not read payload bytes: {}",
-                            e
-                        ));
-                    }
+                    log_debug!(
+                        logger,
+                        format!("Chunk read error. Could not read payload bytes: {}", e)
+                    );
+
                     return false;
                 }
             }
             Err(_) => {
-                if server_context.config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug("Chunk read error. Could not read payload bytes: Timed out");
-                }
+                log_debug!(
+                    logger,
+                    "Chunk read error. Could not read payload bytes: Timed out"
+                );
+
                 return false;
             }
         };
@@ -377,9 +383,8 @@ pub async fn read_rtmp_chunk<
             )
             .await
         {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Packet handing failed");
-            }
+            log_debug!(logger, "Packet handing failed");
+
             return false;
         }
     }
@@ -406,18 +411,15 @@ pub async fn read_rtmp_chunk<
         let ack_msg = rtmp_make_ack(session_context.read_status.in_ack_size);
 
         if let Err(e) = session_write_bytes(write_stream, &ack_msg).await {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!("Could not send ACK: {}", e));
-            }
+            log_debug!(logger, format!("Could not send ACK: {}", e));
+
             return false;
         }
 
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug(&format!(
-                "Sent ACK: {}",
-                session_context.read_status.in_ack_size
-            ));
-        }
+        log_debug!(
+            logger,
+            format!("Sent ACK: {}", session_context.read_status.in_ack_size)
+        );
     }
 
     // Bitrate
@@ -440,7 +442,7 @@ pub async fn read_rtmp_chunk<
             session_context.read_status.bit_rate_bytes = 0;
             session_context.read_status.bit_rate_last_update = now;
 
-            logger.log_debug(&format!("Input bit rate is now: {} bps", bit_rate));
+            log_debug!(logger, format!("Input bit rate is now: {} bps", bit_rate));
         }
     }
 

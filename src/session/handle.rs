@@ -9,7 +9,7 @@ use tokio::{
 
 use crate::{
     log::Logger,
-    log_error,
+    log_debug, log_error,
     rtmp::{generate_s0_s1_s2, RTMP_HANDSHAKE_SIZE, RTMP_PING_TIMEOUT, RTMP_VERSION},
     server::RtmpServerContext,
     session::read_rtmp_chunk,
@@ -58,19 +58,20 @@ pub async fn handle_rtmp_session<
         Ok(br) => match br {
             Ok(b) => b,
             Err(e) => {
-                if server_context.config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!(
-                        "BAD HANDSHAKE: Could not read initial version byte: {}",
-                        e
-                    ));
-                }
+                log_debug!(
+                    logger,
+                    format!("BAD HANDSHAKE: Could not read initial version byte: {}", e)
+                );
+
                 return;
             }
         },
         Err(_) => {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("BAD HANDSHAKE: Could not read initial version byte: Timed out");
-            }
+            log_debug!(
+                logger,
+                "BAD HANDSHAKE: Could not read initial version byte: Timed out"
+            );
+
             return;
         }
     };
@@ -105,9 +106,11 @@ pub async fn handle_rtmp_session<
             }
         }
         Err(_) => {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("BAD HANDSHAKE: Could not read client signature: Timed out");
-            }
+            log_debug!(
+                logger,
+                "BAD HANDSHAKE: Could not read client signature: Timed out"
+            );
+
             return;
         }
     };
@@ -148,16 +151,16 @@ pub async fn handle_rtmp_session<
             }
         }
         Err(_) => {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("BAD HANDSHAKE: Could not read client S1 copy: Timed out");
-            }
+            log_debug!(
+                logger,
+                "BAD HANDSHAKE: Could not read client S1 copy: Timed out"
+            );
+
             return;
         }
     };
 
-    if server_context.config.log_requests && logger.config.debug_enabled {
-        logger.log_debug("Handshake successful. Entering main loop...");
-    }
+    log_debug!(logger, "Handshake successful. Entering main loop...");
 
     ////////////////////
     //    Main loop   //

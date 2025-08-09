@@ -2,6 +2,7 @@
 
 use crate::{
     log::Logger,
+    log_debug,
     rtmp::RtmpCommand,
     server::{player_pause, player_resume, RtmpServerContext},
     session::SessionReadThreadContext,
@@ -26,9 +27,7 @@ pub async fn handle_rtmp_command_pause(
     cmd: &RtmpCommand,
 ) -> bool {
     if !session_context.is_player().await {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug("Pause command ignored since it was not playing");
-        }
+        log_debug!(logger, "Pause command ignored since it was not playing");
 
         return true;
     }
@@ -36,9 +35,7 @@ pub async fn handle_rtmp_command_pause(
     let channel = match session_context.channel().await {
         Some(c) => c,
         None => {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Protocol error: Received pause before connect");
-            }
+            log_debug!(logger, "Protocol error: Received pause before connect");
 
             return false;
         }
@@ -47,9 +44,7 @@ pub async fn handle_rtmp_command_pause(
     let is_pause = match cmd.get_argument("pause") {
         Some(p) => p.get_bool(),
         None => {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Pause command is missing the pause argument");
-            }
+            log_debug!(logger, "Pause command is missing the pause argument");
 
             return true;
         }

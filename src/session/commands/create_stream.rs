@@ -7,6 +7,7 @@ use tokio::{
 
 use crate::{
     log::Logger,
+    log_debug,
     rtmp::{rtmp_make_create_stream_response, RtmpCommand},
     server::RtmpServerContext,
     session::SessionReadThreadContext,
@@ -55,12 +56,11 @@ pub async fn handle_rtmp_command_create_stream<
     let response_bytes =
         rtmp_make_create_stream_response(trans_id, stream_index, server_context.config.chunk_size);
     if let Err(e) = session_write_bytes(write_stream, &response_bytes).await {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug(&format!(
-                "Send error: Could not send connect response: {}",
-                e
-            ));
-        }
+        log_debug!(
+            logger,
+            format!("Send error: Could not send connect response: {}", e)
+        );
+
         return false;
     }
 

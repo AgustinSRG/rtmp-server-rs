@@ -9,7 +9,7 @@ use tungstenite::{client::IntoClientRequest, http::HeaderValue};
 
 use crate::{
     log::Logger,
-    log_error, log_info, log_warning,
+    log_debug, log_error, log_info, log_trace, log_warning,
     server::{kill_publisher, remove_all_publishers, RtmpServerContext},
 };
 
@@ -198,9 +198,7 @@ pub fn spawn_task_control_client(
                     tungstenite::Message::Text(utf8_bytes) => {
                         let msg_parsed = ControlServerMessage::parse(&utf8_bytes);
 
-                        if logger.config.trace_enabled {
-                            logger.log_trace(&format!("RECEIVED: {}", msg_parsed.serialize()));
-                        }
+                        log_trace!(logger, format!("RECEIVED: {}", msg_parsed.serialize()));
 
                         match msg_parsed.msg_type.as_str() {
                             "ERROR" => {
@@ -276,17 +274,15 @@ pub fn spawn_task_control_client(
                             }
                             "HEARTBEAT" => {}
                             _ => {
-                                if logger.config.debug_enabled {
-                                    logger.log_debug(&format!(
-                                        "Unrecognized message type: {}",
-                                        &msg_parsed.msg_type
-                                    ));
-                                }
+                                log_debug!(
+                                    logger,
+                                    format!("Unrecognized message type: {}", &msg_parsed.msg_type)
+                                );
                             }
                         }
                     }
                     _ => {
-                        logger.log_debug("Unknown message type received from websocket");
+                        log_debug!(logger, "Unknown message type received from websocket");
                     }
                 }
             }

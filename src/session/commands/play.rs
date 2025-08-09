@@ -7,7 +7,7 @@ use tokio::{
 
 use crate::{
     log::Logger,
-    log_info,
+    log_debug, log_info,
     rtmp::{RtmpCommand, RtmpPacket},
     server::{add_player, AddPlayerOptions, RtmpServerContext},
     session::{send_status_message, SessionReadThreadContext},
@@ -45,9 +45,7 @@ pub async fn handle_rtmp_command_play<
     let channel = match session_context.channel().await {
         Some(c) => c,
         None => {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Protocol error: Received play before connect");
-            }
+            log_debug!(logger, "Protocol error: Received play before connect");
 
             if let Err(e) = send_status_message(
                 write_stream,
@@ -59,9 +57,10 @@ pub async fn handle_rtmp_command_play<
             )
             .await
             {
-                if server_context.config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-                }
+                log_debug!(
+                    logger,
+                    format!("Send error: Could not send status message: {}", e)
+                );
             }
 
             return false;
@@ -88,9 +87,7 @@ pub async fn handle_rtmp_command_play<
             }
         }
         None => {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Command error: streamName property not provided");
-            }
+            log_debug!(logger, "Command error: streamName property not provided");
 
             if let Err(e) = send_status_message(
                 write_stream,
@@ -102,9 +99,10 @@ pub async fn handle_rtmp_command_play<
             )
             .await
             {
-                if server_context.config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-                }
+                log_debug!(
+                    logger,
+                    format!("Send error: Could not send status message: {}", e)
+                );
             }
 
             return false;
@@ -112,9 +110,10 @@ pub async fn handle_rtmp_command_play<
     };
 
     if !validate_id_string(key, server_context.config.id_max_length) {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug(&format!("Command error: Invalid streamName value: {}", key));
-        }
+        log_debug!(
+            logger,
+            format!("Command error: Invalid streamName value: {}", key)
+        );
 
         if let Err(e) = send_status_message(
             write_stream,
@@ -126,9 +125,10 @@ pub async fn handle_rtmp_command_play<
         )
         .await
         {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-            }
+            log_debug!(
+                logger,
+                format!("Send error: Could not send status message: {}", e)
+            );
         }
 
         return false;
@@ -137,9 +137,10 @@ pub async fn handle_rtmp_command_play<
     // Ensure it is not playing
 
     if session_context.is_player().await {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug("Protocol error: Received play command, but already playing");
-        }
+        log_debug!(
+            logger,
+            "Protocol error: Received play command, but already playing"
+        );
 
         if let Err(e) = send_status_message(
             write_stream,
@@ -151,9 +152,10 @@ pub async fn handle_rtmp_command_play<
         )
         .await
         {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-            }
+            log_debug!(
+                logger,
+                format!("Send error: Could not send status message: {}", e)
+            );
         }
 
         return false;
@@ -166,9 +168,7 @@ pub async fn handle_rtmp_command_play<
         .play_whitelist
         .contains_ip(&session_context.ip)
     {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug("Attempted to play, but not whitelisted");
-        }
+        log_debug!(logger, "Attempted to play, but not whitelisted");
 
         if let Err(e) = send_status_message(
             write_stream,
@@ -180,9 +180,10 @@ pub async fn handle_rtmp_command_play<
         )
         .await
         {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-            }
+            log_debug!(
+                logger,
+                format!("Send error: Could not send status message: {}", e)
+            );
         }
 
         return false;
@@ -213,9 +214,7 @@ pub async fn handle_rtmp_command_play<
     )
     .await
     {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug("Invalid streaming key provided");
-        }
+        log_debug!(logger, "Invalid streaming key provided");
 
         if let Err(e) = send_status_message(
             write_stream,
@@ -227,9 +226,10 @@ pub async fn handle_rtmp_command_play<
         )
         .await
         {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-            }
+            log_debug!(
+                logger,
+                format!("Send error: Could not send status message: {}", e)
+            );
         }
 
         return false;

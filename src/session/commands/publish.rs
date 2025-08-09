@@ -9,7 +9,7 @@ use crate::{
     callback::make_start_callback,
     control::control_validate_key,
     log::Logger,
-    log_info,
+    log_debug, log_info,
     rtmp::{RtmpCommand, RtmpPacket},
     server::{check_channel_publishing_status, set_publisher, RtmpServerContext},
     session::SessionReadThreadContext,
@@ -49,9 +49,7 @@ pub async fn handle_rtmp_command_publish<
     let channel = match session_context.channel().await {
         Some(c) => c,
         None => {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Protocol error: Received publish before connect");
-            }
+            log_debug!(logger, "Protocol error: Received publish before connect");
 
             if let Err(e) = send_status_message(
                 write_stream,
@@ -63,9 +61,10 @@ pub async fn handle_rtmp_command_publish<
             )
             .await
             {
-                if server_context.config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-                }
+                log_debug!(
+                    logger,
+                    format!("Send error: Could not send status message: {}", e)
+                );
             }
 
             return false;
@@ -83,9 +82,7 @@ pub async fn handle_rtmp_command_publish<
             }
         }
         None => {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Command error: streamName property not provided");
-            }
+            log_debug!(logger, "Command error: streamName property not provided");
 
             if let Err(e) = send_status_message(
                 write_stream,
@@ -97,9 +94,10 @@ pub async fn handle_rtmp_command_publish<
             )
             .await
             {
-                if server_context.config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-                }
+                log_debug!(
+                    logger,
+                    format!("Send error: Could not send status message: {}", e)
+                );
             }
 
             return false;
@@ -107,9 +105,10 @@ pub async fn handle_rtmp_command_publish<
     };
 
     if !validate_id_string(key, server_context.config.id_max_length) {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug(&format!("Command error: Invalid streamName value: {}", key));
-        }
+        log_debug!(
+            logger,
+            format!("Command error: Invalid streamName value: {}", key)
+        );
 
         if let Err(e) = send_status_message(
             write_stream,
@@ -121,9 +120,10 @@ pub async fn handle_rtmp_command_publish<
         )
         .await
         {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-            }
+            log_debug!(
+                logger,
+                format!("Send error: Could not send status message: {}", e)
+            );
         }
 
         return false;
@@ -132,9 +132,10 @@ pub async fn handle_rtmp_command_publish<
     // Ensure the session is not already publishing
 
     if session_context.is_publisher().await {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug("Protocol error: Received publish command, but already publishing");
-        }
+        log_debug!(
+            logger,
+            "Protocol error: Received publish command, but already publishing"
+        );
 
         if let Err(e) = send_status_message(
             write_stream,
@@ -146,9 +147,10 @@ pub async fn handle_rtmp_command_publish<
         )
         .await
         {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-            }
+            log_debug!(
+                logger,
+                format!("Send error: Could not send status message: {}", e)
+            );
         }
 
         return false;
@@ -157,10 +159,10 @@ pub async fn handle_rtmp_command_publish<
     // Ensure the channel is free to publish
 
     if check_channel_publishing_status(server_context, &channel).await {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger
-                .log_debug("Cannot publish: Another session is already publishing on the channel");
-        }
+        log_debug!(
+            logger,
+            "Cannot publish: Another session is already publishing on the channel"
+        );
 
         if let Err(e) = send_status_message(
             write_stream,
@@ -172,9 +174,10 @@ pub async fn handle_rtmp_command_publish<
         )
         .await
         {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-            }
+            log_debug!(
+                logger,
+                format!("Send error: Could not send status message: {}", e)
+            );
         }
 
         return false;
@@ -224,9 +227,10 @@ pub async fn handle_rtmp_command_publish<
             )
             .await
             {
-                if server_context.config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-                }
+                log_debug!(
+                    logger,
+                    format!("Send error: Could not send status message: {}", e)
+                );
             }
 
             return false;
@@ -236,10 +240,10 @@ pub async fn handle_rtmp_command_publish<
     // Set publisher into the server status
 
     if !set_publisher(server_context, session_context, &channel, key, &stream_id).await {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger
-                .log_debug("Cannot publish: Another session is already publishing on the channel");
-        }
+        log_debug!(
+            logger,
+            "Cannot publish: Another session is already publishing on the channel"
+        );
 
         if let Err(e) = send_status_message(
             write_stream,
@@ -251,9 +255,10 @@ pub async fn handle_rtmp_command_publish<
         )
         .await
         {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-            }
+            log_debug!(
+                logger,
+                format!("Send error: Could not send status message: {}", e)
+            );
         }
 
         return false;
@@ -275,9 +280,10 @@ pub async fn handle_rtmp_command_publish<
     )
     .await
     {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-        }
+        log_debug!(
+            logger,
+            format!("Send error: Could not send status message: {}", e)
+        );
     }
 
     // Done

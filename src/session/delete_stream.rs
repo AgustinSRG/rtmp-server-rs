@@ -7,7 +7,7 @@ use tokio::{
 
 use crate::{
     log::Logger,
-    log_info,
+    log_debug, log_info,
     server::{remove_player, remove_publisher, try_clear_channel, RtmpServerContext},
 };
 
@@ -38,9 +38,10 @@ pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
     let channel = match &session_status_v.channel {
         Some(c) => c.clone(),
         None => {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Protocol error: Trying to delete a stream before connect");
-            }
+            log_debug!(
+                logger,
+                "Protocol error: Trying to delete a stream before connect"
+            );
 
             return true;
         }
@@ -81,9 +82,10 @@ pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
         )
         .await
         {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-            }
+            log_debug!(
+                logger,
+                format!("Send error: Could not send status message: {}", e)
+            );
         }
 
         if can_clear_player {
@@ -105,9 +107,10 @@ pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
         )
         .await
         {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-            }
+            log_debug!(
+                logger,
+                format!("Send error: Could not send status message: {}", e)
+            );
         }
 
         if can_clear_publisher {

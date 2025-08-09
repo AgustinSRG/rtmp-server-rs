@@ -18,7 +18,7 @@ use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::{rustls, TlsAcceptor};
 
 use crate::log::Logger;
-use crate::{log_error, log_info};
+use crate::{log_debug, log_error, log_info};
 
 use super::{handle_connection, RtmpServerConfiguration, RtmpServerContextExtended};
 
@@ -210,9 +210,7 @@ fn handle_connection_tls(
             let stream = match tls_acceptor.accept(connection).await {
                 Ok(s) => s,
                 Err(e) => {
-                    logger
-                        .as_ref()
-                        .log_debug(&format!("Could not accept connection: {}", e));
+                    log_debug!(logger, format!("Could not accept connection: {}", e));
                     return;
                 }
             };
@@ -309,7 +307,7 @@ fn spawn_task_periodically_reload_tls_config(
                 }
             }
 
-            logger.log_debug("Checking for changes in TLS configuration...");
+            log_debug!(logger, "Checking for changes in TLS configuration...");
 
             // Check
 
@@ -336,7 +334,7 @@ fn spawn_task_periodically_reload_tls_config(
                 FileTime::from_last_modification_time(&key_file_metadata).unix_seconds();
 
             if cert_file_mod_time == cert_time && key_file_mod_time == key_time {
-                logger.log_debug("No changes detected in TLS configuration");
+                log_debug!(logger, "No changes detected in TLS configuration");
 
                 continue;
             }

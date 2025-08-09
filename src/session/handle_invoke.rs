@@ -7,7 +7,7 @@ use tokio::{
 
 use crate::{
     log::Logger,
-    log_error,
+    log_debug, log_error, log_trace,
     rtmp::{RtmpCommand, RtmpPacket, RTMP_TYPE_FLEX_MESSAGE},
     server::RtmpServerContext,
 };
@@ -48,9 +48,7 @@ pub async fn handle_rtmp_packet_invoke<
     };
 
     if packet.header.length <= offset {
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug("Packet error: Packet length too short");
-        }
+        log_debug!(logger, "Packet error: Packet length too short");
 
         return false;
     }
@@ -67,17 +65,13 @@ pub async fn handle_rtmp_packet_invoke<
     let cmd = match RtmpCommand::decode(&packet.payload[offset..packet.header.length]) {
         Ok(c) => c,
         Err(_) => {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Packet error: Could not decode RTMP command");
-            }
+            log_debug!(logger, "Packet error: Could not decode RTMP command");
 
             return false;
         }
     };
 
-    if server_context.config.log_requests && logger.config.trace_enabled {
-        logger.log_trace(&format!("COMMAND: {}", cmd.to_debug_string()));
-    }
+    log_trace!(logger, format!("COMMAND: {}", cmd.to_debug_string()));
 
     match cmd.cmd.as_str() {
         "connect" => {
@@ -144,9 +138,7 @@ pub async fn handle_rtmp_packet_invoke<
             handle_rtmp_command_receive_video(logger, server_context, session_context, &cmd).await
         }
         _ => {
-            if server_context.config.log_requests && logger.config.debug_enabled {
-                logger.log_debug(&format!("Unrecognized command: {}", cmd.cmd));
-            }
+            log_debug!(logger, format!("Unrecognized command: {}", cmd.cmd));
 
             true
         }

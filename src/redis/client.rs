@@ -6,7 +6,7 @@ use redis::{PushKind, Value};
 
 use crate::{
     log::Logger,
-    log_error, log_info,
+    log_debug, log_error, log_info, log_trace,
     server::{kill_publisher, RtmpServerContext},
 };
 
@@ -81,9 +81,7 @@ pub fn spawn_task_redis_client(
                             if let Some(val) = msg.data.first() {
                                 let msg_str = value_to_string(val);
 
-                                if logger.config.trace_enabled {
-                                    logger.log_trace(&format!("Received message: {}", &msg_str));
-                                }
+                                log_trace!(logger, format!("Received message: {}", &msg_str));
 
                                 let cmd = RedisRtmpCommand::parse(&msg_str);
 
@@ -102,12 +100,10 @@ pub fn spawn_task_redis_client(
                                         .await;
                                     }
                                     RedisRtmpCommand::Unknown => {
-                                        if logger.config.debug_enabled {
-                                            logger.log_debug(&format!(
-                                                "Unrecognized message: {}",
-                                                &msg_str
-                                            ));
-                                        }
+                                        log_debug!(
+                                            logger,
+                                            format!("Unrecognized message: {}", &msg_str)
+                                        );
                                     }
                                 }
                             }

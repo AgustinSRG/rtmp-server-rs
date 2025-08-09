@@ -9,6 +9,7 @@ use tokio::{
 
 use crate::{
     log::Logger,
+    log_debug, log_trace,
     rtmp::{
         rtmp_make_audio_codec_header_message, rtmp_make_metadata_message,
         rtmp_make_sample_access_message, rtmp_make_stream_status_message,
@@ -51,9 +52,7 @@ pub async fn handle_session_message<
             avc_sequence_header,
             gop_cache,
         } => {
-            if server_config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("RtmpSessionMessage::PlayStart");
-            }
+            log_debug!(logger, "RtmpSessionMessage::PlayStart");
 
             // Get play status
             let play_status = session_context.play_status().await;
@@ -68,15 +67,15 @@ pub async fn handle_session_message<
                 rtmp_make_stream_status_message(STREAM_BEGIN, play_status.play_stream_id);
 
             if let Err(e) = session_write_bytes(write_stream, &stream_status_bytes).await {
-                if server_config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send stream status: {}", e));
-                }
+                log_debug!(
+                    logger,
+                    format!("Send error: Could not send stream status: {}", e)
+                );
+
                 return true;
             }
 
-            if server_config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("RtmpSessionMessage::PlayStart - Sent stream status");
-            }
+            log_debug!(logger, "RtmpSessionMessage::PlayStart - Sent stream status");
 
             // Send status messages indicating play
 
@@ -90,9 +89,10 @@ pub async fn handle_session_message<
             )
             .await
             {
-                if server_config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-                }
+                log_debug!(
+                    logger,
+                    format!("Send error: Could not send status message: {}", e)
+                );
             }
 
             if let Err(e) = send_status_message(
@@ -105,23 +105,27 @@ pub async fn handle_session_message<
             )
             .await
             {
-                if server_config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-                }
+                log_debug!(
+                    logger,
+                    format!("Send error: Could not send status message: {}", e)
+                );
             }
 
-            if server_config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("RtmpSessionMessage::PlayStart - Sent status messages");
-            }
+            log_debug!(
+                logger,
+                "RtmpSessionMessage::PlayStart - Sent status messages"
+            );
 
             // Send sample access message
 
             let sample_access_bytes = rtmp_make_sample_access_message(0, server_config.chunk_size);
 
             if let Err(e) = session_write_bytes(write_stream, &sample_access_bytes).await {
-                if server_config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send sample access: {}", e));
-                }
+                log_debug!(
+                    logger,
+                    format!("Send error: Could not send sample access: {}", e)
+                );
+
                 return true;
             }
 
@@ -136,18 +140,18 @@ pub async fn handle_session_message<
                 );
 
                 if let Err(e) = session_write_bytes(write_stream, &metadata_bytes).await {
-                    if server_config.log_requests && logger.config.debug_enabled {
-                        logger.log_debug(&format!(
-                            "Send error: Could not send metadata bytes: {}",
-                            e
-                        ));
-                    }
+                    log_debug!(
+                        logger,
+                        format!("Send error: Could not send metadata bytes: {}", e)
+                    );
+
                     return true;
                 }
 
-                if server_config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug("RtmpSessionMessage::PlayStart - Sent metadata message");
-                }
+                log_debug!(
+                    logger,
+                    "RtmpSessionMessage::PlayStart - Sent metadata message"
+                );
             }
 
             // Send audio codec header
@@ -161,16 +165,15 @@ pub async fn handle_session_message<
                 );
 
                 if let Err(e) = session_write_bytes(write_stream, &audio_codec_header).await {
-                    if server_config.log_requests && logger.config.debug_enabled {
-                        logger.log_debug(&format!(
-                            "Send error: Could not send audio codec header: {}",
-                            e
-                        ));
-                    }
+                    log_debug!(
+                        logger,
+                        format!("Send error: Could not send audio codec header: {}", e)
+                    );
+
                     return true;
                 }
 
-                logger.log_debug("Sent audio codec header");
+                log_debug!(logger, "Sent audio codec header");
             }
 
             // Send video codec header
@@ -184,16 +187,15 @@ pub async fn handle_session_message<
                 );
 
                 if let Err(e) = session_write_bytes(write_stream, &video_codec_header).await {
-                    if server_config.log_requests && logger.config.debug_enabled {
-                        logger.log_debug(&format!(
-                            "Send error: Could not send video codec header: {}",
-                            e
-                        ));
-                    }
+                    log_debug!(
+                        logger,
+                        format!("Send error: Could not send video codec header: {}", e)
+                    );
+
                     return true;
                 }
 
-                logger.log_debug("Sent video codec header");
+                log_debug!(logger, "Sent video codec header");
             }
 
             // Send GOP cache
@@ -214,34 +216,30 @@ pub async fn handle_session_message<
                     );
 
                     if let Err(e) = session_write_bytes(write_stream, &packet_bytes).await {
-                        if server_config.log_requests && logger.config.debug_enabled {
-                            logger.log_debug(&format!(
-                                "Send error: Could not send GOP cached packet: {}",
-                                e
-                            ));
-                        }
+                        log_debug!(
+                            logger,
+                            format!("Send error: Could not send GOP cached packet: {}", e)
+                        );
+
                         return true;
                     }
 
-                    if server_config.log_requests && logger.config.debug_enabled {
-                        logger.log_debug(&format!(
+                    log_debug!(
+                        logger,
+                        format!(
                             "RtmpSessionMessage::PlayStart - Sent GOP packet: {} bytes",
                             packet.payload.len()
-                        ));
-                    }
+                        )
+                    );
                 }
             }
 
             // Log
 
-            if server_config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Changed play status: PLAYING");
-            }
+            log_debug!(logger, "Changed play status: PLAYING");
         }
         RtmpSessionMessage::InvalidKey => {
-            if server_config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("RtmpSessionMessage::InvalidKey");
-            }
+            log_debug!(logger, "RtmpSessionMessage::InvalidKey");
 
             // Get play status
             let (is_player, play_stream_id) = session_context.play_stream_id().await;
@@ -255,9 +253,7 @@ pub async fn handle_session_message<
 
             // Send status message
 
-            if server_config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Invalid play stream key provided");
-            }
+            log_debug!(logger, "Invalid play stream key provided");
 
             if let Err(e) = send_status_message(
                 write_stream,
@@ -269,15 +265,14 @@ pub async fn handle_session_message<
             )
             .await
             {
-                if server_config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-                }
+                log_debug!(
+                    logger,
+                    format!("Send error: Could not send status message: {}", e)
+                );
             }
         }
         RtmpSessionMessage::PlayMetadata { metadata } => {
-            if server_config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("RtmpSessionMessage::PlayMetadata");
-            }
+            log_debug!(logger, "RtmpSessionMessage::PlayMetadata");
 
             // Get play status
             let (is_player, play_stream_id) = session_context.play_stream_id().await;
@@ -298,16 +293,15 @@ pub async fn handle_session_message<
             // Send metadata
 
             if let Err(e) = session_write_bytes(write_stream, &metadata_bytes).await {
-                if server_config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not channel metadata: {}", e));
-                }
+                log_debug!(
+                    logger,
+                    format!("Send error: Could not channel metadata: {}", e)
+                );
                 return true;
             }
         }
         RtmpSessionMessage::PlayPacket { packet } => {
-            if server_config.log_requests && logger.config.trace_enabled {
-                logger.log_trace("RtmpSessionMessage::PlayPacket");
-            }
+            log_trace!(logger, "RtmpSessionMessage::PlayPacket");
 
             // Get play status
             let (is_player, play_stream_id) = session_context.play_stream_id().await;
@@ -320,16 +314,13 @@ pub async fn handle_session_message<
                 packet.create_chunks_for_stream(play_stream_id, server_config.chunk_size);
 
             if let Err(e) = session_write_bytes(write_stream, &packet_bytes).await {
-                if server_config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send packet: {}", e));
-                }
+                log_debug!(logger, format!("Send error: Could not send packet: {}", e));
+
                 return true;
             }
         }
         RtmpSessionMessage::PlayStop => {
-            if server_config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("RtmpSessionMessage::PlayStop");
-            }
+            log_debug!(logger, "RtmpSessionMessage::PlayStop");
 
             // Get play status
             let (is_player, play_stream_id) = session_context.play_stream_id().await;
@@ -350,9 +341,10 @@ pub async fn handle_session_message<
             )
             .await
             {
-                if server_config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-                }
+                log_debug!(
+                    logger,
+                    format!("Send error: Could not send status message: {}", e)
+                );
             }
 
             // Send stream status
@@ -360,22 +352,20 @@ pub async fn handle_session_message<
             let stream_status_bytes = rtmp_make_stream_status_message(STREAM_EOF, play_stream_id);
 
             if let Err(e) = session_write_bytes(write_stream, &stream_status_bytes).await {
-                if server_config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send stream status: {}", e));
-                }
+                log_debug!(
+                    logger,
+                    format!("Send error: Could not send stream status: {}", e)
+                );
+
                 return true;
             }
 
             // Log
 
-            if server_config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Changed play status: IDLE");
-            }
+            log_debug!(logger, "Changed play status: IDLE");
         }
         RtmpSessionMessage::Pause => {
-            if server_config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("RtmpSessionMessage::Pause");
-            }
+            log_debug!(logger, "RtmpSessionMessage::Pause");
 
             // Get play status
             let (is_player, play_stream_id) = session_context.play_stream_id().await;
@@ -389,9 +379,10 @@ pub async fn handle_session_message<
             let stream_status_bytes = rtmp_make_stream_status_message(STREAM_EOF, play_stream_id);
 
             if let Err(e) = session_write_bytes(write_stream, &stream_status_bytes).await {
-                if server_config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send stream status: {}", e));
-                }
+                log_debug!(
+                    logger,
+                    format!("Send error: Could not send stream status: {}", e)
+                );
                 return true;
             }
 
@@ -407,16 +398,15 @@ pub async fn handle_session_message<
             )
             .await
             {
-                if server_config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-                }
+                log_debug!(
+                    logger,
+                    format!("Send error: Could not send status message: {}", e)
+                );
             }
 
             // Log
 
-            if server_config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Changed play status: PAUSED");
-            }
+            log_debug!(logger, "Changed play status: PAUSED");
         }
         RtmpSessionMessage::Resume {
             audio_codec,
@@ -424,9 +414,7 @@ pub async fn handle_session_message<
             video_codec,
             avc_sequence_header,
         } => {
-            if server_config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("RtmpSessionMessage::Resume");
-            }
+            log_debug!(logger, "RtmpSessionMessage::Resume");
 
             // Get play status
             let (is_player, play_stream_id) = session_context.play_stream_id().await;
@@ -440,9 +428,10 @@ pub async fn handle_session_message<
             let stream_status_bytes = rtmp_make_stream_status_message(STREAM_BEGIN, play_stream_id);
 
             if let Err(e) = session_write_bytes(write_stream, &stream_status_bytes).await {
-                if server_config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send stream status: {}", e));
-                }
+                log_debug!(
+                    logger,
+                    format!("Send error: Could not send stream status: {}", e)
+                );
                 return true;
             }
 
@@ -457,16 +446,15 @@ pub async fn handle_session_message<
                 );
 
                 if let Err(e) = session_write_bytes(write_stream, &audio_codec_header).await {
-                    if server_config.log_requests && logger.config.debug_enabled {
-                        logger.log_debug(&format!(
-                            "Send error: Could not send audio codec header: {}",
-                            e
-                        ));
-                    }
+                    log_debug!(
+                        logger,
+                        format!("Send error: Could not send audio codec header: {}", e)
+                    );
+
                     return true;
                 }
 
-                logger.log_debug("Sent audio codec header");
+                log_debug!(logger, "Sent audio codec header");
             }
 
             // Send video codec header
@@ -480,16 +468,15 @@ pub async fn handle_session_message<
                 );
 
                 if let Err(e) = session_write_bytes(write_stream, &video_codec_header).await {
-                    if server_config.log_requests && logger.config.debug_enabled {
-                        logger.log_debug(&format!(
-                            "Send error: Could not send video codec header: {}",
-                            e
-                        ));
-                    }
+                    log_debug!(
+                        logger,
+                        format!("Send error: Could not send video codec header: {}", e)
+                    );
+
                     return true;
                 }
 
-                logger.log_debug("Sent video codec header");
+                log_debug!(logger, "Sent video codec header");
             }
 
             // Send status message
@@ -504,21 +491,18 @@ pub async fn handle_session_message<
             )
             .await
             {
-                if server_config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-                }
+                log_debug!(
+                    logger,
+                    format!("Send error: Could not send status message: {}", e)
+                );
             }
 
             // Log
 
-            if server_config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Changed play status: PLAYING");
-            }
+            log_debug!(logger, "Changed play status: PLAYING");
         }
         RtmpSessionMessage::ResumeIdle => {
-            if server_config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("RtmpSessionMessage::ResumeIdle");
-            }
+            log_debug!(logger, "RtmpSessionMessage::ResumeIdle");
 
             // Get play status
             let (is_player, play_stream_id) = session_context.play_stream_id().await;
@@ -532,9 +516,10 @@ pub async fn handle_session_message<
             let stream_status_bytes = rtmp_make_stream_status_message(STREAM_BEGIN, play_stream_id);
 
             if let Err(e) = session_write_bytes(write_stream, &stream_status_bytes).await {
-                if server_config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send stream status: {}", e));
-                }
+                log_debug!(
+                    logger,
+                    format!("Send error: Could not send stream status: {}", e)
+                );
                 return true;
             }
 
@@ -550,28 +535,23 @@ pub async fn handle_session_message<
             )
             .await
             {
-                if server_config.log_requests && logger.config.debug_enabled {
-                    logger.log_debug(&format!("Send error: Could not send status message: {}", e));
-                }
+                log_debug!(
+                    logger,
+                    format!("Send error: Could not send status message: {}", e)
+                );
             }
 
             // Log
 
-            if server_config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("Changed play status: IDLE");
-            }
+            log_debug!(logger, "Changed play status: IDLE");
         }
         RtmpSessionMessage::Kill => {
-            if server_config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("RtmpSessionMessage::Kill");
-            }
+            log_debug!(logger, "RtmpSessionMessage::Kill");
 
             session_context.set_killed().await;
         }
         RtmpSessionMessage::End => {
-            if server_config.log_requests && logger.config.debug_enabled {
-                logger.log_debug("RtmpSessionMessage::End");
-            }
+            log_debug!(logger, "RtmpSessionMessage::End");
 
             return false;
         }
@@ -623,22 +603,16 @@ pub fn spawn_task_to_read_session_messages<
 
         // Cleanup
 
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug("Performing session cleanup...");
-        }
+        log_debug!(logger, "Performing session cleanup...");
 
         do_session_cleanup(&logger, &mut server_context, &session_context).await;
 
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug("Draining message channel...");
-        }
+        log_debug!(logger, "Draining message channel...");
 
         // Drain channel
 
         while session_msg_receiver.try_recv().is_ok() {} // Drain the channel to prevent other threads from blocking
 
-        if server_context.config.log_requests && logger.config.debug_enabled {
-            logger.log_debug("Completed session messages handling task");
-        }
+        log_debug!(logger, "Completed session messages handling task");
     });
 }
