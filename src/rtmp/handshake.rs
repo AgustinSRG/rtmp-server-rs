@@ -36,17 +36,13 @@ pub fn generate_s0_s1_s2(client_signature: &[u8], logger: &Logger) -> Result<Vec
     let mut all_bytes: Vec<u8> = Vec::new();
 
     if msg_format == MESSAGE_FORMAT_0 {
-        if logger.config.debug_enabled {
-            logger.log_debug("Using basic handshake");
-        }
+        logger.log_debug("Using basic handshake");
 
         all_bytes.push(RTMP_VERSION);
         all_bytes.extend(client_signature);
         all_bytes.extend(client_signature);
     } else {
-        if logger.config.debug_enabled {
-            logger.log_debug("Using S1S2 handshake");
-        }
+        logger.log_debug("Using S1S2 handshake");
 
         let s1 = generate_s1(msg_format, logger)?;
         let s2 = generate_s2(msg_format, client_signature, logger)?;

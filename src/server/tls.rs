@@ -310,9 +310,7 @@ fn spawn_task_periodically_reload_tls_config(
                 }
             }
 
-            if logger.config.debug_enabled {
-                logger.log_debug("Checking for changes in TLS configuration...");
-            }
+            logger.log_debug("Checking for changes in TLS configuration...");
 
             // Check
 
@@ -339,9 +337,7 @@ fn spawn_task_periodically_reload_tls_config(
                 FileTime::from_last_modification_time(&key_file_metadata).unix_seconds();
 
             if cert_file_mod_time == cert_time && key_file_mod_time == key_time {
-                if logger.config.debug_enabled {
-                    logger.log_debug("No changes detected in TLS configuration");
-                }
+                logger.log_debug("No changes detected in TLS configuration");
 
                 continue;
             }
@@ -391,9 +387,7 @@ fn spawn_task_periodically_reload_tls_config(
             cert_resolver.set_config(certificate, signing_key);
 
             // Log
-            if logger.config.info_enabled {
-                logger.log_debug("TLS configuration reloaded");
-            }
+            logger.log_info("TLS configuration reloaded");
         }
     });
 }

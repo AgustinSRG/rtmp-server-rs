@@ -279,9 +279,7 @@ pub fn spawn_task_control_client(
                         }
                     }
                     _ => {
-                        if logger.config.debug_enabled {
-                            logger.log_debug("Unknown message type received from websocket");
-                        }
+                        logger.log_debug("Unknown message type received from websocket");
                     }
                 }
             }
