@@ -76,7 +76,7 @@ pub async fn handle_rtmp_session<
         }
     };
 
-    if version_byte != RTMP_VERSION && server_context.config.log_requests {
+    if version_byte != RTMP_VERSION {
         log_error!(
             logger,
             format!(

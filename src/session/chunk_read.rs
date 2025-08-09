@@ -207,12 +207,11 @@ pub async fn read_rtmp_chunk<
     // Timestamp / delta
     if packet_wrapper.packet.header.format <= RTMP_CHUNK_TYPE_2 {
         if header.len() < offset + 3 {
-            if server_context.config.log_requests {
-                log_error!(
-                    logger,
-                    "Header parsing error: Could not parse timestamp/delta"
-                );
-            }
+            log_error!(
+                logger,
+                "Header parsing error: Could not parse timestamp/delta"
+            );
+
             return false;
         }
 
@@ -228,12 +227,11 @@ pub async fn read_rtmp_chunk<
     // Message length + type
     if packet_wrapper.packet.header.format <= RTMP_CHUNK_TYPE_1 {
         if header.len() < offset + 4 {
-            if server_context.config.log_requests {
-                log_error!(
-                    logger,
-                    "Header parsing error: Could not parse message length + type"
-                );
-            }
+            log_error!(
+                logger,
+                "Header parsing error: Could not parse message length + type"
+            );
+
             return false;
         }
 
@@ -250,9 +248,8 @@ pub async fn read_rtmp_chunk<
     // Stream id
     if packet_wrapper.packet.header.format == RTMP_CHUNK_TYPE_0 {
         if header.len() < offset + 4 {
-            if server_context.config.log_requests {
-                log_error!(logger, "Header parsing error: Could not parse stream id");
-            }
+            log_error!(logger, "Header parsing error: Could not parse stream id");
+
             return false;
         }
 
@@ -424,7 +421,7 @@ pub async fn read_rtmp_chunk<
 
     // Bitrate
 
-    if server_context.config.log_requests && logger.config.debug_enabled {
+    if logger.config.debug_enabled {
         let now = Utc::now().timestamp_millis();
         session_context.read_status.bit_rate_bytes = session_context
             .read_status
