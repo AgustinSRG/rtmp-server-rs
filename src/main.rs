@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-    logger.log_info(&format!("RTMP Server (Rust Implementation) ({VERSION})"));
+    log_info!(logger, format!("RTMP Server (Rust Implementation) ({VERSION})"));
 
     // Load configuration
 

@@ -7,7 +7,7 @@ use tokio::{net::TcpStream, sync::{mpsc::Sender, Mutex}};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use tungstenite::{Message, Utf8Bytes};
 
-use crate::log::Logger;
+use crate::{log::Logger, log_error};
 
 use super::{ControlKeyValidationResponse, ControlServerMessage};
 
@@ -94,7 +94,7 @@ impl ControlClientStatus {
         {
             Ok(_) => true,
             Err(e) => {
-                logger.log_error(&format!("Could not send a message: {}", e));
+                log_error!(logger, &format!("Could not send a message: {}", e));
 
                 false
             }

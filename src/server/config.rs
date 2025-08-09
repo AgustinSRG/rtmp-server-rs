@@ -1,9 +1,6 @@
 /// RTMP server configuration
 use crate::{
-    callback::CallbackConfiguration,
-    log::Logger,
-    rtmp::{RTMP_CHUNK_SIZE_DEFAULT, RTMP_MAX_CHUNK_SIZE, RTMP_MIN_CHUNK_SIZE},
-    utils::{get_env_bool, get_env_string, get_env_u32, IpRangeConfig, DEFAULT_MAX_ID_LENGTH},
+    callback::CallbackConfiguration, log::Logger, log_error, rtmp::{RTMP_CHUNK_SIZE_DEFAULT, RTMP_MAX_CHUNK_SIZE, RTMP_MIN_CHUNK_SIZE}, utils::{get_env_bool, get_env_string, get_env_u32, IpRangeConfig, DEFAULT_MAX_ID_LENGTH}
 };
 
 const RTMP_PORT_DEFAULT: u32 = 1935;
@@ -45,7 +42,7 @@ impl TlsServerConfiguration {
         let port = get_env_u32("SSL_PORT", TLS_PORT_DEFAULT);
 
         if port == 0 || port > MAX_PORT {
-            logger.log_error(&format!("SSL_PORT has an invalid value: {}", port));
+            log_error!(logger, format!("SSL_PORT has an invalid value: {}", port));
             return Err(());
         }
 
@@ -127,7 +124,7 @@ impl RtmpServerConfiguration {
         let port = get_env_u32("RTMP_PORT", RTMP_PORT_DEFAULT);
 
         if port == 0 || port > MAX_PORT {
-            logger.log_error(&format!("RTMP_PORT has an invalid value: {}", port));
+            log_error!(logger, format!("RTMP_PORT has an invalid value: {}", port));
             return Err(());
         }
 
@@ -139,7 +136,7 @@ impl RtmpServerConfiguration {
             match IpRangeConfig::new_from_string(&get_env_string("RTMP_PLAY_WHITELIST", "")) {
                 Ok(pw) => pw,
                 Err(s) => {
-                    logger.log_error(&format!("RTMP_PLAY_WHITELIST has an invalid value: {}", s));
+                    log_error!(logger, format!("RTMP_PLAY_WHITELIST has an invalid value: {}", s));
                     return Err(());
                 }
             };
@@ -147,7 +144,7 @@ impl RtmpServerConfiguration {
         let chunk_size = get_env_u32("RTMP_CHUNK_SIZE", RTMP_CHUNK_SIZE_DEFAULT as u32) as usize;
 
         if !(RTMP_MIN_CHUNK_SIZE..=RTMP_MAX_CHUNK_SIZE).contains(&chunk_size) {
-            logger.log_error(&format!(
+            log_error!(logger, format!(
                 "RTMP_CHUNK_SIZE has an invalid value: {}. Min: {}. Max: {}",
                 chunk_size, RTMP_MIN_CHUNK_SIZE, RTMP_MAX_CHUNK_SIZE
             ));
@@ -164,7 +161,7 @@ impl RtmpServerConfiguration {
             {
                 Ok(cw) => cw,
                 Err(s) => {
-                    logger.log_error(&format!(
+                    log_error!(logger, format!(
                         "CONCURRENT_LIMIT_WHITELIST has an invalid value: {}",
                         s
                     ));

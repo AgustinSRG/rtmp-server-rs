@@ -18,6 +18,7 @@ use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::{rustls, TlsAcceptor};
 
 use crate::log::Logger;
+use crate::{log_error, log_info};
 
 use super::{handle_connection, RtmpServerConfiguration, RtmpServerContextExtended};
 
@@ -32,7 +33,7 @@ pub fn tls_server(
             match tokio::fs::metadata(&server_context.config.tls.certificate).await {
                 Ok(m) => m,
                 Err(e) => {
-                    logger.log_error(&format!("Could not load certificate: {}", e));
+                    log_error!(logger, format!("Could not load certificate: {}", e));
                     end_notifier
                         .send(())
                         .await
@@ -54,7 +55,7 @@ pub fn tls_server(
                 }
             }
             Err(e) => {
-                logger.log_error(&format!("Could not load certificate: {}", e));
+                log_error!(logger, format!("Could not load certificate: {}", e));
                 end_notifier
                     .send(())
                     .await
@@ -66,7 +67,7 @@ pub fn tls_server(
         let key_file_metadata = match tokio::fs::metadata(&server_context.config.tls.key).await {
             Ok(m) => m,
             Err(e) => {
-                logger.log_error(&format!("Could not load private key: {}", e));
+                log_error!(logger, format!("Could not load private key: {}", e));
                 end_notifier
                     .send(())
                     .await
@@ -81,7 +82,7 @@ pub fn tls_server(
         let key = match PrivateKeyDer::from_pem_file(&server_context.config.tls.key) {
             Ok(k) => k,
             Err(e) => {
-                logger.log_error(&format!("Could not load private key: {}", e));
+                log_error!(logger, format!("Could not load private key: {}", e));
                 end_notifier
                     .send(())
                     .await
@@ -99,7 +100,7 @@ pub fn tls_server(
         let signing_key = match key_provider.load_private_key(key) {
             Ok(k) => k,
             Err(e) => {
-                logger.log_error(&format!("Could not load private key: {}", e));
+                log_error!(logger, format!("Could not load private key: {}", e));
                 end_notifier
                     .send(())
                     .await
@@ -120,7 +121,7 @@ pub fn tls_server(
         let listener = match TcpListener::bind(&listen_addr).await {
             Ok(l) => l,
             Err(e) => {
-                logger.log_error(&format!("Could not create TCP listener: {}", e));
+                log_error!(logger, format!("Could not create TCP listener: {}", e));
                 end_notifier
                     .send(())
                     .await
@@ -129,7 +130,7 @@ pub fn tls_server(
             }
         };
 
-        logger.log_info(&format!("Listening on {}", listen_addr));
+        log_info!(logger, format!("Listening on {}", listen_addr));
 
         // Spawn task to reload certificates periodically
 
@@ -167,7 +168,7 @@ pub fn tls_server(
                     );
                 }
                 Err(e) => {
-                    logger.log_error(&format!("Could not accept connection: {}", e));
+                    log_error!(logger, format!("Could not accept connection: {}", e));
                     end_notifier
                         .send(())
                         .await
@@ -243,12 +244,10 @@ fn handle_connection_tls(
                 drop(ip_counter_v);
             }
         } else {
-            if server_context.config.log_requests {
-                logger.as_ref().log_info(&format!(
-                    "Rejected request from {} due to connection limit",
-                    ip
-                ));
-            }
+            log_info!(
+                logger,
+                format!("Rejected request from {} due to connection limit", ip)
+            );
             let _ = connection.shutdown().await;
         }
     });
@@ -317,7 +316,7 @@ fn spawn_task_periodically_reload_tls_config(
             let cert_file_metadata = match tokio::fs::metadata(&config.tls.certificate).await {
                 Ok(m) => m,
                 Err(e) => {
-                    logger.log_error(&format!("Could not load certificate: {}", e));
+                    log_error!(logger, format!("Could not load certificate: {}", e));
                     continue;
                 }
             };
@@ -328,7 +327,7 @@ fn spawn_task_periodically_reload_tls_config(
             let key_file_metadata = match tokio::fs::metadata(&config.tls.key).await {
                 Ok(m) => m,
                 Err(e) => {
-                    logger.log_error(&format!("Could not load private key: {}", e));
+                    log_error!(logger, format!("Could not load private key: {}", e));
                     continue;
                 }
             };
@@ -354,7 +353,7 @@ fn spawn_task_periodically_reload_tls_config(
                     }
                 }
                 Err(e) => {
-                    logger.log_error(&format!("Could not load certificate: {}", e));
+                    log_error!(logger, format!("Could not load certificate: {}", e));
                     continue;
                 }
             }
@@ -362,7 +361,7 @@ fn spawn_task_periodically_reload_tls_config(
             let key = match PrivateKeyDer::from_pem_file(&config.tls.key) {
                 Ok(k) => k,
                 Err(e) => {
-                    logger.log_error(&format!("Could not load private key: {}", e));
+                    log_error!(logger, format!("Could not load private key: {}", e));
                     continue;
                 }
             };
@@ -374,7 +373,7 @@ fn spawn_task_periodically_reload_tls_config(
             let signing_key = match key_provider.load_private_key(key) {
                 Ok(k) => k,
                 Err(e) => {
-                    logger.log_error(&format!("Could not load private key: {}", e));
+                    log_error!(logger, format!("Could not load private key: {}", e));
                     continue;
                 }
             };
@@ -387,7 +386,7 @@ fn spawn_task_periodically_reload_tls_config(
             cert_resolver.set_config(certificate, signing_key);
 
             // Log
-            logger.log_info("TLS configuration reloaded");
+            log_info!(logger, "TLS configuration reloaded");
         }
     });
 }

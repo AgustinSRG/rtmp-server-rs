@@ -10,12 +10,10 @@ use tokio::{
 };
 
 use crate::{
-    log::Logger,
-    rtmp::{
+    log::Logger, log_error, rtmp::{
         get_rtmp_header_size, rtmp_make_ack, RTMP_CHUNK_TYPE_0, RTMP_CHUNK_TYPE_1,
         RTMP_CHUNK_TYPE_2, RTMP_PING_TIMEOUT, RTMP_TYPE_METADATA,
-    },
-    server::RtmpServerContext,
+    }, server::RtmpServerContext
 };
 
 use super::{
@@ -199,7 +197,7 @@ pub async fn read_rtmp_chunk<
     if packet_wrapper.packet.header.format <= RTMP_CHUNK_TYPE_2 {
         if header.len() < offset + 3 {
             if server_context.config.log_requests {
-                logger.log_error("Header parsing error: Could not parse timestamp/delta");
+                log_error!(logger, "Header parsing error: Could not parse timestamp/delta");
             }
             return false;
         }
@@ -217,7 +215,7 @@ pub async fn read_rtmp_chunk<
     if packet_wrapper.packet.header.format <= RTMP_CHUNK_TYPE_1 {
         if header.len() < offset + 4 {
             if server_context.config.log_requests {
-                logger.log_error("Header parsing error: Could not parse message length + type");
+                log_error!(logger, "Header parsing error: Could not parse message length + type");
             }
             return false;
         }
@@ -236,7 +234,7 @@ pub async fn read_rtmp_chunk<
     if packet_wrapper.packet.header.format == RTMP_CHUNK_TYPE_0 {
         if header.len() < offset + 4 {
             if server_context.config.log_requests {
-                logger.log_error("Header parsing error: Could not parse stream id");
+                log_error!(logger, "Header parsing error: Could not parse stream id");
             }
             return false;
         }

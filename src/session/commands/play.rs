@@ -6,11 +6,7 @@ use tokio::{
 };
 
 use crate::{
-    log::Logger,
-    rtmp::{RtmpCommand, RtmpPacket},
-    server::{add_player, AddPlayerOptions, RtmpServerContext},
-    session::{send_status_message, SessionReadThreadContext},
-    utils::{parse_query_string_simple, validate_id_string},
+    log::Logger, log_info, rtmp::{RtmpCommand, RtmpPacket}, server::{add_player, AddPlayerOptions, RtmpServerContext}, session::{send_status_message, SessionReadThreadContext}, utils::{parse_query_string_simple, validate_id_string}
 };
 
 /// Handles RTMP command: PLAY
@@ -189,9 +185,7 @@ pub async fn handle_rtmp_command_play<
 
     // Log
 
-    if server_context.config.log_requests {
-        logger.log_info(&format!("PLAY ({}): {}", play_stream_id, &channel));
-    }
+    log_info!(logger, format!("PLAY ({}): {}", play_stream_id, &channel));
 
     // Update session status
 

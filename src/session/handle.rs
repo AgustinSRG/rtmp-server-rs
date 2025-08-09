@@ -9,6 +9,7 @@ use tokio::{
 
 use crate::{
     log::Logger,
+    log_error,
     rtmp::{generate_s0_s1_s2, RTMP_HANDSHAKE_SIZE, RTMP_PING_TIMEOUT, RTMP_VERSION},
     server::RtmpServerContext,
     session::read_rtmp_chunk,
@@ -75,10 +76,13 @@ pub async fn handle_rtmp_session<
     };
 
     if version_byte != RTMP_VERSION && server_context.config.log_requests {
-        logger.log_error(&format!(
-            "BAD HANDSHAKE: Invalid initial version byte. Expected {}, but got {}",
-            RTMP_VERSION, version_byte
-        ));
+        log_error!(
+            logger,
+            format!(
+                "BAD HANDSHAKE: Invalid initial version byte. Expected {}, but got {}",
+                RTMP_VERSION, version_byte
+            )
+        );
     }
 
     // Now, read client signature bytes
@@ -93,12 +97,10 @@ pub async fn handle_rtmp_session<
     {
         Ok(r) => {
             if let Err(e) = r {
-                if server_context.config.log_requests {
-                    logger.log_error(&format!(
-                        "BAD HANDSHAKE: Could not read client signature: {}",
-                        e
-                    ));
-                }
+                log_error!(
+                    logger,
+                    format!("BAD HANDSHAKE: Could not read client signature: {}", e)
+                );
                 return;
             }
         }
@@ -115,20 +117,16 @@ pub async fn handle_rtmp_session<
     let handshake_response = match generate_s0_s1_s2(&client_signature, &logger) {
         Ok(r) => r,
         Err(()) => {
-            if server_context.config.log_requests {
-                logger.log_error("BAD HANDSHAKE: Could not generate handshake response [Note: This is probably a server bug]");
-            }
+            log_error!(logger, "BAD HANDSHAKE: Could not generate handshake response [Note: This is probably a server bug]");
             return;
         }
     };
 
     if let Err(e) = session_write_bytes(&write_stream, &handshake_response).await {
-        if server_context.config.log_requests {
-            logger.log_error(&format!(
-                "BAD HANDSHAKE: Could not send handshake response: {}",
-                e
-            ));
-        }
+        log_error!(
+            logger,
+            format!("BAD HANDSHAKE: Could not send handshake response: {}", e)
+        );
         return;
     }
 
@@ -142,12 +140,10 @@ pub async fn handle_rtmp_session<
     {
         Ok(r) => {
             if let Err(e) = r {
-                if server_context.config.log_requests {
-                    logger.log_error(&format!(
-                        "BAD HANDSHAKE: Could not read client S1 copy: {}",
-                        e
-                    ));
-                }
+                log_error!(
+                    logger,
+                    format!("BAD HANDSHAKE: Could not read client S1 copy: {}", e)
+                );
                 return;
             }
         }

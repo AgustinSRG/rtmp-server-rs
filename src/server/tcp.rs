@@ -8,7 +8,7 @@ use tokio::{
     sync::{mpsc::Sender, Mutex},
 };
 
-use crate::log::Logger;
+use crate::{log::Logger, log_error, log_info};
 
 use super::{handle_connection, RtmpServerContextExtended};
 
@@ -25,7 +25,7 @@ pub fn tcp_server(
         let listener = match TcpListener::bind(&listen_addr).await {
             Ok(l) => l,
             Err(e) => {
-                logger.log_error(&format!("Could not create TCP listener: {}", e));
+                log_error!(logger, format!("Could not create TCP listener: {}", e));
                 end_notifier
                     .send(())
                     .await
@@ -34,7 +34,7 @@ pub fn tcp_server(
             }
         };
 
-        logger.log_info(&format!("Listening on {}", listen_addr));
+        log_info!(logger, format!("Listening on {}", listen_addr));
 
         loop {
             let accept_res = listener.accept().await;
@@ -50,7 +50,7 @@ pub fn tcp_server(
                     );
                 }
                 Err(e) => {
-                    logger.log_error(&format!("Could not accept connection: {}", e));
+                    log_error!(logger, format!("Could not accept connection: {}", e));
                     end_notifier
                         .send(())
                         .await
@@ -109,12 +109,10 @@ fn handle_connection_tcp(
                 drop(ip_counter_v);
             }
         } else {
-            if server_context.config.log_requests {
-                logger.as_ref().log_info(&format!(
-                    "Rejected request from {} due to connection limit",
-                    ip
-                ));
-            }
+            log_info!(
+                logger,
+                format!("Rejected request from {} due to connection limit", ip)
+            );
             let _ = connection.shutdown().await;
         }
     });

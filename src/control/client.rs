@@ -8,8 +8,7 @@ use tokio_tungstenite::connect_async;
 use tungstenite::{client::IntoClientRequest, http::HeaderValue};
 
 use crate::{
-    log::Logger,
-    server::{kill_publisher, remove_all_publishers, RtmpServerContext},
+    log::Logger, log_error, log_info, log_warning, server::{kill_publisher, remove_all_publishers, RtmpServerContext}
 };
 
 use super::{
@@ -38,7 +37,7 @@ pub fn spawn_task_control_client(
         let external_ip_header: HeaderValue = match config.external_ip.parse::<HeaderValue>() {
             Ok(v) => v,
             Err(e) => {
-                logger.log_error(&format!("Error creating external ip header: {}", e));
+                log_error!(logger, format!("Error creating external ip header: {}", e));
 
                 return;
             }
@@ -47,7 +46,7 @@ pub fn spawn_task_control_client(
         let external_port_header: HeaderValue = match config.external_port.parse::<HeaderValue>() {
             Ok(v) => v,
             Err(e) => {
-                logger.log_error(&format!("Error creating external port header: {}", e));
+                log_error!(logger, &format!("Error creating external port header: {}", e));
 
                 return;
             }
@@ -57,7 +56,7 @@ pub fn spawn_task_control_client(
             true => match "true".parse::<HeaderValue>() {
                 Ok(v) => v,
                 Err(e) => {
-                    logger.log_error(&format!("Error creating external ssl header: {}", e));
+                    log_error!(logger, format!("Error creating external ssl header: {}", e));
 
                     return;
                 }
@@ -65,7 +64,7 @@ pub fn spawn_task_control_client(
             false => match "false".parse::<HeaderValue>() {
                 Ok(v) => v,
                 Err(e) => {
-                    logger.log_error(&format!("Error creating external ssl header: {}", e));
+                    log_error!(logger, format!("Error creating external ssl header: {}", e));
 
                     return;
                 }
@@ -78,7 +77,7 @@ pub fn spawn_task_control_client(
             let mut request = match config.connection_url.clone().into_client_request() {
                 Ok(r) => r,
                 Err(e) => {
-                    logger.log_error(&format!("Error creating request: {}", e));
+                    log_error!(logger, format!("Error creating request: {}", e));
 
                     return;
                 }
@@ -90,7 +89,7 @@ pub fn spawn_task_control_client(
                 match make_control_auth_token(&logger, &config).parse::<HeaderValue>() {
                     Ok(v) => v,
                     Err(e) => {
-                        logger.log_error(&format!("Error creating auth header: {}", e));
+                        log_error!(logger, format!("Error creating auth header: {}", e));
 
                         return;
                     }
@@ -123,7 +122,7 @@ pub fn spawn_task_control_client(
             let (stream, _) = match connect_async(request).await {
                 Ok((s, r)) => (s, r),
                 Err(e) => {
-                    logger.log_error(&format!("Could not connect to the server: {}", e));
+                    log_error!(logger, format!("Could not connect to the server: {}", e));
 
                     // Wait
                     tokio::time::sleep(Duration::from_secs(10)).await;
@@ -135,7 +134,7 @@ pub fn spawn_task_control_client(
 
             // Connected, split the stream so multiple tasks can use it
 
-            logger.log_info(&format!("Connected: {}", &config.connection_url));
+            log_info!(logger, format!("Connected: {}", &config.connection_url));
 
             let (write_stream, mut read_stream) = stream.split();
 
@@ -171,7 +170,7 @@ pub fn spawn_task_control_client(
                         Some(r) => match r {
                             Ok(m) => m,
                             Err(e) => {
-                                logger.log_error(&format!("Disconnected from the server: {}", e));
+                                log_error!(logger, format!("Disconnected from the server: {}", e));
 
                                 read_loop_continue = false;
                                 continue;
@@ -183,7 +182,7 @@ pub fn spawn_task_control_client(
                         }
                     },
                     Err(_) => {
-                        logger.log_error("Connection timed out");
+                        log_error!(logger, "Connection timed out");
 
                         // Reconnect
                         continue;
@@ -200,7 +199,7 @@ pub fn spawn_task_control_client(
 
                         match msg_parsed.msg_type.as_str() {
                             "ERROR" => {
-                                logger.log_error(&format!(
+                                log_error!(logger, format!(
                                     "Remote error. Code={} / Details: {}",
                                     msg_parsed.get_parameter("Error-Code").unwrap_or(""),
                                     msg_parsed.get_parameter("Error-Message").unwrap_or("")
@@ -211,13 +210,13 @@ pub fn spawn_task_control_client(
                                     Some(req_id_str) => match str::parse::<u64>(req_id_str) {
                                         Ok(id) => id,
                                         Err(_) => {
-                                            logger.log_warning("Received a PUBLISH-ACCEPT message with an invalid Request-Id parameter.");
+                                            log_warning!(logger, "Received a PUBLISH-ACCEPT message with an invalid Request-Id parameter.");
                                             read_loop_continue = false;
                                             continue;
                                         }
                                     },
                                     None => {
-                                        logger.log_error("Received a PUBLISH-ACCEPT message with no Request-Id parameter.");
+                                        log_error!(logger, "Received a PUBLISH-ACCEPT message with no Request-Id parameter.");
                                         read_loop_continue = false;
                                         continue;
                                     }
@@ -239,13 +238,13 @@ pub fn spawn_task_control_client(
                                     Some(req_id_str) => match str::parse::<u64>(req_id_str) {
                                         Ok(id) => id,
                                         Err(_) => {
-                                            logger.log_warning("Received a PUBLISH-DENY message with an invalid Request-Id parameter.");
+                                            log_warning!(logger, "Received a PUBLISH-DENY message with an invalid Request-Id parameter.");
                                             read_loop_continue = false;
                                             continue;
                                         }
                                     },
                                     None => {
-                                        logger.log_warning("Received a PUBLISH-DENY message with no Request-Id parameter.");
+                                        log_warning!(logger, "Received a PUBLISH-DENY message with no Request-Id parameter.");
                                         read_loop_continue = false;
                                         continue;
                                     }

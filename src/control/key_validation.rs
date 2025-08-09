@@ -7,7 +7,7 @@ use tokio::sync::{
     Mutex,
 };
 
-use crate::log::Logger;
+use crate::{log::Logger, log_error};
 
 use super::{ControlClientStatus, ControlServerMessage};
 
@@ -109,7 +109,7 @@ pub fn spawn_task_handle_control_key_validations(
             let req = match request_receiver.recv().await {
                 Some(m) => m,
                 None => {
-                    logger.log_error("Control key validation channel was closed");
+                    log_error!(logger, "Control key validation channel was closed");
                     return;
                 }
             };

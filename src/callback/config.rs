@@ -1,8 +1,7 @@
 // Callback feature configuration
 
 use crate::{
-    log::Logger,
-    utils::{get_env_string, get_env_u32},
+    log::Logger, log_warning, utils::{get_env_string, get_env_u32}
 };
 
 /// Callback configuration
@@ -33,7 +32,7 @@ impl CallbackConfiguration {
         let jwt_secret = get_env_string("JWT_SECRET", "");
 
         if jwt_secret.is_empty() {
-            logger.log_warning("JWT_SECRET is empty. Make sure to set a secure JWT secret to prevent security issues.");
+            log_warning!(logger, "JWT_SECRET is empty. Make sure to set a secure JWT secret to prevent security issues.");
         }
 
         let jwt_custom_subject = get_env_string("CUSTOM_JWT_SUBJECT", "");

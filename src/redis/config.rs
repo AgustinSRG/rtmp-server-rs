@@ -1,8 +1,7 @@
 // Redis feature configuration
 
 use crate::{
-    log::Logger,
-    utils::{get_env_bool, get_env_string, get_env_u32},
+    log::Logger, log_error, utils::{get_env_bool, get_env_string, get_env_u32}
 };
 
 /// Redis configuration
@@ -32,7 +31,7 @@ impl RedisConfiguration {
         let port = get_env_u32("REDIS_PORT", 6379);
 
         if port == 0 || port > 65535 {
-            logger.log_error(&format!("REDIS_PORT has an invalid value: {}", port));
+            log_error!(logger, format!("REDIS_PORT has an invalid value: {}", port));
             return Err(());
         }
 

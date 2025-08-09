@@ -4,7 +4,7 @@ use chrono::Utc;
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
 
-use crate::log::Logger;
+use crate::{log::Logger, log_error};
 
 use super::{CallbackConfiguration, CallbackEvent};
 
@@ -79,7 +79,7 @@ pub fn make_callback_jwt(
     ) {
         Ok(token) => token,
         Err(e) => {
-            logger.log_error(&format!("Error encoding JWT: {}", e));
+            log_error!(logger, format!("Error encoding JWT: {}", e));
             "".to_string()
         }
     }

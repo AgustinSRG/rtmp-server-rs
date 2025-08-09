@@ -6,8 +6,7 @@ use tokio::{
 };
 
 use crate::{
-    log::Logger,
-    server::{remove_player, remove_publisher, try_clear_channel, RtmpServerContext},
+    log::Logger, log_info, server::{remove_player, remove_publisher, try_clear_channel, RtmpServerContext}
 };
 
 use super::{send_status_message, SessionReadThreadContext};
@@ -68,10 +67,8 @@ pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
     drop(session_status_v);
 
     if is_play_stream {
-        if server_context.config.log_requests {
-            logger.log_info("PLAY STOP");
-        }
-
+        log_info!(logger, "PLAY STOP");
+        
         if let Err(e) = send_status_message(
             write_stream,
             stream_id,
@@ -94,9 +91,7 @@ pub async fn rtmp_delete_stream<TW: AsyncWrite + AsyncWriteExt + Send + Sync + U
     }
 
     if is_publish_stream {
-        if server_context.config.log_requests {
-            logger.log_info("PUBLISH END");
-        }
+        log_info!(logger, "PUBLISH END");
 
         if let Err(e) = send_status_message(
             write_stream,

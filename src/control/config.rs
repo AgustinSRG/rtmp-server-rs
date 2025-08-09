@@ -3,8 +3,7 @@
 use url::Url;
 
 use crate::{
-    log::Logger,
-    utils::{get_env_bool, get_env_string},
+    log::Logger, log_error, utils::{get_env_bool, get_env_string}
 };
 
 /// Configuration of the connection to the control server
@@ -37,7 +36,7 @@ impl ControlServerConnectionConfig {
                 Ok(u) => match u.join("./ws/control/rtmp") {
                     Ok(cu) => cu.to_string(),
                     Err(_) => {
-                        logger.log_error(&format!(
+                        log_error!(logger, &format!(
                             "CONTROL_BASE_URL has an invalid value: {}",
                             base_url
                         ));
@@ -45,7 +44,7 @@ impl ControlServerConnectionConfig {
                     }
                 },
                 Err(_) => {
-                    logger.log_error(&format!(
+                    log_error!(logger, &format!(
                         "CONTROL_BASE_URL has an invalid value: {}",
                         base_url
                     ));

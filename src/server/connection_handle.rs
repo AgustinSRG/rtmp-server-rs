@@ -9,7 +9,10 @@ use tokio::{
 
 use crate::{
     log::Logger,
-    session::{handle_rtmp_session, RtmpSessionPublishStreamStatus, RtmpSessionStatus, SessionContext},
+    log_info,
+    session::{
+        handle_rtmp_session, RtmpSessionPublishStreamStatus, RtmpSessionStatus, SessionContext,
+    },
 };
 
 use super::{RtmpServerContext, RtmpServerContextExtended};
@@ -39,23 +42,23 @@ pub async fn handle_connection<
     drop(session_id_generator_v);
 
     // Create a logger for the session
-    let session_logger = Arc::new(
+    let session_logger = Arc::new(if server_context.config.log_requests {
         logger
             .as_ref()
-            .make_child_logger(&format!("[#{}] ", session_id)),
-    );
+            .make_child_logger(&format!("[#{}] ", session_id))
+    } else {
+        Logger::new_disabled()
+    });
 
     // Create status for the session
     let session_status = Arc::new(Mutex::new(RtmpSessionStatus::new()));
     let publish_status = Arc::new(Mutex::new(RtmpSessionPublishStreamStatus::new()));
 
     // Log request
-    if server_context.config.log_requests {
-        session_logger.log_info(&format!("Connection accepted from {}", ip));
-    }
+    log_info!(session_logger, format!("Connection accepted from {}", ip));
 
     // Create session context
-    let session_context = SessionContext{
+    let session_context = SessionContext {
         id: session_id,
         ip,
         status: session_status,
@@ -65,7 +68,7 @@ pub async fn handle_connection<
     // Handle session
     handle_rtmp_session(
         session_logger,
-        RtmpServerContext{
+        RtmpServerContext {
             config: server_context.config,
             status: server_context.status,
             control_key_validator_sender: server_context.control_key_validator_sender,

@@ -5,8 +5,7 @@ use std::time::Duration;
 use redis::{PushKind, Value};
 
 use crate::{
-    log::Logger,
-    server::{kill_publisher, RtmpServerContext},
+    log::Logger, log_error, log_info, server::{kill_publisher, RtmpServerContext}
 };
 
 use super::{RedisConfiguration, RedisRtmpCommand};
@@ -29,7 +28,7 @@ pub fn spawn_task_redis_client(
             let client = match redis::Client::open(config.get_redis_url()) {
                 Ok(c) => c,
                 Err(e) => {
-                    logger.log_error(&format!("Could not create a Redis client: {}", e));
+                    log_error!(logger, &format!("Could not create a Redis client: {}", e));
                     return;
                 }
             };
@@ -44,7 +43,7 @@ pub fn spawn_task_redis_client(
             {
                 Ok(c) => c,
                 Err(e) => {
-                    logger.log_error(&format!("Could not connect to Redis server: {}", e));
+                    log_error!(logger, format!("Could not connect to Redis server: {}", e));
 
                     // Wait
                     tokio::time::sleep(Duration::from_secs(10)).await;
@@ -53,11 +52,11 @@ pub fn spawn_task_redis_client(
                 }
             };
 
-            logger.log_info(&format!("Connected: {}", config.get_redis_url()));
+            log_info!(logger, format!("Connected: {}", config.get_redis_url()));
 
             // Subscribe
             if let Err(e) = connection.subscribe(&config.channel).await {
-                logger.log_error(&format!(
+                log_error!(logger, format!(
                     "Could not subscribe to {}: {}",
                     &config.channel, e
                 ));
@@ -68,7 +67,7 @@ pub fn spawn_task_redis_client(
                 continue;
             }
 
-            logger.log_info(&format!("Subscribed: {}", &config.channel));
+            log_info!(logger, format!("Subscribed: {}", &config.channel));
 
             // Read messages
             let mut continue_reading = true;
@@ -122,7 +121,7 @@ pub fn spawn_task_redis_client(
                 }
             }
 
-            logger.log_error("Connection lost");
+            log_error!(logger, "Connection lost");
         }
     });
 }
