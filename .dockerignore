@@ -2,4 +2,5 @@
 /rtmp-server.exe
 /rtmp-server
 .env
+*.mp4
 /benchmark
