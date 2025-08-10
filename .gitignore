@@ -3,6 +3,7 @@
 /target
 /rtmp-server.exe
 /rtmp-server
+*.mp4
 
 # Ignore .env
 
