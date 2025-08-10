@@ -5,7 +5,7 @@ use tokio::sync::Mutex;
 use crate::{
     server::{RtmpChannelStatus, RtmpPlayerStatus, RtmpServerContext},
     session::SessionReadThreadContext,
-    utils::string_compare_constant_time,
+    utils::string_compare_time_safe,
 };
 
 /// Options to add a player to a channel
@@ -69,7 +69,7 @@ pub async fn add_player(
             }
 
             if let Some(channel_key) = &channel_status.key {
-                if !string_compare_constant_time(channel_key, key) {
+                if !string_compare_time_safe(channel_key, key) {
                     // If the key is invalid, remove the player
                     channel_status.players.remove(&session_context.id);
                     return false;

@@ -5,7 +5,7 @@ use tokio::sync::Mutex;
 use crate::{
     server::{RtmpChannelStatus, RtmpServerContext},
     session::{RtmpSessionMessage, SessionReadThreadContext},
-    utils::string_compare_constant_time,
+    utils::string_compare_time_safe,
 };
 
 /// Sets a publisher for a channel
@@ -58,7 +58,7 @@ pub async fn set_publisher(
 
             for (player_id, player) in &mut c.players {
                 if player.idle {
-                    if string_compare_constant_time(&player.provided_key, key) {
+                    if string_compare_time_safe(&player.provided_key, key) {
                         // Correct key, start player
 
                         let mut publish_status = session_context.publish_status.lock().await;
