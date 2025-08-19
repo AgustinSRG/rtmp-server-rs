@@ -14,10 +14,6 @@ use sha2::{Digest, Sha256};
 ///
 /// Returns true if the 2 strings are equal, false otherwise
 pub fn string_compare_time_safe(a: &str, b: &str) -> bool {
-    if a.len() != b.len() {
-        return false;
-    }
-
     let a_hash = Sha256::digest(a);
     let b_hash = Sha256::digest(b);
 
