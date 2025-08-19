@@ -4,7 +4,7 @@ use crate::{
     log::Logger,
     log_error,
     rtmp::{RTMP_CHUNK_SIZE_DEFAULT, RTMP_MAX_CHUNK_SIZE, RTMP_MIN_CHUNK_SIZE},
-    utils::{get_env_bool, get_env_string, get_env_u32, IpRangeConfig, DEFAULT_MAX_ID_LENGTH},
+    utils::{get_env_bool, get_env_string, get_env_u32, IdValidationConfig, IpRangeConfig},
 };
 
 const RTMP_PORT_DEFAULT: u32 = 1935;
@@ -93,8 +93,8 @@ pub struct RtmpServerConfiguration {
     /// TLS config
     pub tls: TlsServerConfiguration,
 
-    /// Max length for Ids and Keys
-    pub id_max_length: usize,
+    /// ID validation configuration
+    pub id_validation: IdValidationConfig,
 
     /// Whitelist of IPs to play
     pub play_whitelist: IpRangeConfig,
@@ -137,7 +137,7 @@ impl RtmpServerConfiguration {
 
         let bind_address = get_env_string("BIND_ADDRESS", "0.0.0.0");
 
-        let id_max_length = get_env_u32("ID_MAX_LENGTH", DEFAULT_MAX_ID_LENGTH as u32);
+        let id_validation = IdValidationConfig::load_from_env();
 
         let play_whitelist =
             match IpRangeConfig::new_from_string(&get_env_string("RTMP_PLAY_WHITELIST", "")) {
@@ -202,7 +202,7 @@ impl RtmpServerConfiguration {
             port,
             bind_address,
             tls,
-            id_max_length: id_max_length as usize,
+            id_validation,
             play_whitelist,
             chunk_size,
             gop_cache_size,

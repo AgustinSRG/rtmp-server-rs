@@ -191,13 +191,15 @@ Lis of options related to performance.
 
 Here is a list with more options you can configure:
 
-| Variable Name      | Description                                                                                           |
-| ------------------ | ----------------------------------------------------------------------------------------------------- |
-| RTMP_HOST          | RTMP host to add in the JWT as `rtmp_host` in order for the callback handler to know the origin host. |
-| RTMP_PORT          | RTMP listening port. It will be added in the JWT as `rtmp_port`. Default is `1935`.                   |
-| BIND_ADDRESS       | Bind address for RTMP and RTMPS. By default it binds to all network interfaces.                       |
-| ID_MAX_LENGTH      | Max length for `CHANNEL` and `KEY`. By default is 128 characters                                      |
-| CUSTOM_JWT_SUBJECT | Custom subject to use for tokens sent to the callback URL                                             |
+| Variable Name               | Description                                                                                                                                           |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RTMP_HOST                   | RTMP host to add in the JWT as `rtmp_host` in order for the callback handler to know the origin host.                                                 |
+| RTMP_PORT                   | RTMP listening port. It will be added in the JWT as `rtmp_port`. Default is `1935`.                                                                   |
+| BIND_ADDRESS                | Bind address for RTMP and RTMPS. By default it binds to all network interfaces.                                                                       |
+| ID_MAX_LENGTH               | Max length for `CHANNEL` and `KEY`. By default is 128 characters                                                                                      |
+| ID_ALLOW_EMPTY              | Allow `CHANNEL` or `KEY` to be empty strings?. Set to `YES` or `NO`. Default: `NO`                                                                    |
+| ID_ALLOW_SPECIAL_CHARACTERS | Allow special characters for `CHANNEL` or `KEY`?. Set to `YES` or `NO`. Default: `NO`. Note: Some characters will be still forbidden: `>`, `\n`, `\|` |
+| CUSTOM_JWT_SUBJECT          | Custom subject to use for tokens sent to the callback URL                                                                                             |
 
 ## Testing
 

@@ -109,7 +109,7 @@ pub async fn handle_rtmp_command_play<
         }
     };
 
-    if !validate_id_string(key, server_context.config.id_max_length) {
+    if !validate_id_string(key, &server_context.config.id_validation) {
         log_debug!(
             logger,
             format!("Command error: Invalid streamName value: {}", key)

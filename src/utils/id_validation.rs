@@ -1,21 +1,69 @@
 // ID validation
 
+use crate::utils::{get_env_bool, get_env_u32};
+
 /// Default ID length limit
 pub const DEFAULT_MAX_ID_LENGTH: usize = 128;
+
+/// ID validation configuration
+#[derive(Clone)]
+pub struct IdValidationConfig {
+    /// Max length for IDs
+    max_len: usize,
+
+    /// True to allow empty strings as IDs
+    allow_empty_string: bool,
+
+    /// TRue to allow special characters in IDs
+    allow_special_characters: bool,
+}
+
+impl IdValidationConfig {
+    /// Loads configuration for environment variables
+    pub fn load_from_env() -> IdValidationConfig {
+        let max_len = get_env_u32("ID_MAX_LENGTH", DEFAULT_MAX_ID_LENGTH as u32) as usize;
+
+        let allow_empty_string = get_env_bool("ID_ALLOW_EMPTY", false);
+        let allow_special_characters = get_env_bool("ID_ALLOW_SPECIAL_CHARACTERS", false);
+
+        IdValidationConfig {
+            max_len,
+            allow_empty_string,
+            allow_special_characters,
+        }
+    }
+}
 
 /// Validates ID as string
 ///
 /// # Arguments
 ///
 /// * `id` - ID to validate
-/// * `max_len` - Max allowed length for identifiers
+/// * `config` - ID validation configuration
 ///
 /// # Return value
 ///
 /// Returns true if the ID is valid, false otherwise
-pub fn validate_id_string(id: &str, max_len: usize) -> bool {
-    if id.is_empty() || id.len() > max_len {
+pub fn validate_id_string(id: &str, config: &IdValidationConfig) -> bool {
+    if id.is_empty() && !config.allow_empty_string {
         return false;
+    }
+
+    if id.len() > config.max_len {
+        return false;
+    }
+
+    if config.allow_special_characters {
+        for char in id.chars() {
+            match char {
+                '>' | '|' | '\n' => {
+                    return false;
+                }
+                _ => {}
+            }
+        }
+
+        return true;
     }
 
     for char in id.chars() {
@@ -41,18 +89,64 @@ mod tests {
 
     #[test]
     fn test_validate_id_string() {
-        let max_len = 32;
+        // Defaults
 
-        assert!(!validate_id_string("", max_len));
+        let mut config = IdValidationConfig {
+            max_len: 32,
+            allow_empty_string: false,
+            allow_special_characters: false,
+        };
+
+        assert!(!validate_id_string("", &config));
         assert!(!validate_id_string(
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            max_len
+            &config
         ));
-        assert!(validate_id_string("a", max_len));
+        assert!(!validate_id_string("a%", &config));
+
+        assert!(validate_id_string("a", &config));
         assert!(validate_id_string(
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            max_len
+            &config
         ));
-        assert!(validate_id_string("abc-DEF-1234567890_", max_len));
+        assert!(validate_id_string("abc-DEF-1234567890_", &config));
+
+        // Allow empty
+
+        config.allow_empty_string = true;
+
+        assert!(validate_id_string("", &config));
+        assert!(!validate_id_string("a%", &config));
+
+        assert!(validate_id_string("a", &config));
+        assert!(validate_id_string(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            &config
+        ));
+        assert!(validate_id_string("abc-DEF-1234567890_", &config));
+
+        assert!(!validate_id_string(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            &config
+        ));
+
+        // Allow special characters
+
+        config.allow_special_characters = true;
+
+        assert!(validate_id_string("", &config));
+        assert!(validate_id_string("a%", &config));
+
+        assert!(validate_id_string("a", &config));
+        assert!(validate_id_string(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            &config
+        ));
+        assert!(validate_id_string("abc-DEF-1234567890_", &config));
+
+        assert!(!validate_id_string(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            &config
+        ));
     }
 }

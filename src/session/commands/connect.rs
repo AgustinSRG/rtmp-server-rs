@@ -50,7 +50,7 @@ pub async fn handle_rtmp_command_connect<
             Some(app) => {
                 let app_str = app.get_string();
 
-                if !validate_id_string(app_str, server_context.config.id_max_length) {
+                if !validate_id_string(app_str, &server_context.config.id_validation) {
                     log_debug!(
                         logger,
                         format!("Command error: Invalid app value: {}", app_str)
