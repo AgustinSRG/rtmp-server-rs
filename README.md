@@ -179,7 +179,7 @@ List of options made to mitigate DOS (Denial of Service) attacks.
 
 ### Performance options
 
-Lis of options related to performance.
+List of options related to performance.
 
 | Variable Name     | Description                                                                                     |
 | ----------------- | ----------------------------------------------------------------------------------------------- |
